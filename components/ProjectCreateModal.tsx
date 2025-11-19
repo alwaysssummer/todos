@@ -1,0 +1,481 @@
+'use client'
+
+import { useState } from 'react'
+import { X, Folder, GraduationCap, Repeat } from 'lucide-react'
+import type { Project } from '@/types/database'
+
+interface ProjectCreateModalProps {
+  onClose: () => void
+  onCreateProject: (project: Partial<Project>) => Promise<Project>
+  onGenerateTasks?: (tasks: any[]) => Promise<void>
+}
+
+type ProjectType = 'folder' | 'student' | 'habit'
+
+export default function ProjectCreateModal({ onClose, onCreateProject, onGenerateTasks }: ProjectCreateModalProps) {
+  const [step, setStep] = useState<'type' | 'config'>('type')
+  const [selectedType, setSelectedType] = useState<ProjectType>('folder')
+  
+  // 공통 필드
+  const [name, setName] = useState('')
+  const [color, setColor] = useState('#10b981')
+  
+  // 학생 시간표 필드
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [endDate, setEndDate] = useState('')
+  const [scheduleTemplate, setScheduleTemplate] = useState<{ day: number, time: string, duration: number }[]>([])
+  
+  // 루틴/습관 필드
+  const [repeatDays, setRepeatDays] = useState<number[]>([])
+  const [targetTime, setTargetTime] = useState('07:00')
+  const [targetDuration, setTargetDuration] = useState(30)
+
+  const colors = [
+    '#10b981', // green
+    '#3b82f6', // blue
+    '#f59e0b', // amber
+    '#8b5cf6', // purple
+    '#ef4444', // red
+    '#ec4899', // pink
+    '#14b8a6', // teal
+    '#f97316', // orange
+  ]
+
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+
+  const toggleScheduleDay = (day: number) => {
+    const existing = scheduleTemplate.find(s => s.day === day)
+    if (existing) {
+      setScheduleTemplate(scheduleTemplate.filter(s => s.day !== day))
+    } else {
+      setScheduleTemplate([...scheduleTemplate, { day, time: '09:00', duration: 40 }])
+    }
+  }
+
+  const updateScheduleTime = (day: number, time: string) => {
+    setScheduleTemplate(scheduleTemplate.map(s => 
+      s.day === day ? { ...s, time } : s
+    ))
+  }
+
+  const updateScheduleDuration = (day: number, duration: number) => {
+    setScheduleTemplate(scheduleTemplate.map(s => 
+      s.day === day ? { ...s, duration } : s
+    ))
+  }
+
+  const toggleRepeatDay = (day: number) => {
+    if (repeatDays.includes(day)) {
+      setRepeatDays(repeatDays.filter(d => d !== day))
+    } else {
+      setRepeatDays([...repeatDays, day].sort())
+    }
+  }
+
+  const handleCreate = async () => {
+    let projectData: Partial<Project> = {
+      name,
+      color,
+      type: selectedType,
+      status: 'active',
+    }
+
+    if (selectedType === 'student') {
+      projectData = {
+        ...projectData,
+        start_date: startDate,
+        end_date: endDate || undefined,
+        schedule_template: scheduleTemplate,
+      }
+    } else if (selectedType === 'habit') {
+      projectData = {
+        ...projectData,
+        start_date: startDate,
+        repeat_days: repeatDays,
+        target_time: targetTime,
+        target_duration: targetDuration,
+      }
+    }
+
+    const project = await onCreateProject(projectData)
+    
+    // 자동 태스크 생성 (학생/습관 프로젝트만)
+    if (onGenerateTasks && (selectedType === 'student' || selectedType === 'habit')) {
+      const tasks = generateTasksFromProject(project)
+      await onGenerateTasks(tasks)
+    }
+    
+    onClose()
+  }
+
+  const generateTasksFromProject = (project: Project): any[] => {
+    const tasks: any[] = []
+    const startDate = project.start_date ? new Date(project.start_date) : new Date()
+    const now = new Date()
+
+    if (project.type === 'student' && project.schedule_template) {
+      // 시작일이 속한 주의 월요일을 찾기 (week의 기준점)
+      const getWeekStart = (date: Date): Date => {
+        const d = new Date(date)
+        const day = d.getDay() // 0(일) ~ 6(토)
+        const diff = day === 0 ? -6 : 1 - day // 월요일을 기준으로
+        d.setDate(d.getDate() + diff)
+        d.setHours(0, 0, 0, 0)
+        return d
+      }
+      
+      const weekStart = getWeekStart(startDate)
+
+      // 향후 4주치 생성
+      for (let week = 0; week < 4; week++) {
+        project.schedule_template.forEach(schedule => {
+          // 각 주의 월요일에서 시작
+          const lessonDate = new Date(weekStart)
+          lessonDate.setDate(lessonDate.getDate() + (week * 7))
+          
+          // 해당 요일로 이동 (0=일요일, 1=월요일, ...)
+          const targetDay = schedule.day
+          const mondayDay = lessonDate.getDay() // 항상 1(월요일)이어야 함
+          let daysToAdd = targetDay - mondayDay
+          if (targetDay === 0) daysToAdd = 6 // 일요일은 +6일
+          lessonDate.setDate(lessonDate.getDate() + daysToAdd)
+
+          // 시간 설정
+          const [hour, minute] = schedule.time.split(':').map(Number)
+          lessonDate.setHours(hour, minute, 0, 0)
+
+          // 현재 시간보다 이전이면 생성하지 않음 (이미 지난 수업은 건너뛰고 다음 주차 생성)
+          if (lessonDate < now) return
+
+          // 종료일 체크
+          if (project.end_date && lessonDate > new Date(project.end_date)) {
+            return
+          }
+
+          tasks.push({
+            title: project.name,
+            project_id: project.id,
+            start_time: lessonDate.toISOString(),
+            duration: schedule.duration || 40,
+            status: 'scheduled',
+            is_auto_generated: true,
+            is_top5: false,
+          })
+        })
+      }
+    } else if (project.type === 'habit' && project.repeat_days) {
+      // 습관 로직도 동일하게 월요일 기준으로 수정
+      const getWeekStart = (date: Date): Date => {
+        const d = new Date(date)
+        const day = d.getDay() // 0(일) ~ 6(토)
+        const diff = day === 0 ? -6 : 1 - day // 월요일을 기준으로
+        d.setDate(d.getDate() + diff)
+        d.setHours(0, 0, 0, 0)
+        return d
+      }
+      
+      const weekStart = getWeekStart(startDate)
+
+      // 향후 4주치 생성
+      for (let week = 0; week < 4; week++) {
+        project.repeat_days.forEach(dayOfWeek => {
+          // 각 주의 월요일에서 시작
+          const instanceDate = new Date(weekStart)
+          instanceDate.setDate(instanceDate.getDate() + (week * 7))
+          
+          // 해당 요일로 이동
+          const currentDay = instanceDate.getDay() // 1(월)
+          let daysToAdd = dayOfWeek - currentDay
+          if (dayOfWeek === 0) daysToAdd = 6 // 일요일은 +6일
+          instanceDate.setDate(instanceDate.getDate() + daysToAdd)
+
+          // 시간 설정
+          if (project.target_time) {
+            const [hour, minute] = project.target_time.split(':').map(Number)
+            instanceDate.setHours(hour, minute, 0, 0)
+          }
+
+          // 현재 시간보다 이전이면 생성하지 않음
+          if (instanceDate < now) return
+
+          tasks.push({
+            title: project.name,
+            project_id: project.id,
+            start_time: instanceDate.toISOString(),
+            duration: project.target_duration || 30,
+            status: 'scheduled',
+            is_auto_generated: true,
+            is_top5: false,
+            habit_completed: false,
+          })
+        })
+      }
+    }
+
+    return tasks
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {step === 'type' ? '프로젝트 타입 선택' : '프로젝트 생성'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {step === 'type' && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 mb-6">프로젝트 타입을 선택하세요</p>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <button
+                  onClick={() => { setSelectedType('folder'); setStep('config') }}
+                  className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+                >
+                  <Folder size={40} className="text-gray-600 mb-3" />
+                  <span className="font-medium text-gray-900">일반 폴더</span>
+                  <span className="text-xs text-gray-500 mt-1 text-center">태스크 그룹핑</span>
+                </button>
+
+                <button
+                  onClick={() => { setSelectedType('student'); setStep('config') }}
+                  className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-200 hover:border-green-400 hover:bg-green-50 transition-all"
+                >
+                  <GraduationCap size={40} className="text-green-600 mb-3" />
+                  <span className="font-medium text-gray-900">학생 시간표</span>
+                  <span className="text-xs text-gray-500 mt-1 text-center">수업 관리</span>
+                </button>
+
+                <button
+                  onClick={() => { setSelectedType('habit'); setStep('config') }}
+                  className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-all"
+                >
+                  <Repeat size={40} className="text-amber-600 mb-3" />
+                  <span className="font-medium text-gray-900">루틴/습관</span>
+                  <span className="text-xs text-gray-500 mt-1 text-center">습관 추적</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'config' && (
+            <div className="space-y-5">
+              {/* 공통: 이름 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {selectedType === 'student' ? '학생 정보' : selectedType === 'habit' ? '습관 이름' : '프로젝트 이름'}
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={selectedType === 'student' ? '철수 - 영어' : selectedType === 'habit' ? '아침 운동' : '웹사이트 개발'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* 공통: 색상 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">색상</label>
+                <div className="flex gap-2">
+                  {colors.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColor(c)}
+                      className={`w-8 h-8 rounded-full transition-transform ${color === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : ''}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* 학생 시간표 설정 */}
+              {selectedType === 'student' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">종료일 (선택)</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="진행 중"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">정규 시간표</label>
+                    <div className="space-y-2">
+                      {[1, 2, 3, 4, 5, 6, 0].map((day) => {
+                        const schedule = scheduleTemplate.find(s => s.day === day)
+                        const isChecked = !!schedule
+                        
+                        return (
+                          <div key={day} className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleScheduleDay(day)}
+                              className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                                isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-green-400'
+                              }`}
+                            >
+                              {isChecked && <span className="text-white text-xs">✓</span>}
+                            </button>
+                            <span className="w-8 text-sm font-medium text-gray-700">{dayNames[day]}</span>
+                            {isChecked && (
+                              <>
+                                <div className="flex gap-1">
+                                  <select
+                                    value={schedule?.time.split(':')[0] || '09'}
+                                    onChange={(e) => {
+                                      const currentMinute = schedule?.time.split(':')[1] || '00'
+                                      updateScheduleTime(day, `${e.target.value}:${currentMinute}`)
+                                    }}
+                                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    {Array.from({ length: 15 }, (_, i) => i + 9).map((hour) => (
+                                      <option key={hour} value={hour.toString().padStart(2, '0')}>
+                                        {hour.toString().padStart(2, '0')}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <span className="text-sm self-center">:</span>
+                                  <select
+                                    value={schedule?.time.split(':')[1] || '00'}
+                                    onChange={(e) => {
+                                      const currentHour = schedule?.time.split(':')[0] || '09'
+                                      updateScheduleTime(day, `${currentHour}:${e.target.value}`)
+                                    }}
+                                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    {['00', '10', '20', '30', '40', '50'].map(min => (
+                                      <option key={min} value={min}>{min}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                  <select
+                                    value={schedule?.duration || 40}
+                                    onChange={(e) => updateScheduleDuration(day, Number(e.target.value))}
+                                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value={30}>30분</option>
+                                    <option value={40}>40분</option>
+                                    <option value={60}>60분</option>
+                                    <option value={90}>90분</option>
+                                    <option value={120}>120분</option>
+                                  </select>
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 루틴/습관 설정 */}
+              {selectedType === 'habit' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">반복 요일</label>
+                    <div className="flex gap-2">
+                      {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+                        <button
+                          key={day}
+                          onClick={() => toggleRepeatDay(day)}
+                          className={`w-10 h-10 rounded-full border-2 transition-all ${
+                            repeatDays.includes(day)
+                              ? 'bg-amber-500 border-amber-500 text-white font-semibold'
+                              : 'border-gray-300 text-gray-600 hover:border-amber-400'
+                          }`}
+                        >
+                          {dayNames[day]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">목표 시간</label>
+                      <input
+                        type="time"
+                        value={targetTime}
+                        onChange={(e) => setTargetTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">소요 시간</label>
+                      <select
+                        value={targetDuration}
+                        onChange={(e) => setTargetDuration(Number(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={15}>15분</option>
+                        <option value={30}>30분</option>
+                        <option value={45}>45분</option>
+                        <option value={60}>60분</option>
+                        <option value={90}>90분</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+          {step === 'config' && (
+            <button
+              onClick={() => setStep('type')}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              ← 뒤로
+            </button>
+          )}
+          <div className="flex-1" />
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              취소
+            </button>
+            {step === 'config' && (
+              <button
+                onClick={handleCreate}
+                disabled={!name.trim()}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                생성
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
