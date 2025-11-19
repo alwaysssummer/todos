@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Calendar, Folder, GraduationCap, Repeat, X } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import type { Project, Task } from '@/types/database'
 import ProjectCreateModal from './ProjectCreateModal'
 import ProjectDetailModal from './ProjectDetailModal'
@@ -17,9 +18,10 @@ interface RightPanelProps {
   deleteProject: (id: string) => Promise<void>
   onSelectMakeupProject?: (project: Project | null) => void
   selectedMakeupProject?: Project | null
+  currentDate?: Date
 }
 
-export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject }: RightPanelProps) {
+export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject, currentDate = new Date() }: RightPanelProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
@@ -31,21 +33,70 @@ export default function RightPanel({ projects, createProject, updateProject, del
   }
 
   const handleRegenerateSchedule = async (project: Project) => {
-    if (!createTask || !deleteTask) return
+    try {
+      console.log(`🔄 [${project.name}] 시간표 스마트 재정비 시작...`)
+      const now = new Date()
 
-    // 1. 해당 프로젝트의 미래 자동 생성 수업 삭제
-    const now = new Date()
-    const projectTasks = tasks.filter(
-      t => t.project_id === project.id && t.is_auto_generated && new Date(t.start_time || '') > now
-    )
-    
-    for (const task of projectTasks) {
-      await deleteTask(task.id)
+      // 1. 프로젝트의 "완료되지 않은" 모든 태스크 가져오기 (정밀 분석을 위해)
+      const { data: existingTasks, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', project.id)
+        .neq('status', 'completed')
+
+      if (fetchError) throw fetchError
+
+      // 2. 삭제 대상 정밀 선별 (Smart Cleanup)
+      // 조건: "미래의 수업" AND "취소 안 됨" AND "보충 수업 아님"
+      // -> 즉, 앞으로 예정된 '정규 수업'은 싹 지우고 다시 깝니다. (자동 생성 플래그 무관)
+      const tasksToDelete = existingTasks.filter(t => {
+        const taskTime = new Date(t.start_time!)
+        
+        // 과거의 수업은 건드리지 않음 (기록 보존)
+        if (taskTime <= now) return false
+        
+        // 취소된 수업은 유지 (이력 관리)
+        if (t.status === 'cancelled') return false
+        
+        // 보충 수업은 유지 (별도 스케줄)
+        if (t.is_makeup) return false
+        
+        // 그 외(미래의 scheduled 상태인 모든 정규 수업)는 삭제 대상
+        return true
+      })
+
+      const deleteIds = tasksToDelete.map(t => t.id)
+
+      // 3. 선별된 태스크 삭제
+      if (deleteIds.length > 0) {
+        console.log(`🗑️ 미래 정규 수업 ${deleteIds.length}개 정리 중...`)
+        const { error: deleteError } = await supabase
+          .from('tasks')
+          .delete()
+          .in('id', deleteIds)
+        
+        if (deleteError) throw deleteError
+      }
+
+      // 4. 새로운 시간표 생성
+      const newTasks = generateTasksFromProject(project)
+
+      // 5. 일괄 생성
+      if (newTasks.length > 0) {
+        const { error: insertError } = await supabase
+          .from('tasks')
+          .insert(newTasks)
+        
+        if (insertError) throw insertError
+      }
+
+      // 6. 페이지 새로고침
+      window.location.reload()
+
+    } catch (error) {
+      console.error('Error regenerating schedule:', error)
+      alert('시간표 재생성 중 오류가 발생했습니다.')
     }
-
-    // 2. 새로운 시간표로 향후 4주치 재생성
-    const newTasks = generateTasksFromProject(project)
-    await handleGenerateTasks(newTasks)
   }
 
   const generateTasksFromProject = (project: Project): any[] => {
@@ -54,6 +105,9 @@ export default function RightPanel({ projects, createProject, updateProject, del
     const now = new Date()
 
     if (project.type === 'student' && project.schedule_template) {
+      // 중복 생성 방지용 Set
+      const createdTimeKeys = new Set<string>()
+
       // 시작일이 속한 주의 월요일을 찾기 (week의 기준점)
       const getWeekStart = (date: Date): Date => {
         const d = new Date(date)
@@ -64,7 +118,9 @@ export default function RightPanel({ projects, createProject, updateProject, del
         return d
       }
       
-      const weekStart = getWeekStart(startDate)
+      // startDate와 now 중 더 최근 날짜를 기준으로
+      const baseDate = startDate > now ? startDate : now
+      const weekStart = getWeekStart(baseDate)
 
       // 향후 4주치 생성
       for (let week = 0; week < 4; week++) {
@@ -84,13 +140,20 @@ export default function RightPanel({ projects, createProject, updateProject, del
           const [hour, minute] = schedule.time.split(':').map(Number)
           lessonDate.setHours(hour, minute, 0, 0)
 
-          // 과거 날짜는 생성하지 않음 (시간 설정 후 비교)
+          // 과거 날짜는 생성하지 않음
           if (lessonDate < now) return
 
           // 종료일 체크
           if (project.end_date && lessonDate > new Date(project.end_date)) {
             return
           }
+
+          // ✨ 중복 방지: 이미 같은 시간에 생성된 수업이 있다면 건너뜀
+          const timeKey = lessonDate.toISOString()
+          if (createdTimeKeys.has(timeKey)) {
+            return
+          }
+          createdTimeKeys.add(timeKey)
 
           generatedTasks.push({
             title: project.name,
@@ -114,7 +177,9 @@ export default function RightPanel({ projects, createProject, updateProject, del
         return d
       }
       
-      const weekStart = getWeekStart(startDate)
+      // ✨ 수정: startDate와 now 중 더 최근 날짜를 기준으로
+      const baseDate = startDate > now ? startDate : now
+      const weekStart = getWeekStart(baseDate)
 
       // 향후 4주치 생성
       for (let week = 0; week < 4; week++) {
@@ -166,52 +231,116 @@ export default function RightPanel({ projects, createProject, updateProject, del
 
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-900">📋 Projects</h1>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors"
-            title="새 프로젝트"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
-
+      {/* Header - 미니 달력만 */}
+      <div className="p-4">
         {/* Minimalist Calendar */}
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="text-center mb-2">
             <div className="text-sm font-medium text-gray-600">
-              {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })}
+              {(() => {
+                // currentDate가 속한 주의 월요일 기준으로 달 표시
+                const getWeekStart = (date: Date): Date => {
+                  const d = new Date(date)
+                  const day = d.getDay()
+                  const diff = day === 0 ? -6 : 1 - day
+                  d.setDate(d.getDate() + diff)
+                  d.setHours(0, 0, 0, 0)
+                  return d
+                }
+                
+                const weekStart = getWeekStart(currentDate)
+                return weekStart.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })
+              })()}
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-xs">
-            {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
-              <div key={i} className="text-center font-medium text-gray-500 py-1">
+          <div className="grid grid-cols-7 gap-0.5 text-xs">
+            {['월', '화', '수', '목', '금', '토', '일'].map((day, i) => (
+              <div key={i} className="text-center font-medium text-gray-500 py-0.5">
                 {day}
               </div>
             ))}
             {(() => {
-              const now = new Date()
-              const year = now.getFullYear()
-              const month = now.getMonth()
+              // 선택된 주간 계산 (월요일 시작)
+              const getWeekStart = (date: Date): Date => {
+                const d = new Date(date)
+                const day = d.getDay()
+                const diff = day === 0 ? -6 : 1 - day
+                d.setDate(d.getDate() + diff)
+                d.setHours(0, 0, 0, 0)
+                return d
+              }
+              
+              const weekStart = getWeekStart(currentDate)
+              const weekEnd = new Date(weekStart)
+              weekEnd.setDate(weekEnd.getDate() + 6)
+              weekEnd.setHours(23, 59, 59, 999)
+              
+              // 주의 월요일 기준으로 달력 표시
+              const year = weekStart.getFullYear()
+              const month = weekStart.getMonth()
               const firstDay = new Date(year, month, 1).getDay()
               const daysInMonth = new Date(year, month + 1, 0).getDate()
+              
+              const now = new Date()
               const today = now.getDate()
+              const todayMonth = now.getMonth()
+              const todayYear = now.getFullYear()
               
               const cells = []
-              for (let i = 0; i < firstDay; i++) {
-                cells.push(<div key={`empty-${i}`} />)
+              
+              // 월요일 기준으로 빈 칸 계산 (0=일요일 -> 6칸, 1=월요일 -> 0칸)
+              const emptyDays = firstDay === 0 ? 6 : firstDay - 1
+              
+              // 이전 달의 날짜들로 채우기
+              const prevMonth = month === 0 ? 11 : month - 1
+              const prevYear = month === 0 ? year - 1 : year
+              const prevMonthDays = new Date(prevYear, prevMonth + 1, 0).getDate()
+              
+              for (let i = 0; i < emptyDays; i++) {
+                const prevDay = prevMonthDays - emptyDays + i + 1
+                const prevCellDate = new Date(prevYear, prevMonth, prevDay)
+                prevCellDate.setHours(0, 0, 0, 0)
+                
+                // 선택된 주간에 속하는지 확인
+                const weekStartTime = weekStart.getTime()
+                const weekEndTime = weekEnd.getTime()
+                const cellDateTime = prevCellDate.getTime()
+                const isInSelectedWeek = cellDateTime >= weekStartTime && cellDateTime <= weekEndTime
+                
+                cells.push(
+                  <div
+                    key={`prev-${prevDay}`}
+                    className={`text-center py-0.5 rounded relative ${
+                      isInSelectedWeek
+                        ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                  >
+                    {prevDay}
+                  </div>
+                )
               }
+              
+              // 현재 달의 날짜들
               for (let day = 1; day <= daysInMonth; day++) {
-                const isToday = day === today
+                const cellDate = new Date(year, month, day)
+                cellDate.setHours(0, 0, 0, 0)
+                const isToday = day === today && month === todayMonth && year === todayYear
+                
+                // 선택된 주간에 속하는지 확인 (날짜만 비교)
+                const weekStartTime = weekStart.getTime()
+                const weekEndTime = weekEnd.getTime()
+                const cellDateTime = cellDate.getTime()
+                const isInSelectedWeek = cellDateTime >= weekStartTime && cellDateTime <= weekEndTime
+                
                 cells.push(
                   <div
                     key={day}
-                    className={`text-center py-1 rounded ${
+                    className={`text-center py-0.5 rounded relative ${
                       isToday
-                        ? 'bg-blue-600 text-white font-semibold'
+                        ? 'bg-blue-600 text-white font-bold shadow-md ring-2 ring-blue-400'
+                        : isInSelectedWeek
+                        ? 'bg-blue-100 text-blue-900 font-medium'
                         : 'text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -219,6 +348,39 @@ export default function RightPanel({ projects, createProject, updateProject, del
                   </div>
                 )
               }
+              
+              // 다음 달의 날짜들로 채우기 (한 주만큼만)
+              const totalCells = emptyDays + daysInMonth
+              const currentWeekCount = Math.ceil(totalCells / 7)
+              const remainingCells = (currentWeekCount * 7) - totalCells
+              
+              const nextMonth = month === 11 ? 0 : month + 1
+              const nextYear = month === 11 ? year + 1 : year
+              
+              for (let i = 1; i <= remainingCells; i++) {
+                const nextCellDate = new Date(nextYear, nextMonth, i)
+                nextCellDate.setHours(0, 0, 0, 0)
+                
+                // 선택된 주간에 속하는지 확인
+                const weekStartTime = weekStart.getTime()
+                const weekEndTime = weekEnd.getTime()
+                const cellDateTime = nextCellDate.getTime()
+                const isInSelectedWeek = cellDateTime >= weekStartTime && cellDateTime <= weekEndTime
+                
+                cells.push(
+                  <div
+                    key={`next-${i}`}
+                    className={`text-center py-0.5 rounded relative ${
+                      isInSelectedWeek
+                        ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                  >
+                    {i}
+                  </div>
+                )
+              }
+              
               return cells
             })()}
           </div>
@@ -387,6 +549,15 @@ export default function RightPanel({ projects, createProject, updateProject, del
           onRegenerateSchedule={handleRegenerateSchedule}
         />
       )}
+
+      {/* 우측 하단 고정 버튼 */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50"
+        title="새 프로젝트"
+      >
+        <Plus size={24} />
+      </button>
     </div>
   )
 }

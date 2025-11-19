@@ -18,7 +18,7 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
   
   // 공통 필드
   const [name, setName] = useState('')
-  const [color, setColor] = useState('#10b981')
+  const [color, setColor] = useState('#38bdf8') // 기본값: 하늘색
   
   // 학생 시간표 필드
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
@@ -31,24 +31,44 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
   const [targetDuration, setTargetDuration] = useState(30)
 
   const colors = [
-    '#10b981', // green
-    '#3b82f6', // blue
-    '#f59e0b', // amber
-    '#8b5cf6', // purple
-    '#ef4444', // red
-    '#ec4899', // pink
-    '#14b8a6', // teal
-    '#f97316', // orange
+    '#bae6fd', // 연한 하늘색 - 30분
+    '#38bdf8', // 하늘색 - 40분
+    '#2563eb', // 진한 파란색 - 50분
+    '#f97316', // 오렌지색 - 30분
   ]
 
+  // 색상별 수업 시간 매핑
+  const colorToDuration: Record<string, number> = {
+    '#bae6fd': 30,  // 연한 하늘색
+    '#38bdf8': 40,  // 하늘색
+    '#2563eb': 50,  // 진한 파란색
+    '#f97316': 30,  // 오렌지색
+  }
+
   const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+
+  // 색상 변경 핸들러
+  const handleColorChange = (newColor: string) => {
+    setColor(newColor)
+    
+    // 색상에 맞는 수업 시간으로 자동 업데이트
+    const newDuration = colorToDuration[newColor] || 40
+    
+    // 이미 등록된 모든 요일의 수업 시간을 업데이트
+    setScheduleTemplate(scheduleTemplate.map(s => ({
+      ...s,
+      duration: newDuration
+    })))
+  }
 
   const toggleScheduleDay = (day: number) => {
     const existing = scheduleTemplate.find(s => s.day === day)
     if (existing) {
       setScheduleTemplate(scheduleTemplate.filter(s => s.day !== day))
     } else {
-      setScheduleTemplate([...scheduleTemplate, { day, time: '09:00', duration: 40 }])
+      // 현재 선택된 색상의 수업 시간으로 자동 설정
+      const defaultDuration = colorToDuration[color] || 40
+      setScheduleTemplate([...scheduleTemplate, { day, time: '09:00', duration: defaultDuration }])
     }
   }
 
@@ -124,7 +144,9 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
         return d
       }
       
-      const weekStart = getWeekStart(startDate)
+      // ✨ 수정: startDate와 now 중 더 최근 날짜를 기준으로
+      const baseDate = startDate > now ? startDate : now
+      const weekStart = getWeekStart(baseDate)
 
       // 향후 4주치 생성
       for (let week = 0; week < 4; week++) {
@@ -174,7 +196,9 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
         return d
       }
       
-      const weekStart = getWeekStart(startDate)
+      // ✨ 수정: startDate와 now 중 더 최근 날짜를 기준으로
+      const baseDate = startDate > now ? startDate : now
+      const weekStart = getWeekStart(baseDate)
 
       // 향후 4주치 생성
       for (let week = 0; week < 4; week++) {
@@ -284,15 +308,26 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
 
               {/* 공통: 색상 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">색상</label>
-                <div className="flex gap-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  색상 <span className="text-xs text-gray-500">(수업 시간 자동 설정)</span>
+                </label>
+                <div className="flex gap-2 items-end">
                   {colors.map((c) => (
                     <button
                       key={c}
-                      onClick={() => setColor(c)}
-                      className={`w-8 h-8 rounded-full transition-transform ${color === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : ''}`}
-                      style={{ backgroundColor: c }}
-                    />
+                      onClick={() => handleColorChange(c)}
+                      className={`flex flex-col items-center gap-0.5 transition-transform ${
+                        color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''
+                      }`}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full"
+                        style={{ backgroundColor: c }}
+                      />
+                      <span className="text-[10px] text-gray-600 font-medium">
+                        {colorToDuration[c]}분
+                      </span>
+                    </button>
                   ))}
                 </div>
               </div>

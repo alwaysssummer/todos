@@ -31,18 +31,44 @@ export default function ProjectDetailModal({
   const [targetDuration, setTargetDuration] = useState(project.target_duration || 30)
 
   const colors = [
-    '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6',
-    '#ef4444', '#ec4899', '#14b8a6', '#f97316',
+    '#bae6fd', // 연한 하늘색 - 30분
+    '#38bdf8', // 하늘색 - 40분
+    '#2563eb', // 진한 파란색 - 50분
+    '#f97316', // 오렌지색 - 30분
   ]
 
+  // 색상별 수업 시간 매핑
+  const colorToDuration: Record<string, number> = {
+    '#bae6fd': 30,  // 연한 하늘색
+    '#38bdf8': 40,  // 하늘색
+    '#2563eb': 50,  // 진한 파란색
+    '#f97316': 30,  // 오렌지색
+  }
+
   const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+
+  // 색상 변경 핸들러
+  const handleColorChange = (newColor: string) => {
+    setColor(newColor)
+    
+    // 색상에 맞는 수업 시간으로 자동 업데이트
+    const newDuration = colorToDuration[newColor] || 40
+    
+    // 이미 등록된 모든 요일의 수업 시간을 업데이트
+    setScheduleTemplate(scheduleTemplate.map(s => ({
+      ...s,
+      duration: newDuration
+    })))
+  }
 
   const toggleScheduleDay = (day: number) => {
     const existing = scheduleTemplate.find(s => s.day === day)
     if (existing) {
       setScheduleTemplate(scheduleTemplate.filter(s => s.day !== day))
     } else {
-      setScheduleTemplate([...scheduleTemplate, { day, time: '09:00', duration: 40 }])
+      // 현재 선택된 색상의 수업 시간으로 자동 설정
+      const defaultDuration = colorToDuration[color] || 40
+      setScheduleTemplate([...scheduleTemplate, { day, time: '09:00', duration: defaultDuration }])
     }
   }
 
@@ -183,15 +209,26 @@ export default function ProjectDetailModal({
             {/* 색상 선택 (편집 모드) */}
             {isEditing && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">색상</label>
-                <div className="flex gap-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  색상 <span className="text-xs text-gray-500">(수업 시간 자동 설정)</span>
+                </label>
+                <div className="flex gap-2 items-end">
                   {colors.map((c) => (
                     <button
                       key={c}
-                      onClick={() => setColor(c)}
-                      className={`w-8 h-8 rounded-full transition-transform ${color === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : ''}`}
-                      style={{ backgroundColor: c }}
-                    />
+                      onClick={() => handleColorChange(c)}
+                      className={`flex flex-col items-center gap-0.5 transition-transform ${
+                        color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''
+                      }`}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full"
+                        style={{ backgroundColor: c }}
+                      />
+                      <span className="text-[10px] text-gray-600 font-medium">
+                        {colorToDuration[c]}분
+                      </span>
+                    </button>
                   ))}
                 </div>
               </div>

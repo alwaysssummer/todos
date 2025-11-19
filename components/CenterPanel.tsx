@@ -17,6 +17,8 @@ interface CenterPanelProps {
   projects: Project[]
   makeupProject?: Project | null
   onClearMakeupMode?: () => void
+  currentDate?: Date
+  onDateChange?: (date: Date) => void
 }
 
 function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewSlot, previewTask }: { 
@@ -75,8 +77,14 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
     <div
       ref={setNodeRef}
       onDoubleClick={onDoubleClick}
-      className={`h-[20px] border-r border-gray-100 last:border-r-0 transition-colors cursor-pointer relative group ${isOver ? 'bg-blue-50 border-blue-200 z-10' : 'hover:bg-gray-50'
-        } ${minute === 0 ? 'border-t border-gray-200' : 'border-t border-dashed border-gray-100'}`}
+      className={`h-[14px] border-r border-gray-100 last:border-r-0 transition-colors cursor-pointer relative group ${isOver ? 'bg-blue-50 border-blue-200 z-10' : 'hover:bg-gray-50'
+        } ${
+          minute === 0 
+            ? 'border-t border-gray-300'
+            : minute === 30 
+              ? 'border-t border-gray-200'
+              : 'border-t border-dashed border-gray-150'
+        }`}
     >
       {children}
       
@@ -84,9 +92,9 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
       {isPreviewSlot && previewTask && (
         <div 
           style={{ height: `${previewHeight}px` }}
-          className={`absolute top-0 left-0 right-0 ${getPreviewBgColor()} rounded-sm z-[5] pointer-events-none flex items-start justify-center pt-1`}
+          className={`absolute top-0 left-0 right-0 ${getPreviewBgColor()} rounded-sm z-[5] pointer-events-none flex items-start justify-center pt-0.5`}
         >
-          <div className={`${getPreviewBadgeBgColor()} text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-md`}>
+          <div className={`${getPreviewBadgeBgColor()} text-white text-[10px] font-bold px-1.5 py-0 rounded shadow-md`}>
             {format(new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute), 'HH:mm')}
           </div>
         </div>
@@ -101,14 +109,16 @@ function DraggableCalendarTask({
   onDoubleClick, 
   projectColor,
   overlayIndex = 0,
-  totalOverlays = 1
+  totalOverlays = 1,
+  project
 }: { 
   task: Task, 
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>, 
   onDoubleClick: (e: React.MouseEvent) => void, 
   projectColor?: string,
   overlayIndex?: number,
-  totalOverlays?: number
+  totalOverlays?: number,
+  project?: Project
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -131,14 +141,14 @@ function DraggableCalendarTask({
       return 'bg-gray-100'
     }
     
-    // 학생 시간표인 경우
+    // 학생 시간표인 경우 - 배경색은 항상 동일
     if (task.is_auto_generated || task.is_makeup) {
       if (task.is_cancelled) {
-        return 'bg-gray-100' // 취소된 수업 - 회색
+        return 'bg-gray-100' // 취소된 수업
       } else if (task.is_makeup) {
-        return 'bg-yellow-100' // 보충 수업 - 노란색
+        return 'bg-yellow-100' // 보충 수업
       } else {
-        return 'bg-sky-100' // 정규 수업 - 하늘색
+        return 'bg-sky-100' // 정규 수업 - 배경은 항상 하늘색
       }
     }
     
@@ -165,7 +175,7 @@ function DraggableCalendarTask({
       } else if (task.is_makeup) {
         return 'text-yellow-700' // 보충 수업
       } else {
-        return 'text-sky-700' // 정규 수업
+        return 'text-sky-700' // 정규 수업 - 하늘색 텍스트
       }
     }
     
@@ -185,9 +195,13 @@ function DraggableCalendarTask({
       if (task.is_cancelled) {
         return 'border-gray-300' // 취소된 수업
       } else if (task.is_makeup) {
-        return 'border-yellow-500' // 보충 수업
+        return 'border-orange-500 border-2' // 보충 수업 (특별수업 - 오렌지)
       } else {
-        return 'border-sky-500' // 정규 수업
+        // 정규 수업: 프로젝트 색상을 테두리에 사용
+        if (projectColor) {
+          return `border-2` // 2px 두께
+        }
+        return 'border-sky-500 border-2' // 기본값
       }
     }
     
@@ -242,6 +256,9 @@ function DraggableCalendarTask({
   const widthPercent = 100 / totalOverlays
   const leftPercent = (100 / totalOverlays) * overlayIndex
 
+  // 학생 시간표의 정규 수업인 경우 프로젝트 색상을 테두리에 적용
+  const shouldUseBorderColor = (task.is_auto_generated && !task.is_makeup && !task.is_cancelled) && projectColor
+  
   return (
     <div
       ref={setNodeRef}
@@ -251,9 +268,9 @@ function DraggableCalendarTask({
         left: `${leftPercent}%`,
         opacity: isDragging ? 0.5 : 1,
         backgroundColor: typeof bgColor === 'string' && bgColor.startsWith('rgba') ? bgColor : undefined,
-        borderColor: borderColor,
-        borderWidth: '1px',
-        borderStyle: 'solid'
+        borderColor: shouldUseBorderColor ? projectColor : undefined,
+        borderWidth: shouldUseBorderColor ? '2px' : undefined,
+        borderStyle: shouldUseBorderColor ? 'solid' : undefined,
       }}
       {...listeners}
       {...attributes}
@@ -261,12 +278,12 @@ function DraggableCalendarTask({
         e.stopPropagation()
         onDoubleClick(e)
       }}
-      className={`absolute top-0 text-[10px] ${typeof bgColor === 'string' && bgColor.startsWith('bg-') ? bgColor : ''} ${textColor} rounded-sm px-1 py-0.5 leading-tight hover:opacity-90 transition-all overflow-hidden group/task select-none flex flex-col
+      className={`absolute top-0 text-xs ${typeof bgColor === 'string' && bgColor.startsWith('bg-') ? bgColor : ''} ${textColor} ${!shouldUseBorderColor ? borderColor : ''} rounded-sm px-1.5 py-0.5 leading-snug hover:opacity-90 transition-all overflow-hidden group/task select-none flex flex-col
         ${isDragging ? 'cursor-grabbing z-30 shadow-lg' : 'cursor-grab z-10 hover:z-20'}
         ${isResizing ? 'ring-2 ring-blue-400 shadow-lg' : ''}
       `}
     >
-      <div className="flex items-center gap-1 min-w-0 relative">
+      <div className="flex items-start gap-1 min-w-0 relative">
         <button
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -280,21 +297,29 @@ function DraggableCalendarTask({
                 }
                 updateTask(task.id, updates)
             }}
-            className={`flex-shrink-0 w-5 h-5 -ml-0.5 rounded-[3px] border transition-colors flex items-center justify-center
+            className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[3px] border transition-colors flex items-center justify-center
               ${isCompleted 
                 ? 'bg-gray-500 border-gray-500' 
                 : 'border-blue-300 bg-white/50 hover:bg-blue-500 hover:border-blue-500 group/check'
               }`}
         >
-            <Check size={12} className={`text-white ${isCompleted ? 'opacity-100' : 'opacity-0 group-hover/check:opacity-100'}`} strokeWidth={4} />
+            <Check size={10} className={`text-white ${isCompleted ? 'opacity-100' : 'opacity-0 group-hover/check:opacity-100'}`} strokeWidth={4} />
         </button>
-        <div className={`truncate font-medium ${isCompleted ? 'line-through' : ''}`}>
-          {task.title || '(제목 없음)'}
+        <div className="flex-1 min-w-0">
+          <div className={`line-clamp-2 font-medium break-words ${isCompleted ? 'line-through' : ''}`}>
+            {task.title || '(제목 없음)'}
+          </div>
+          {/* 시작 시간 표시 */}
+          {task.start_time && (
+            <div className="text-[10px] text-gray-500 mt-0.5">
+              {format(parseISO(task.start_time), 'HH:mm')}
+            </div>
+          )}
         </div>
         
         {/* Duration Display during resize */}
         {isResizing && (
-          <div className="absolute right-1 top-0 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-md">
+          <div className="absolute right-1 top-0 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0 rounded shadow-md">
             {displayDuration}분
           </div>
         )}
@@ -315,11 +340,13 @@ function DraggableCalendarTask({
   )
 }
 
-export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode }: CenterPanelProps) {
+export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange }: CenterPanelProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
   const [now, setNow] = useState(new Date())
-  const [currentDate, setCurrentDate] = useState(new Date())
+  
+  // prop으로 받은 currentDate 사용
+  const currentDate = propCurrentDate
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000)
@@ -331,6 +358,12 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     acc[project.id] = project.color
     return acc
   }, {} as Record<string, string>)
+  
+  // 프로젝트 맵
+  const projectMap = projects.reduce((acc, project) => {
+    acc[project.id] = project
+    return acc
+  }, {} as Record<string, Project>)
 
   // 06:30부터 새벽 01:00까지 표시
   // 6시 30분부터 시작, 다음날 1시까지 (총 19시간 = 6:30~23:50 + 00:00~01:00)
@@ -361,17 +394,23 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
   const handlePrevWeek = () => {
     const newDate = new Date(currentDate)
     newDate.setDate(newDate.getDate() - 7)
-    setCurrentDate(newDate)
+    if (onDateChange) {
+      onDateChange(newDate)
+    }
   }
 
   const handleNextWeek = () => {
     const newDate = new Date(currentDate)
     newDate.setDate(newDate.getDate() + 7)
-    setCurrentDate(newDate)
+    if (onDateChange) {
+      onDateChange(newDate)
+    }
   }
 
   const handleToday = () => {
-    setCurrentDate(new Date())
+    if (onDateChange) {
+      onDateChange(new Date())
+    }
   }
 
   const weekRangeText = `${format(weekDates[0], 'yyyy년 M월 d일')} - ${format(weekDates[6], 'd일')}`
@@ -578,6 +617,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                               projectColor={task.project_id ? projectColorMap[task.project_id] : undefined}
                               overlayIndex={index}
                               totalOverlays={slotTasks.length}
+                              project={task.project_id ? projectMap[task.project_id] : undefined}
                             />
                           ))}
                         </DroppableSlot>

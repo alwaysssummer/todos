@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, Star, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle } from 'lucide-react'
+import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 
 interface TaskDetailPopoverProps {
@@ -27,6 +27,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [attendance, setAttendance] = useState(task.attendance || undefined)
     const [homeworkStatus, setHomeworkStatus] = useState(task.homework_status || undefined)
     const [lessonNote, setLessonNote] = useState(task.lesson_note || '')
+    
+    // Top 5 상태 (실시간 업데이트용)
+    const [isTop5, setIsTop5] = useState(task.is_top5 || false)
     
     // 학생 시간표 태스크인지 확인
     const isStudentLesson = task.is_auto_generated || task.is_makeup
@@ -99,7 +102,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     }
 
     const toggleTop5 = async () => {
-        await updateTask(task.id, { is_top5: !task.is_top5 })
+        const newValue = !isTop5
+        setIsTop5(newValue) // 즉시 UI 업데이트
+        await updateTask(task.id, { is_top5: newValue })
     }
 
     const toggleComplete = async () => {
@@ -143,9 +148,13 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         }
     }
 
-    const style: React.CSSProperties = position
-        ? { position: 'fixed', left: position.x, top: position.y, transform: 'translate(10px, -50%)' }
-        : { position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
+    // 항상 화면 정중앙에 표시
+    const style: React.CSSProperties = { 
+        position: 'fixed', 
+        left: '50%', 
+        top: '50%', 
+        transform: 'translate(-50%, -50%)' 
+    }
 
     return (
         <div
@@ -184,12 +193,28 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                     />
                 </div>
 
-                <button
-                    onClick={toggleTop5}
-                    className={`text-gray-400 hover:text-yellow-400 transition-colors ${task.is_top5 ? 'text-yellow-400 fill-current' : ''}`}
-                >
-                    <Star size={20} />
-                </button>
+                {/* 상태 인디케이터들 */}
+                <div className="flex items-center gap-2">
+                    {/* Scheduled - 노란색 원 */}
+                    {task.status === 'scheduled' && (
+                        <div 
+                            className="w-5 h-5 rounded-full bg-yellow-400 border-2 border-yellow-400"
+                            title="Scheduled"
+                        />
+                    )}
+                    
+                    {/* Top 5 - 빨간색 원 */}
+                    <button
+                        onClick={toggleTop5}
+                        className="transition-colors"
+                    >
+                        <div className={`w-5 h-5 rounded-full border-2 transition-all ${
+                            isTop5
+                                ? 'bg-red-500 border-red-500' 
+                                : 'border-gray-300 hover:border-red-400'
+                        }`} />
+                    </button>
+                </div>
             </div>
 
             {/* Body */}
@@ -240,7 +265,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         })}
                     </div>
                 </div>
-                
+
                 {/* Time & Options Row */}
                 <div className="grid grid-cols-2 gap-4">
                     {/* Time Selector (Hour : Minute) */}
@@ -273,20 +298,20 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                     {/* Duration Selector */}
                     <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
                         <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
-                        <select
-                            value={duration}
-                            onChange={(e) => {
-                                const val = Number(e.target.value)
-                                setDuration(val)
-                                updateTask(task.id, { duration: val })
-                            }}
+                    <select
+                        value={duration}
+                        onChange={(e) => {
+                            const val = Number(e.target.value)
+                            setDuration(val)
+                            updateTask(task.id, { duration: val })
+                        }}
                             className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium"
-                        >
+                    >
                             <option value={30}>30분</option>
                             <option value={60}>1시간</option>
                             <option value={90}>1.5시간</option>
                             <option value={120}>2시간</option>
-                        </select>
+                    </select>
                     </div>
                 </div>
 
@@ -419,8 +444,8 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 placeholder="수업 내용, 진도, 특이사항 등을 기록하세요..."
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                 rows={3}
-                            />
-                        </div>
+                    />
+                </div>
 
                         {/* 수업 관리 버튼 */}
                         <div className="flex gap-2 pt-2">
@@ -484,18 +509,18 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         <FolderInput size={16} />
                     </button>
                     <div className="w-px h-4 bg-gray-300 mx-2 self-center"></div>
-                    <button
-                        onClick={() => {
+                <button
+                    onClick={() => {
                             if (confirm('이 태스크를 삭제하시겠습니까?')) {
-                                deleteTask(task.id)
-                                onClose()
-                            }
-                        }}
+                            deleteTask(task.id)
+                            onClose()
+                        }
+                    }}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="삭제"
-                    >
-                        <Trash2 size={16} />
-                    </button>
+                >
+                    <Trash2 size={16} />
+                </button>
                 </div>
                 <div className="text-xs text-gray-400 px-2">
                     {format(new Date(task.created_at), 'yyyy. MM. dd')}
