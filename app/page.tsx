@@ -19,6 +19,7 @@ export default function Home() {
   const { projects, createProject, updateProject, deleteProject } = useProjects()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  const [currentDate, setCurrentDate] = useState(new Date())
   
   // 보충 수업 추가 모드
   const [makeupProject, setMakeupProject] = useState<any>(null)
@@ -125,6 +126,8 @@ export default function Home() {
                 projects={projects}
                 makeupProject={makeupProject}
                 onClearMakeupMode={() => setMakeupProject(null)}
+                currentDate={currentDate}
+                onDateChange={setCurrentDate}
               />
             </Panel>
 
@@ -143,6 +146,7 @@ export default function Home() {
                 deleteTask={deleteTask}
                 onSelectMakeupProject={setMakeupProject}
                 selectedMakeupProject={makeupProject}
+                currentDate={currentDate}
               />
             </Panel>
           </PanelGroup>
@@ -175,6 +179,8 @@ export default function Home() {
                 projects={projects}
                 makeupProject={makeupProject}
                 onClearMakeupMode={() => setMakeupProject(null)}
+                currentDate={currentDate}
+                onDateChange={setCurrentDate}
               />
             )}
             {activePanel === 'right' && (
@@ -189,6 +195,7 @@ export default function Home() {
                 deleteTask={deleteTask}
                 onSelectMakeupProject={setMakeupProject}
                 selectedMakeupProject={makeupProject}
+                currentDate={currentDate}
               />
             )}
           </div>
