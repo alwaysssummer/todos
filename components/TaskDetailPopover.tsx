@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle } from 'lucide-react'
-import type { Task, Project } from '@/types/database'
+import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen } from 'lucide-react'
+import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
+import { useTextbooks } from '@/hooks/useTextbooks'
 
 interface TaskDetailPopoverProps {
     task: Task
@@ -36,8 +37,16 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [editedTags, setEditedTags] = useState<string[]>(task.tags || [])
     const [newTag, setNewTag] = useState('')
 
+    // 과제 관리 state (Phase 6)
+    const [homeworkChecks, setHomeworkChecks] = useState<HomeworkCheckItem[]>(task.homework_checks || [])
+    const [homeworkAssignments, setHomeworkAssignments] = useState<HomeworkAssignmentItem[]>(task.homework_assignments || [])
+    const { textbooks } = useTextbooks()
+
     // 학생 시간표 태스크인지 확인
     const isStudentLesson = task.is_auto_generated || task.is_makeup
+    
+    // 현재 태스크의 프로젝트
+    const project = projects.find(p => p.id === task.project_id)
 
     // 주 단위 네비게이션을 위한 기준 날짜 (기본값: 오늘)
     const [baseDate, setBaseDate] = useState(new Date())
@@ -151,6 +160,108 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         if (confirm('이 수업을 보충 수업으로 전환하시겠습니까?')) {
             await updateTask(task.id, { is_makeup: true })
             onClose()
+        }
+    }
+
+    // ===== 과제 체크 함수들 (Phase 6) =====
+    
+    // 과제 체크 토글
+    const toggleHomeworkCheck = (index: number) => {
+        const updated = [...homeworkChecks]
+        updated[index] = {
+            ...updated[index],
+            is_completed: !updated[index].is_completed,
+            completed_at: !updated[index].is_completed ? new Date().toISOString() : undefined
+        }
+        setHomeworkChecks(updated)
+        updateTask(task.id, { homework_checks: updated })
+    }
+
+    // 과제 체크 메모 업데이트
+    const updateCheckNote = (index: number, note: string) => {
+        const updated = [...homeworkChecks]
+        updated[index] = {
+            ...updated[index],
+            note
+        }
+        setHomeworkChecks(updated)
+        // 디바운스 없이 즉시 저장
+        updateTask(task.id, { homework_checks: updated })
+    }
+
+    // 과제 체크 항목 삭제
+    const removeHomeworkCheck = (index: number) => {
+        const updated = homeworkChecks.filter((_, i) => i !== index)
+        setHomeworkChecks(updated)
+        updateTask(task.id, { 
+            homework_checks: updated.length > 0 ? updated : undefined 
+        })
+    }
+
+    // 중복 제거 (같은 교재 + 단원)
+    const removeDuplicateChecks = (textbookId: string) => {
+        const seen = new Set<string>()
+        const cleaned = homeworkChecks.filter(check => {
+            if (check.textbook_id !== textbookId) return true
+            
+            const key = `${check.textbook_id}-${check.chapter}`
+            if (seen.has(key)) {
+                return false // 중복 제거
+            }
+            seen.add(key)
+            return true
+        })
+        
+        const removed = homeworkChecks.length - cleaned.length
+        
+        if (removed > 0) {
+            setHomeworkChecks(cleaned)
+            updateTask(task.id, { homework_checks: cleaned })
+            alert(`${removed}개의 중복 항목이 제거되었습니다.`)
+        } else {
+            alert('중복 항목이 없습니다.')
+        }
+    }
+
+    // ===== 다음 과제 배정 함수들 (Phase 7) =====
+
+    // 단원 선택 토글
+    const toggleAssignmentChapter = (textbookId: string, chapter: string) => {
+        const textbook = textbooks.find(t => t.id === textbookId)
+        if (!textbook) return
+
+        const existingIdx = homeworkAssignments.findIndex(a => a.textbook_id === textbookId)
+
+        if (existingIdx >= 0) {
+            // 이미 있는 교재
+            const existing = homeworkAssignments[existingIdx]
+            const chapters = existing.chapters.includes(chapter)
+                ? existing.chapters.filter(c => c !== chapter) // 제거
+                : [...existing.chapters, chapter].sort((a, b) => parseInt(a) - parseInt(b)) // 추가 및 정렬
+
+            const updated = [...homeworkAssignments]
+            if (chapters.length === 0) {
+                // 모든 단원이 제거되면 교재도 제거
+                updated.splice(existingIdx, 1)
+            } else {
+                updated[existingIdx] = { ...existing, chapters }
+            }
+
+            setHomeworkAssignments(updated)
+            updateTask(task.id, {
+                homework_assignments: updated.length > 0 ? updated : undefined
+            })
+        } else {
+            // 새 교재 추가
+            const newAssignment: HomeworkAssignmentItem = {
+                textbook_id: textbookId,
+                textbook_name: textbook.name,
+                chapters: [chapter]
+            }
+
+            const updated = [...homeworkAssignments, newAssignment]
+            setHomeworkAssignments(updated)
+            updateTask(task.id, { homework_assignments: updated })
         }
     }
 
@@ -422,6 +533,166 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 {/* 학생 시간표 전용 섹션 */}
                 {isStudentLesson && (
                     <div className="space-y-4 pt-4 border-t border-gray-100">
+                        {/* ===== 과제 체크 (Phase 6) ===== */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                <BookCheck size={16} />
+                                과제 체크
+                                <span className="text-xs text-gray-400 ml-auto">(이전 수업에서 배정받은 과제)</span>
+                            </label>
+
+                            {project?.textbooks && project.textbooks.length > 0 ? (
+                                project.textbooks.map(textbookId => {
+                                    const textbook = textbooks.find(t => t.id === textbookId)
+                                    if (!textbook) return null
+
+                                    const checksForTextbook = homeworkChecks.filter(
+                                        check => check.textbook_id === textbookId
+                                    )
+
+                                    if (checksForTextbook.length === 0) {
+                                        return (
+                                            <div key={textbookId} className="border rounded-lg p-3 bg-gray-50">
+                                                <div className="font-semibold text-sm text-gray-700 mb-1">
+                                                    {textbook.name}
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                    배정된 과제 없음
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+
+                                    return (
+                                        <div key={textbookId} className="border rounded-lg p-3 space-y-2 bg-white">
+                                            <div className="flex items-center justify-between">
+                                                <div className="font-semibold text-sm text-gray-900">
+                                                    {textbook.name}
+                                                </div>
+                                                <button
+                                                    onClick={() => removeDuplicateChecks(textbookId)}
+                                                    className="text-xs text-blue-600 hover:text-blue-700"
+                                                >
+                                                    🔧 중복 제거
+                                                </button>
+                                            </div>
+
+                                            {checksForTextbook.map((check, idx) => {
+                                                const globalIdx = homeworkChecks.indexOf(check)
+
+                                                return (
+                                                    <div key={idx} className="flex items-start gap-2 py-1">
+                                                        {/* 체크박스 */}
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={check.is_completed}
+                                                            onChange={() => toggleHomeworkCheck(globalIdx)}
+                                                            className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                        />
+
+                                                        {/* 단원 + 메모 */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className={`text-sm ${check.is_completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                                                                {check.chapter}
+                                                                {textbook.chapter_unit === '직접입력' 
+                                                                    ? textbook.custom_chapter_unit 
+                                                                    : textbook.chapter_unit}
+                                                            </div>
+
+                                                            {/* 인라인 메모 입력 */}
+                                                            <input
+                                                                type="text"
+                                                                value={check.note || ''}
+                                                                onChange={(e) => updateCheckNote(globalIdx, e.target.value)}
+                                                                placeholder="메모 (노하우, 문제점 등)..."
+                                                                className="w-full mt-1 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                                            />
+                                                        </div>
+
+                                                        {/* 삭제 버튼 */}
+                                                        <button
+                                                            onClick={() => removeHomeworkCheck(globalIdx)}
+                                                            className="text-red-400 hover:text-red-600 transition-colors p-1 flex-shrink-0"
+                                                            title="삭제"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                <div className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                                    배정된 교재가 없습니다
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ===== 다음 과제 배정 (Phase 7) ===== */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                <PlusCircle size={16} />
+                                다음 과제 배정
+                                <span className="text-xs text-gray-400 ml-auto">(다음 수업에 배정)</span>
+                            </label>
+
+                            {project?.textbooks && project.textbooks.length > 0 ? (
+                                project.textbooks.map(textbookId => {
+                                    const textbook = textbooks.find(t => t.id === textbookId)
+                                    if (!textbook) return null
+
+                                    const assignment = homeworkAssignments.find(a => a.textbook_id === textbookId)
+
+                                    return (
+                                        <div key={textbookId} className="border rounded-lg p-3 bg-white">
+                                            <div className="font-semibold text-sm text-gray-900 mb-2">
+                                                {textbook.name}
+                                            </div>
+
+                                            {/* 단원 선택 그리드 (5열) */}
+                                            <div className="grid grid-cols-5 gap-1">
+                                                {Array.from({ length: textbook.total_chapters }, (_, i) => {
+                                                    const chapter = (i + 1).toString()
+                                                    const isSelected = assignment?.chapters.includes(chapter)
+
+                                                    return (
+                                                        <button
+                                                            key={chapter}
+                                                            onClick={() => toggleAssignmentChapter(textbookId, chapter)}
+                                                            className={`px-2 py-1.5 text-xs rounded transition-colors font-medium ${
+                                                                isSelected
+                                                                    ? 'bg-blue-500 text-white'
+                                                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                                            }`}
+                                                        >
+                                                            {chapter}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            {/* 선택된 단원 요약 */}
+                                            {assignment && assignment.chapters.length > 0 && (
+                                                <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                                                    선택: {assignment.chapters.join(', ')}
+                                                    {textbook.chapter_unit === '직접입력' 
+                                                        ? textbook.custom_chapter_unit 
+                                                        : textbook.chapter_unit}
+                                                    {' '}(총 {assignment.chapters.length}개)
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                <div className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                                    배정된 교재가 없습니다
+                                </div>
+                            )}
+                        </div>
+
                         {/* 출결 상태 */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
