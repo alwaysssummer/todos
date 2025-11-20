@@ -29,13 +29,14 @@ interface LeftPanelProps {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   reorderTasks: (activeId: string, overId: string) => void
+  toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
   createProject: (project: Partial<Project>) => Promise<Project>
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>
   deleteProject: (id: string) => Promise<void>
 }
 
-function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void }) {
+function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false, isCompleting = false }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void, isInbox?: boolean, isCompleting?: boolean }) {
   const {
     attributes,
     listeners,
@@ -76,14 +77,18 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`group flex items-start gap-2 p-1.5 text-sm transition-all cursor-grab active:cursor-grabbing border-b
-        ${isCompleted
-          ? 'text-gray-400 border-gray-100 bg-gray-50'
-          : task.is_top5
-            ? 'bg-red-50/40 border-gray-100'
-            : isToday
-              ? 'bg-green-50/40 border-gray-100'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+      className={`group flex items-start gap-2 transition-all duration-300 ease-out cursor-grab active:cursor-grabbing border-b
+        ${isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
+        ${isCompleting ? 'opacity-0 scale-95 -translate-x-4' : 'opacity-100 scale-100 translate-x-0'}
+        ${isCompleting
+          ? 'text-gray-400 border-gray-100 bg-gray-50/50'
+          : isCompleted
+            ? 'text-gray-400 border-gray-100 bg-gray-50'
+            : task.is_top5
+              ? 'bg-red-50/40 border-gray-100'
+              : isToday
+                ? 'bg-green-50/40 border-gray-100'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
         }`}
     >
       {/* Checkbox */}
@@ -93,8 +98,8 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
           onToggleComplete(e)
         }}
         onPointerDown={(e) => e.stopPropagation()} // 드래그 시작 방지
-        className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center transition-colors
-            ${isCompleted
+        className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center transition-all duration-200
+            ${isCompleting || isCompleted
             ? 'bg-blue-500 border-blue-500 text-white'
             : task.is_top5
               ? 'border-red-300 hover:border-red-400 bg-white text-transparent hover:bg-red-50'
@@ -109,24 +114,24 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
       {/* Content - 1줄 레이아웃 */}
       <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
         {/* 제목 */}
-        <div className={`text-sm truncate ${isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
+        <div className={`truncate ${isInbox ? 'text-xs' : 'text-sm'} ${isCompleting || isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
           {renderTitle(task.title)}
         </div>
 
         {/* 우측 인디케이터들 */}
         <div className="flex items-center gap-1.5">
           {/* Today's Task - 초록색 동그라미 */}
-          {isToday && !isCompleted && !task.is_top5 && (
+          {isToday && !isCompleting && !isCompleted && !task.is_top5 && (
             <div className="w-2 h-2 rounded-full bg-green-500" title="오늘 할 일" />
           )}
 
           {/* Scheduled - 노란색 동그라미 */}
-          {isScheduled && !isCompleted && (
+          {isScheduled && !isCompleting && !isCompleted && (
             <div className="w-2 h-2 rounded-full bg-yellow-400" title="예정된 일정" />
           )}
 
           {/* Top 5 - 빨간색 동그라미 */}
-          {task.is_top5 && !isCompleted && (
+          {task.is_top5 && !isCompleting && !isCompleted && (
             <div className="w-2 h-2 rounded-full bg-red-500" title="중요" />
           )}
         </div>
@@ -135,7 +140,7 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
   )
 }
 
-export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, reorderTasks, projects, createProject, updateProject, deleteProject }: LeftPanelProps) {
+export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, reorderTasks, toggleTaskStatus, projects, createProject, updateProject, deleteProject }: LeftPanelProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
@@ -143,6 +148,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false)
+  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -220,8 +226,24 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
     setSelectedTask(task)
   }
 
-  const handleToggleComplete = async (task: Task) => {
-    await updateTask(task.id, { status: task.status === 'completed' ? 'inbox' : 'completed' })
+  const handleToggleComplete = (task: Task) => {
+    if (task.status !== 'completed') {
+      // 완료로 전환하는 경우 - 애니메이션 후 상태 변경
+      setCompletingIds(prev => new Set(prev).add(task.id))
+      
+      // 300ms 후 실제 상태 변경
+      setTimeout(() => {
+        toggleTaskStatus(task.id, task.status)
+        setCompletingIds(prev => {
+          const next = new Set(prev)
+          next.delete(task.id)
+          return next
+        })
+      }, 300)
+    } else {
+      // 완료 취소는 즉시
+      toggleTaskStatus(task.id, task.status)
+    }
   }
 
   const handleCreateProject = async (project: Partial<Project>) => {
@@ -417,6 +439,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           onClose={() => setSelectedTask(null)}
           position={popoverPosition}
           projects={projects}
+          toggleTaskStatus={toggleTaskStatus}
         />
       )}
 
@@ -441,6 +464,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     task={task}
                     onClick={(e) => handleTaskClick(e, task)}
                     onToggleComplete={() => handleToggleComplete(task)}
+                    isCompleting={completingIds.has(task.id)}
                   />
                 ))}
               </div>
@@ -464,6 +488,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     task={task}
                     onClick={(e) => handleTaskClick(e, task)}
                     onToggleComplete={() => handleToggleComplete(task)}
+                    isCompleting={completingIds.has(task.id)}
                   />
                 ))}
               </div>
@@ -479,7 +504,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
             className="h-full"
           >
             <SortableContext items={inboxTasks.map(t => `${t.id}-inbox`)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-0.5">
+              <div className="space-y-0">
                 {inboxTasks.map((task) => (
                   <SortableTaskItem
                     key={`${task.id}-inbox`}
@@ -487,6 +512,8 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     task={task}
                     onClick={(e) => handleTaskClick(e, task)}
                     onToggleComplete={() => handleToggleComplete(task)}
+                    isInbox={true}
+                    isCompleting={completingIds.has(task.id)}
                   />
                 ))}
               </div>
@@ -496,7 +523,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
             <div className="mt-8 border-t border-gray-100 pt-4">
               <DroppableContainer id="waiting-container" title="Waiting" count={waitingTasks.length} className="min-h-[100px]">
                 <SortableContext items={waitingTasks.map(t => `${t.id}-waiting`)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-0.5">
+                  <div className="space-y-0">
                     {waitingTasks.length === 0 && (
                       <div className="text-xs text-gray-400 text-center py-2">
                         나중에 할 일을 이곳으로 보관하세요
@@ -509,6 +536,8 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                         task={task}
                         onClick={(e) => handleTaskClick(e, task)}
                         onToggleComplete={() => handleToggleComplete(task)}
+                        isInbox={true}
+                        isCompleting={completingIds.has(task.id)}
                       />
                     ))}
                   </div>
@@ -550,7 +579,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
                 {isCompletedExpanded && (
                   <>
-                    <div className="space-y-0.5 opacity-75">
+                    <div className="space-y-0 opacity-75">
                       {recentCompletedTasks.map((task) => (
                         <div
                           key={task.id}

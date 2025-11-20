@@ -79,9 +79,9 @@ export default function RightPanel({ projects, createProject, updateProject, del
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200 relative">
       {/* Header - 미니 달력만 */}
-      <div className="p-4">
+      <div className="px-0 py-3">
         {/* Minimalist Calendar */}
-        <div className="bg-gray-50 rounded-lg p-3">
+        <div className="bg-gray-50 rounded-lg p-0.5">
           <div className="text-center mb-2">
             <div className="text-sm font-medium text-gray-600">
               {(() => {
@@ -232,7 +232,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
       </div>
 
       {/* Project Lists */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-0 py-4 space-y-6">
         {/* Folder Projects */}
         {folderProjects.length > 0 && (
           <div>

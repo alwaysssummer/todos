@@ -13,9 +13,10 @@ interface TaskDetailPopoverProps {
     onClose: () => void
     position?: { x: number, y: number }
     projects?: Project[]
+    toggleTaskStatus?: (id: string, currentStatus: string) => void
 }
 
-export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [] }: TaskDetailPopoverProps) {
+export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], toggleTaskStatus }: TaskDetailPopoverProps) {
     const [title, setTitle] = useState(task.title)
     const [description, setDescription] = useState(task.description || '')
     const [duration, setDuration] = useState(task.duration || 30) // 기본값 30분
@@ -111,8 +112,16 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         await updateTask(task.id, { is_top5: newValue })
     }
 
-    const toggleComplete = async () => {
-        await updateTask(task.id, { status: task.status === 'completed' ? 'inbox' : 'completed' })
+    const toggleComplete = () => {
+        // 체크박스 전용 초고속 함수가 있으면 사용, 없으면 일반 updateTask 사용
+        if (toggleTaskStatus) {
+            toggleTaskStatus(task.id, task.status)
+        } else {
+            updateTask(task.id, { status: task.status === 'completed' ? 'inbox' : 'completed' })
+                .catch(error => {
+                    console.error('Failed to toggle task:', error)
+                })
+        }
         onClose()
     }
 

@@ -11,17 +11,25 @@ interface ArchiveListItemProps {
     updateTask: (id: string, updates: Partial<Task>) => Promise<void>
     deleteTask: (id: string) => Promise<void>
     onTagClick: (tag: string) => void
+    toggleTaskStatus?: (id: string, currentStatus: string) => void
 }
 
-export default function ArchiveListItem({ task, projects, updateTask, deleteTask, onTagClick }: ArchiveListItemProps) {
+export default function ArchiveListItem({ task, projects, updateTask, deleteTask, onTagClick, toggleTaskStatus }: ArchiveListItemProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const project = projects.find(p => p.id === task.project_id)
 
-    const handleToggleComplete = async (e: React.MouseEvent) => {
+    const handleToggleComplete = (e: React.MouseEvent) => {
         e.stopPropagation()
-        await updateTask(task.id, {
-            status: task.status === 'completed' ? 'inbox' : 'completed'
-        })
+        // 체크박스 전용 초고속 함수가 있으면 사용, 없으면 일반 updateTask 사용
+        if (toggleTaskStatus) {
+            toggleTaskStatus(task.id, task.status)
+        } else {
+            updateTask(task.id, {
+                status: task.status === 'completed' ? 'inbox' : 'completed'
+            }).catch(error => {
+                console.error('Failed to toggle task:', error)
+            })
+        }
     }
 
     return (

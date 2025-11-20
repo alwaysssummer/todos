@@ -19,7 +19,7 @@ type PanelType = 'left' | 'center' | 'right'
 
 export default function Home() {
   const [activePanel, setActivePanel] = useState<PanelType>('left')
-  const { tasks, createTask, updateTask, deleteTask, reorderTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks()
+  const { tasks, createTask, updateTask, deleteTask, reorderTasks, toggleTaskStatus, loading: tasksLoading, refetch: refetchTasks } = useTasks()
   const { projects, createProject, updateProject, deleteProject, loading: projectsLoading } = useProjects()
   const { ensureScheduleInRange } = useScheduleManager()
 
@@ -214,13 +214,14 @@ export default function Home() {
         <div className="hidden md:block h-full">
           <PanelGroup direction="horizontal">
             {/* Left Panel */}
-            <Panel defaultSize={16} minSize={12} maxSize={25}>
+            <Panel defaultSize={18} minSize={12} maxSize={25}>
               <LeftPanel
                 tasks={tasks}
                 createTask={createTask}
                 updateTask={updateTask}
                 deleteTask={deleteTask}
                 reorderTasks={reorderTasks}
+                toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
                 createProject={createProject}
                 updateProject={updateProject}
@@ -232,7 +233,7 @@ export default function Home() {
 
             {/* Center Panel */}
             {/* Center Panel */}
-            <Panel defaultSize={60} minSize={40}>
+            <Panel defaultSize={64} minSize={40}>
               <CenterPanel
                 tasks={tasks}
                 createTask={createTask}
@@ -251,7 +252,7 @@ export default function Home() {
             <PanelResizeHandle className="w-px bg-gray-200 hover:bg-gray-400 transition-colors" />
 
             {/* Right Panel */}
-            <Panel defaultSize={16} minSize={12} maxSize={25}>
+            <Panel defaultSize={12} minSize={10} maxSize={20}>
               <RightPanel
                 projects={projects}
                 createProject={createProject}
@@ -285,6 +286,7 @@ export default function Home() {
                 updateTask={updateTask}
                 deleteTask={deleteTask}
                 reorderTasks={reorderTasks}
+                toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
                 createProject={createProject}
                 updateProject={updateProject}

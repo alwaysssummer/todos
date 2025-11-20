@@ -70,9 +70,16 @@ export function useTasks() {
         }
     }
 
-    // Task 업데이트
+    // Task 업데이트 (낙관적 업데이트 적용)
     const updateTask = async (id: string, updates: Partial<Task>) => {
+        // 1. 로컬 상태 즉시 업데이트 (UI 반응성 향상)
+        const previousTasks = tasks
+        setTasks(prev => prev.map(t => 
+            t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+        ))
+
         try {
+            // 2. 서버에 업데이트 요청
             const { data, error } = await supabase
                 .from('tasks')
                 .update({
@@ -85,10 +92,12 @@ export function useTasks() {
 
             if (error) throw error
 
-            // 로컬 상태 업데이트
+            // 3. 서버 응답으로 최종 업데이트 (서버 데이터와 동기화)
             setTasks(prev => prev.map(t => t.id === id ? data : t))
         } catch (error) {
             console.error('Error updating task:', JSON.stringify(error, null, 2))
+            // 4. 에러 시 이전 상태로 롤백
+            setTasks(previousTasks)
             throw error
         }
     }
@@ -156,6 +165,29 @@ export function useTasks() {
         }
     }
 
+    // 체크박스 토글 전용 최적화 함수 (초고속 반응)
+    const toggleTaskStatus = (id: string, currentStatus: string) => {
+        const newStatus = currentStatus === 'completed' ? 'inbox' : 'completed'
+        
+        // 즉시 UI 업데이트 (최대 속도)
+        setTasks(prev => prev.map(t => 
+            t.id === id ? { ...t, status: newStatus } : t
+        ))
+
+        // 백그라운드에서 서버 동기화 (await 없음)
+        supabase
+            .from('tasks')
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .then(({ error }) => {
+                if (error) {
+                    console.error('Failed to sync status:', error)
+                    // 에러 시 전체 새로고침
+                    fetchTasks()
+                }
+            })
+    }
+
     return {
         tasks,
         loading,
@@ -163,6 +195,7 @@ export function useTasks() {
         updateTask,
         deleteTask,
         reorderTasks,
+        toggleTaskStatus,
         refetch: fetchTasks,
     }
 }
