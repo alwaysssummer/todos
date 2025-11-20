@@ -38,6 +38,13 @@ export default function Home() {
   // 보충 수업 추가 모드
   const [makeupProject, setMakeupProject] = useState<any>(null)
 
+  // 수업 취소 대기 중인 정보 (Phase 8)
+  const [pendingCancelTask, setPendingCancelTask] = useState<{
+    taskId: string
+    projectId: string
+    homeworkAssignments: any[]
+  } | null>(null)
+
   // 태그 필터링된 태스크
   const filteredTasks = useMemo(() => {
     if (selectedTags.length === 0) return tasks
@@ -246,6 +253,9 @@ export default function Home() {
                 onClearMakeupMode={() => setMakeupProject(null)}
                 currentDate={currentDate}
                 onDateChange={handleDateChange}
+                pendingCancelTask={pendingCancelTask}
+                setPendingCancelTask={setPendingCancelTask}
+                onSelectMakeupProject={setMakeupProject}
               />
             </Panel>
 
@@ -306,6 +316,9 @@ export default function Home() {
                 onClearMakeupMode={() => setMakeupProject(null)}
                 currentDate={currentDate}
                 onDateChange={handleDateChange}
+                pendingCancelTask={pendingCancelTask}
+                setPendingCancelTask={setPendingCancelTask}
+                onSelectMakeupProject={setMakeupProject}
               />
             )}
             {activePanel === 'right' && (

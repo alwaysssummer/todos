@@ -19,6 +19,13 @@ interface CenterPanelProps {
   onClearMakeupMode?: () => void
   currentDate?: Date
   onDateChange?: (date: Date) => void
+  pendingCancelTask?: {
+    taskId: string
+    projectId: string
+    homeworkAssignments: any[]
+  } | null
+  setPendingCancelTask?: (task: any) => void
+  onSelectMakeupProject?: (project: Project | null) => void
 }
 
 function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewSlot, previewTask }: {
@@ -442,7 +449,7 @@ function calculateLayout(tasks: Task[]) {
   return layoutMap
 }
 
-export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange }: CenterPanelProps) {
+export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange, pendingCancelTask, setPendingCancelTask, onSelectMakeupProject }: CenterPanelProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
   const [now, setNow] = useState(new Date())
@@ -548,6 +555,44 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
         is_top5: false
       }
 
+      // Phase 8: 취소 대기 중인 수업이 있으면 과제 이전
+      if (pendingCancelTask && pendingCancelTask.projectId === makeupProject.id) {
+        // 과제 배정 → 과제 체크로 변환
+        const transferredChecks = pendingCancelTask.homeworkAssignments.flatMap(
+          (assignment: any) => assignment.chapters.map((chapter: string) => ({
+            textbook_id: assignment.textbook_id,
+            textbook_name: assignment.textbook_name,
+            chapter: chapter,
+            is_completed: false,
+            note: '(취소된 수업에서 이전)'
+          }))
+        )
+
+        taskData.homework_checks = transferredChecks
+
+        // 원래 수업 취소 처리
+        try {
+          await updateTask(pendingCancelTask.taskId, {
+            is_cancelled: true,
+            status: 'cancelled',
+            homework_assignments: []
+          })
+          
+          // 대기 상태 초기화
+          if (setPendingCancelTask) {
+            setPendingCancelTask(null)
+          }
+
+          alert(
+            '보충 수업이 추가되었습니다.\n' +
+            '취소된 수업의 과제가 자동으로 배정되었습니다.'
+          )
+        } catch (error) {
+          console.error('Error canceling original lesson:', error)
+          alert('원래 수업 취소 중 오류가 발생했습니다.')
+        }
+      }
+
       // 보충 수업 생성 후 모드 해제
       if (onClearMakeupMode) {
         onClearMakeupMode()
@@ -632,6 +677,8 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
           onClose={() => setSelectedTask(null)}
           position={popoverPosition}
           projects={projects}
+          setPendingCancelTask={setPendingCancelTask}
+          onSelectMakeupProject={onSelectMakeupProject}
         />
       )}
 

@@ -6,6 +6,7 @@ import { ko } from 'date-fns/locale'
 import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen } from 'lucide-react'
 import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
+import { supabase } from '@/lib/supabase'
 
 interface TaskDetailPopoverProps {
     task: Task
@@ -15,9 +16,11 @@ interface TaskDetailPopoverProps {
     position?: { x: number, y: number }
     projects?: Project[]
     toggleTaskStatus?: (id: string, currentStatus: string) => void
+    setPendingCancelTask?: (task: any) => void
+    onSelectMakeupProject?: (project: Project | null) => void
 }
 
-export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], toggleTaskStatus }: TaskDetailPopoverProps) {
+export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject }: TaskDetailPopoverProps) {
     const [title, setTitle] = useState(task.title)
     const [description, setDescription] = useState(task.description || '')
     const [duration, setDuration] = useState(task.duration || 30) // 기본값 30분
@@ -156,13 +159,6 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         await updateTask(task.id, { homework_status: status })
     }
 
-    const convertToMakeup = async () => {
-        if (confirm('이 수업을 보충 수업으로 전환하시겠습니까?')) {
-            await updateTask(task.id, { is_makeup: true })
-            onClose()
-        }
-    }
-
     // ===== 과제 체크 함수들 (Phase 6) =====
     
     // 과제 체크 토글
@@ -265,10 +261,108 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         }
     }
 
-    const cancelLesson = async () => {
-        if (confirm('이 수업을 취소하시겠습니까?')) {
-            await updateTask(task.id, { is_cancelled: true })
+    // ===== 수업 취소 로직 (Phase 8) =====
+    
+    // 다음 수업 찾기 헬퍼 함수
+    const findNextLesson = async (projectId: string, currentStartTime: string) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('project_id', projectId)
+            .gt('start_time', currentStartTime)
+            .eq('is_cancelled', false)
+            .order('start_time', { ascending: true })
+            .limit(1)
+            .single()
+
+        return error ? null : data
+    }
+
+    // 보충 먼저 잡기
+    const handleCancelWithMakeup = () => {
+        if (!setPendingCancelTask || !onSelectMakeupProject || !project) return
+
+        // 취소할 수업 정보 저장
+        setPendingCancelTask({
+            taskId: task.id,
+            projectId: task.project_id!,
+            homeworkAssignments: homeworkAssignments
+        })
+
+        // 보충 모드 활성화
+        onSelectMakeupProject(project)
+
+        alert(
+            '보충 수업을 추가할 시간을 시간표에서 더블클릭하세요.\n' +
+            '보충이 추가되면 자동으로 과제가 배정되고 이 수업이 취소됩니다.'
+        )
+
+        onClose()
+    }
+
+    // 바로 다음 수업으로 이전
+    const handleCancelWithoutMakeup = async () => {
+        try {
+            // 다음 수업 찾기
+            const nextLesson = await findNextLesson(task.project_id!, task.start_time!)
+
+            if (!nextLesson) {
+                alert('다음 수업이 없어 과제를 이전할 수 없습니다.')
+                return
+            }
+
+            // 과제 배정 → 과제 체크로 변환
+            const transferredChecks: HomeworkCheckItem[] =
+                homeworkAssignments.flatMap(assignment =>
+                    assignment.chapters.map(chapter => ({
+                        textbook_id: assignment.textbook_id,
+                        textbook_name: assignment.textbook_name,
+                        chapter: chapter,
+                        is_completed: false,
+                        note: '(취소된 수업에서 이전)'
+                    }))
+                )
+
+            // 다음 수업에 과제 추가
+            await updateTask(nextLesson.id, {
+                homework_checks: [
+                    ...(nextLesson.homework_checks || []),
+                    ...transferredChecks
+                ]
+            })
+
+            // 현재 수업 취소
+            await updateTask(task.id, {
+                is_cancelled: true,
+                status: 'cancelled',
+                homework_assignments: []
+            })
+
+            const nextLessonDate = new Date(nextLesson.start_time)
+            alert(
+                `수업이 취소되었습니다.\n\n` +
+                `과제가 다음 수업(${nextLessonDate.toLocaleDateString()} ${nextLessonDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})으로 이전되었습니다.`
+            )
+
             onClose()
+
+        } catch (error) {
+            console.error('수업 취소 실패:', error)
+            alert('오류가 발생했습니다.')
+        }
+    }
+
+    const cancelLesson = () => {
+        const wantMakeup = confirm(
+            '이 수업을 취소하시겠습니까?\n\n' +
+            '확인: 보충 수업을 먼저 잡겠습니다\n' +
+            '취소: 다음 수업으로 과제를 바로 이전합니다'
+        )
+
+        if (wantMakeup) {
+            handleCancelWithMakeup()
+        } else {
+            handleCancelWithoutMakeup()
         }
     }
 
@@ -693,79 +787,23 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                             )}
                         </div>
 
-                        {/* 출결 상태 */}
+                        {/* Phase 9: 출결상태/과제상태 숨김 (나중에 필요시 복원 가능) */}
+                        {/* 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <UserCheck size={16} />
                                 출결 상태
                             </label>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => updateAttendance('present')}
-                                    className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${attendance === 'present'
-                                        ? 'border-green-500 bg-green-50 text-green-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-green-300'
-                                        }`}
-                                >
-                                    출석
-                                </button>
-                                <button
-                                    onClick={() => updateAttendance('late')}
-                                    className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${attendance === 'late'
-                                        ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-yellow-300'
-                                        }`}
-                                >
-                                    지각
-                                </button>
-                                <button
-                                    onClick={() => updateAttendance('absent')}
-                                    className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${attendance === 'absent'
-                                        ? 'border-red-500 bg-red-50 text-red-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-red-300'
-                                        }`}
-                                >
-                                    결석
-                                </button>
-                            </div>
+                            ...
                         </div>
-
-                        {/* 과제 상태 */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <BookCheck size={16} />
                                 과제 상태
                             </label>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => updateHomeworkStatus('done')}
-                                    className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${homeworkStatus === 'done'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-blue-300'
-                                        }`}
-                                >
-                                    완료
-                                </button>
-                                <button
-                                    onClick={() => updateHomeworkStatus('pending')}
-                                    className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${homeworkStatus === 'pending'
-                                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-orange-300'
-                                        }`}
-                                >
-                                    대기
-                                </button>
-                                <button
-                                    onClick={() => updateHomeworkStatus('none')}
-                                    className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${homeworkStatus === 'none'
-                                        ? 'border-gray-400 bg-gray-50 text-gray-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                        }`}
-                                >
-                                    없음
-                                </button>
-                            </div>
+                            ...
                         </div>
+                        */}
 
                         {/* 수업 메모 */}
                         <div className="space-y-2">
@@ -785,19 +823,10 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
                         {/* 수업 관리 버튼 */}
                         <div className="flex gap-2 pt-2">
-                            {!task.is_makeup && !task.is_cancelled && (
-                                <button
-                                    onClick={convertToMakeup}
-                                    className="flex-1 py-2 px-3 rounded-lg border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Calendar size={16} />
-                                    보충으로 전환
-                                </button>
-                            )}
                             {!task.is_cancelled && (
                                 <button
                                     onClick={cancelLesson}
-                                    className="flex-1 py-2 px-3 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-2 px-3 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <AlertCircle size={16} />
                                     수업 취소
