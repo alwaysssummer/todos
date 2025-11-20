@@ -3,8 +3,10 @@
 -- 교재(textbooks) 테이블 및 과제 관리 필드 추가
 -- =====================================================
 
--- 1. textbooks 테이블 생성
-CREATE TABLE IF NOT EXISTS textbooks (
+-- 1. 기존 textbooks 테이블이 있으면 삭제 후 재생성
+DROP TABLE IF EXISTS textbooks CASCADE;
+
+CREATE TABLE textbooks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     total_chapters INTEGER NOT NULL CHECK (total_chapters > 0),
