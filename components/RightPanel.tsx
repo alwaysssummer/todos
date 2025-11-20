@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import type { Project, Task } from '@/types/database'
 import ProjectCreateModal from './ProjectCreateModal'
 import ProjectDetailModal from './ProjectDetailModal'
+import TagPanel from './TagPanel'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
 
 interface RightPanelProps {
@@ -22,9 +23,12 @@ interface RightPanelProps {
   currentDate?: Date
   onDateChange?: (date: Date) => void
   refetchTasks?: () => void
+  selectedTags?: string[]
+  onTagsChange?: (tags: string[]) => void
+  onOpenTagModal?: (tag: string) => void
 }
 
-export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject, currentDate = new Date(), onDateChange, refetchTasks }: RightPanelProps) {
+export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject, currentDate = new Date(), onDateChange, refetchTasks, selectedTags = [], onTagsChange, onOpenTagModal }: RightPanelProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const { syncProjectSchedule } = useScheduleManager()
@@ -57,6 +61,12 @@ export default function RightPanel({ projects, createProject, updateProject, del
 
   const handleProjectClick = (project: Project) => {
     setSelectedProject(project)
+  }
+
+  const handleTagClick = (tag: string) => {
+    if (onOpenTagModal) {
+      onOpenTagModal(tag)
+    }
   }
 
   return (
@@ -141,8 +151,8 @@ export default function RightPanel({ projects, createProject, updateProject, del
                   <div
                     key={`prev-${prevDay}`}
                     className={`text-center py-0.5 rounded relative ${isInSelectedWeek
-                        ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
-                        : 'text-gray-400 hover:bg-gray-100'
+                      ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
+                      : 'text-gray-400 hover:bg-gray-100'
                       }`}
                   >
                     {prevDay}
@@ -166,10 +176,10 @@ export default function RightPanel({ projects, createProject, updateProject, del
                   <div
                     key={day}
                     className={`text-center py-0.5 rounded relative ${isToday
-                        ? 'bg-blue-600 text-white font-bold shadow-md ring-2 ring-blue-400'
-                        : isInSelectedWeek
-                          ? 'bg-blue-100 text-blue-900 font-medium'
-                          : 'text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-600 text-white font-bold shadow-md ring-2 ring-blue-400'
+                      : isInSelectedWeek
+                        ? 'bg-blue-100 text-blue-900 font-medium'
+                        : 'text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     {day}
@@ -199,8 +209,8 @@ export default function RightPanel({ projects, createProject, updateProject, del
                   <div
                     key={`next-${i}`}
                     className={`text-center py-0.5 rounded relative ${isInSelectedWeek
-                        ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
-                        : 'text-gray-400 hover:bg-gray-100'
+                      ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
+                      : 'text-gray-400 hover:bg-gray-100'
                       }`}
                   >
                     {i}
@@ -216,6 +226,13 @@ export default function RightPanel({ projects, createProject, updateProject, del
 
       {/* Project Lists */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Tag Panel */}
+        <TagPanel
+          tasks={tasks}
+          selectedTags={selectedTags}
+          onTagClick={handleTagClick}
+        />
+
         {/* Folder Projects */}
         {folderProjects.length > 0 && (
           <div>
@@ -287,8 +304,8 @@ export default function RightPanel({ projects, createProject, updateProject, del
                         onSelectMakeupProject?.(isSelected ? null : project)
                       }}
                       className={`ml-1 p-1 rounded-md flex-shrink-0 transition-colors ${isSelected
-                          ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100 border border-yellow-200'
+                        ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100 border border-yellow-200'
                         }`}
                       title={isSelected ? "보충 수업 모드 취소" : "보충 수업 추가"}
                     >

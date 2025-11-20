@@ -55,6 +55,17 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
   const isCompleted = task.status === 'completed'
   const isScheduled = task.status === 'scheduled'
 
+  // 제목에서 #태그 부분을 연하게 표시
+  const renderTitle = (title: string) => {
+    const parts = title.split(/(#[\w가-힣]+)/g)
+    return parts.map((part, i) => {
+      if (part.startsWith('#')) {
+        return <span key={i} className="text-gray-400">{part}</span>
+      }
+      return <span key={i}>{part}</span>
+    })
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -88,7 +99,7 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
       <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
         {/* 제목 */}
         <div className={`text-sm font-medium truncate ${isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-bold text-gray-900' : 'text-gray-900'}`}>
-          {task.title}
+          {renderTitle(task.title)}
         </div>
 
         {/* 우측 인디케이터들 */}
@@ -134,6 +145,31 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
     })
   )
 
+  // 태그 추출 및 제목 정리 함수
+  function extractTags(text: string): { cleanTitle: string; tags: string[] } {
+    const tags: string[] = []
+
+    // 1. [[inline tag]] 추출 및 변환
+    const inlineTagRegex = /\[\[([^\]]+)\]\]/g
+    let cleanTitle = text.replace(inlineTagRegex, (match, tag) => {
+      tags.push(tag.trim())
+      return tag.trim()  // [[태그]] -> 태그
+    })
+
+    // 2. #hashtag 추출
+    const hashtagRegex = /#([\w가-힣]+)/g
+    const hashtagMatches = cleanTitle.match(hashtagRegex)
+    if (hashtagMatches) {
+      hashtagMatches.forEach(tag => {
+        tags.push(tag.substring(1))  // # 제거
+      })
+    }
+
+    // 3. #hashtag는 제목에서 제거하지 않음 (연하게 표시할 예정)
+
+    return { cleanTitle: cleanTitle.trim(), tags: [...new Set(tags)] }  // 중복 제거
+  }
+
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -154,11 +190,15 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
         title = title.substring(1).trim()
       }
 
+      // 태그 추출
+      const { cleanTitle, tags } = extractTags(title)
+
       await createTask({
-        title,
+        title: cleanTitle,
         status: 'inbox',
         is_top5: isTop5,
-        due_date: dueDate
+        due_date: dueDate,
+        tags: tags.length > 0 ? tags : undefined
       })
       setNewTaskTitle('')
     }

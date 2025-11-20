@@ -16,6 +16,9 @@ export interface Task {
     // 자동 생성 여부
     is_auto_generated?: boolean
 
+    // 태그
+    tags?: string[]
+
     // 학생 시간표 전용
     attendance?: 'present' | 'absent' | 'late'
     homework_status?: 'done' | 'pending' | 'none'

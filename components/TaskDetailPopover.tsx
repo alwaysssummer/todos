@@ -31,6 +31,10 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
 
+    // 태그 편집 state
+    const [editedTags, setEditedTags] = useState<string[]>(task.tags || [])
+    const [newTag, setNewTag] = useState('')
+
     // 학생 시간표 태스크인지 확인
     const isStudentLesson = task.is_auto_generated || task.is_makeup
 
@@ -146,6 +150,23 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             await updateTask(task.id, { is_cancelled: true })
             onClose()
         }
+    }
+
+    // 태그 추가
+    const handleAddTag = () => {
+        if (newTag.trim() && !editedTags.includes(newTag.trim())) {
+            const updated = [...editedTags, newTag.trim()]
+            setEditedTags(updated)
+            updateTask(task.id, { tags: updated })
+            setNewTag('')
+        }
+    }
+
+    // 태그 제거
+    const handleRemoveTag = (tag: string) => {
+        const updated = editedTags.filter(t => t !== tag)
+        setEditedTags(updated)
+        updateTask(task.id, { tags: updated.length > 0 ? updated : undefined })
     }
 
     // 항상 화면 정중앙에 표시
@@ -345,6 +366,48 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         placeholder="메모 추가..."
                         className="flex-1 bg-transparent resize-none focus:outline-none text-sm min-h-[60px] placeholder-gray-400 text-gray-900"
                     />
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-2">
+                    <label className="text-xs text-gray-500 font-medium">Tags</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {editedTags.map(tag => (
+                            <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                            >
+                                #{tag}
+                                <button
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="hover:text-red-500 transition-colors"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newTag}
+                            onChange={(e) => setNewTag(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    handleAddTag()
+                                }
+                            }}
+                            placeholder="태그 추가..."
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            onClick={handleAddTag}
+                            className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                        >
+                            추가
+                        </button>
+                    </div>
                 </div>
 
                 {/* 학생 시간표 전용 섹션 */}

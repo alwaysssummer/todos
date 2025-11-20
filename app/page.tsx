@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent } from '@dnd-kit/core'
 import LeftPanel from '@/components/LeftPanel'
 import CenterPanel from '@/components/CenterPanel'
 import RightPanel from '@/components/RightPanel'
 import MobileNavigation from '@/components/MobileNavigation'
+import TagModal from '@/components/TagModal'
 import { useTasks } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
@@ -24,13 +25,46 @@ export default function Home() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+
+  // Tag Modal state
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false)
+  const [modalSelectedTags, setModalSelectedTags] = useState<string[]>([])
 
   // 보충 수업 추가 모드
   const [makeupProject, setMakeupProject] = useState<any>(null)
 
-  // ✨ [완전 수정] useEffect 제거! 
-  // 날짜 변경 시에만 명시적으로 스케줄 체크
-  // 이렇게 하면 새로고침 시 절대 중복 생성 안 됨
+  // 태그 필터링된 태스크
+  const filteredTasks = useMemo(() => {
+    if (selectedTags.length === 0) return tasks
+
+    return tasks.filter(task =>
+      selectedTags.every(tag => task.tags?.includes(tag))  // AND 조건
+    )
+  }, [tasks, selectedTags])
+
+  // 모든 태그 추출
+  const allTags = useMemo(() => {
+    const tags = new Set<string>()
+    tasks.forEach(task => {
+      task.tags?.forEach(tag => tags.add(tag))
+    })
+    return Array.from(tags)
+  }, [tasks])
+
+  // Tag Modal handlers
+  const handleOpenTagModal = (tag: string) => {
+    setModalSelectedTags([tag])
+    setIsTagModalOpen(true)
+  }
+
+  const handleModalTagSelect = (tag: string) => {
+    setModalSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    )
+  }
 
   // 중복 호출 방지
   const pendingCheckRef = useRef<NodeJS.Timeout | null>(null)
@@ -228,6 +262,9 @@ export default function Home() {
                 currentDate={currentDate}
                 onDateChange={handleDateChange}
                 refetchTasks={refetchTasks}
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                onOpenTagModal={handleOpenTagModal}
               />
             </Panel>
           </PanelGroup>
@@ -279,6 +316,9 @@ export default function Home() {
                 currentDate={currentDate}
                 onDateChange={handleDateChange}
                 refetchTasks={refetchTasks}
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                onOpenTagModal={handleOpenTagModal}
               />
             )}
           </div>
@@ -304,6 +344,19 @@ export default function Home() {
             </div>
           ) : null}
         </DragOverlay>
+
+        {/* Tag Modal */}
+        <TagModal
+          isOpen={isTagModalOpen}
+          onClose={() => setIsTagModalOpen(false)}
+          selectedTags={modalSelectedTags}
+          tasks={tasks}
+          projects={projects}
+          updateTask={updateTask}
+          deleteTask={deleteTask}
+          onTagSelect={handleModalTagSelect}
+          allTags={allTags}
+        />
       </div>
     </DndContext>
   )
