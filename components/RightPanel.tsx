@@ -77,7 +77,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
   }
 
   return (
-    <div className="h-full flex flex-col bg-white border-l border-gray-200">
+    <div className="h-full flex flex-col bg-white border-l border-gray-200 relative">
       {/* Header - 미니 달력만 */}
       <div className="p-4">
         {/* Minimalist Calendar */}
@@ -233,14 +233,6 @@ export default function RightPanel({ projects, createProject, updateProject, del
 
       {/* Project Lists */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Tag Panel */}
-        <TagPanel
-          tasks={tasks}
-          selectedTags={selectedTags}
-          onTagClick={handleTagClick}
-          onHeaderClick={handleArchiveOpen}
-        />
-
         {/* Folder Projects */}
         {folderProjects.length > 0 && (
           <div>
@@ -275,10 +267,28 @@ export default function RightPanel({ projects, createProject, updateProject, del
         {/* Student Projects */}
         {studentProjects.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <GraduationCap size={16} className="text-green-600" />
-              <h2 className="text-sm font-semibold text-gray-900">학생 시간표</h2>
               <span className="text-xs text-gray-400">({studentProjects.length})</span>
+
+              {/* 색상별 학생 수 요약 */}
+              <div className="flex gap-1.5 ml-auto">
+                {(() => {
+                  const colorGroups: Record<string, number> = {}
+                  studentProjects.forEach(p => {
+                    colorGroups[p.color] = (colorGroups[p.color] || 0) + 1
+                  })
+                  return Object.entries(colorGroups).map(([color, count]) => (
+                    <div key={color} className="flex items-center gap-1">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-xs font-medium text-gray-600">{count}</span>
+                    </div>
+                  ))
+                })()}
+              </div>
             </div>
             <div className="space-y-1">
               {studentProjects.map((project) => {
@@ -379,7 +389,17 @@ export default function RightPanel({ projects, createProject, updateProject, del
             </button>
           </div>
         )}
+
+        {/* Tag Panel - 하단 (Removed from here) */}
       </div>
+
+      {/* Tag Panel - Fixed Bottom */}
+      <TagPanel
+        tasks={tasks}
+        selectedTags={selectedTags}
+        onTagClick={handleTagClick}
+        onHeaderClick={handleArchiveOpen}
+      />
 
       {/* Create Modal */}
       {showCreateModal && (
@@ -405,7 +425,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
       {/* 우측 하단 고정 버튼 */}
       <button
         onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50"
+        className="absolute bottom-20 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50"
         title="새 프로젝트"
       >
         <Plus size={24} />

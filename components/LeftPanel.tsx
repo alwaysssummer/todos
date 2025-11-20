@@ -55,6 +55,9 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
   const isCompleted = task.status === 'completed'
   const isScheduled = task.status === 'scheduled'
 
+  // 오늘 날짜인지 확인
+  const isToday = task.due_date && new Date(task.due_date).toDateString() === new Date().toDateString()
+
   // 제목에서 #태그 부분을 연하게 표시
   const renderTitle = (title: string) => {
     const parts = title.split(/(#[\w가-힣]+)/g)
@@ -73,13 +76,17 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`group flex items-start gap-2 p-1.5 text-sm transition-all bg-white cursor-grab active:cursor-grabbing border-b
+      className={`group flex items-start gap-2 p-1.5 text-sm transition-all cursor-grab active:cursor-grabbing border-b
         ${isCompleted
           ? 'text-gray-400 border-gray-100 bg-gray-50'
-          : 'text-gray-700 border-gray-200 hover:border-blue-300'
+          : task.is_top5
+            ? 'bg-red-50/40 border-gray-100'
+            : isToday
+              ? 'bg-green-50/40 border-gray-100'
+              : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
         }`}
     >
-      {/* Checkbox (Square) */}
+      {/* Checkbox */}
       <button
         onClick={(e) => {
           e.stopPropagation() // 드래그나 클릭 방지
@@ -89,7 +96,11 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
         className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center transition-colors
             ${isCompleted
             ? 'bg-blue-500 border-blue-500 text-white'
-            : 'border-gray-300 hover:border-blue-400 text-transparent hover:bg-blue-50'
+            : task.is_top5
+              ? 'border-red-300 hover:border-red-400 bg-white text-transparent hover:bg-red-50'
+              : isToday
+                ? 'border-green-400 hover:border-green-500 bg-white text-transparent hover:bg-green-50'
+                : 'border-gray-300 hover:border-blue-400 text-transparent hover:bg-blue-50'
           }`}
       >
         <Check size={10} strokeWidth={4} />
@@ -98,26 +109,25 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string
       {/* Content - 1줄 레이아웃 */}
       <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
         {/* 제목 */}
-        <div className={`text-sm font-medium truncate ${isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-bold text-gray-900' : 'text-gray-900'}`}>
+        <div className={`text-sm truncate ${isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
           {renderTitle(task.title)}
         </div>
 
         {/* 우측 인디케이터들 */}
         <div className="flex items-center gap-1.5">
+          {/* Today's Task - 초록색 동그라미 */}
+          {isToday && !isCompleted && !task.is_top5 && (
+            <div className="w-2 h-2 rounded-full bg-green-500" title="오늘 할 일" />
+          )}
+
           {/* Scheduled - 노란색 동그라미 */}
           {isScheduled && !isCompleted && (
-            <div
-              className="w-1.5 h-1.5 rounded-full bg-yellow-400 flex-shrink-0"
-              title="Scheduled"
-            />
+            <div className="w-2 h-2 rounded-full bg-yellow-400" title="예정된 일정" />
           )}
 
           {/* Top 5 - 빨간색 동그라미 */}
           {task.is_top5 && !isCompleted && (
-            <div
-              className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"
-              title="Today's Top 5"
-            />
+            <div className="w-2 h-2 rounded-full bg-red-500" title="중요" />
           )}
         </div>
       </div>
@@ -382,7 +392,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
     return (
       <div ref={setNodeRef} className={`flex-1 flex flex-col ${className} ${isOver ? 'bg-blue-50/50' : ''}`}>
-        <h2 className="text-sm font-semibold text-gray-900 mb-3 px-4 pt-4">
+        <h2 className={`text-sm mb-3 px-4 pt-4 ${title === "Today's Focus" ? 'text-red-600 font-extrabold' : 'font-semibold text-gray-900'}`}>
           {title} {count !== undefined && <span className="text-gray-400 font-normal">({count})</span>}
         </h2>
         <div className="flex-1 overflow-y-auto px-4 pb-4">

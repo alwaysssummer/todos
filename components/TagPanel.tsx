@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, ChevronRight } from 'lucide-react'
+import { useMemo } from 'react'
+import { ChevronRight } from 'lucide-react'
 import type { Task } from '@/types/database'
 
 interface TagPanelProps {
@@ -10,8 +10,6 @@ interface TagPanelProps {
 }
 
 export default function TagPanel({ tasks, selectedTags, onTagClick, onHeaderClick }: TagPanelProps) {
-    const [isExpanded, setIsExpanded] = useState(true)
-
     // 모든 태그 추출 및 개수 계산
     const tagCounts = useMemo(() => {
         const counts: Record<string, number> = {}
@@ -27,40 +25,18 @@ export default function TagPanel({ tasks, selectedTags, onTagClick, onHeaderClic
     if (tagCounts.length === 0) return null
 
     return (
-        <div className="mb-4 border-b border-gray-200 pb-4">
+        <div className="border-t border-gray-200 bg-white">
             {/* Header - Archive 오픈 */}
             <button
                 onClick={onHeaderClick}
-                className="flex items-center justify-between w-full px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 mb-2"
+                className="flex items-center justify-between w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
-                <span>🏷️ TAGS ({tagCounts.length})</span>
-                <ChevronRight size={16} />
-            </button>
-
-            {/* Expand/Collapse for tag list */}
-            <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center justify-between w-full px-4 py-1 text-xs text-gray-500 hover:bg-gray-50"
-            >
-                <span>Quick Filter</span>
-                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-
-            {isExpanded && (
-                <div className="px-4 py-2 space-y-1 max-h-64 overflow-y-auto">
-                    {tagCounts.map(([tag, count]) => (
-                        <button
-                            key={tag}
-                            onClick={() => onTagClick(tag)}
-                            className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-gray-100 flex justify-between items-center transition-colors
-                ${selectedTags.includes(tag) ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
-                        >
-                            <span>#{tag}</span>
-                            <span className="text-gray-400 text-xs">({count})</span>
-                        </button>
-                    ))}
+                <div className="flex items-center gap-2">
+                    <span>🏷️ TAGS</span>
+                    <span className="text-xs text-gray-400 font-normal">({tagCounts.length})</span>
                 </div>
-            )}
+                <ChevronRight size={16} className="text-gray-400" />
+            </button>
         </div>
     )
 }
