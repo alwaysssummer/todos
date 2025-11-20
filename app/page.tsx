@@ -8,6 +8,7 @@ import CenterPanel from '@/components/CenterPanel'
 import RightPanel from '@/components/RightPanel'
 import MobileNavigation from '@/components/MobileNavigation'
 import TagModal from '@/components/TagModal'
+import TagArchiveDashboard from '@/components/TagArchiveDashboard'
 import { useTasks } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
@@ -30,6 +31,9 @@ export default function Home() {
   // Tag Modal state
   const [isTagModalOpen, setIsTagModalOpen] = useState(false)
   const [modalSelectedTags, setModalSelectedTags] = useState<string[]>([])
+
+  // Archive Dashboard state
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false)
 
   // 보충 수업 추가 모드
   const [makeupProject, setMakeupProject] = useState<any>(null)
@@ -265,6 +269,7 @@ export default function Home() {
                 selectedTags={selectedTags}
                 onTagsChange={setSelectedTags}
                 onOpenTagModal={handleOpenTagModal}
+                onOpenArchive={() => setIsArchiveOpen(true)}
               />
             </Panel>
           </PanelGroup>
@@ -319,6 +324,7 @@ export default function Home() {
                 selectedTags={selectedTags}
                 onTagsChange={setSelectedTags}
                 onOpenTagModal={handleOpenTagModal}
+                onOpenArchive={() => setIsArchiveOpen(true)}
               />
             )}
           </div>
@@ -356,6 +362,17 @@ export default function Home() {
           deleteTask={deleteTask}
           onTagSelect={handleModalTagSelect}
           allTags={allTags}
+        />
+
+        {/* Archive Dashboard */}
+        <TagArchiveDashboard
+          isOpen={isArchiveOpen}
+          onClose={() => setIsArchiveOpen(false)}
+          tasks={tasks}
+          projects={projects}
+          updateTask={updateTask}
+          deleteTask={deleteTask}
+          onTagClick={handleOpenTagModal}
         />
       </div>
     </DndContext>

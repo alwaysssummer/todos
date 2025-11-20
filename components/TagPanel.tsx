@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronRight } from 'lucide-react'
 import type { Task } from '@/types/database'
 
 interface TagPanelProps {
     tasks: Task[]
     selectedTags: string[]
     onTagClick: (tag: string) => void
+    onHeaderClick: () => void
 }
 
-export default function TagPanel({ tasks, selectedTags, onTagClick }: TagPanelProps) {
+export default function TagPanel({ tasks, selectedTags, onTagClick, onHeaderClick }: TagPanelProps) {
     const [isExpanded, setIsExpanded] = useState(true)
 
     // 모든 태그 추출 및 개수 계산
@@ -27,12 +28,22 @@ export default function TagPanel({ tasks, selectedTags, onTagClick }: TagPanelPr
 
     return (
         <div className="mb-4 border-b border-gray-200 pb-4">
+            {/* Header - Archive 오픈 */}
             <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center justify-between w-full px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={onHeaderClick}
+                className="flex items-center justify-between w-full px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 mb-2"
             >
                 <span>🏷️ TAGS ({tagCounts.length})</span>
-                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                <ChevronRight size={16} />
+            </button>
+
+            {/* Expand/Collapse for tag list */}
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center justify-between w-full px-4 py-1 text-xs text-gray-500 hover:bg-gray-50"
+            >
+                <span>Quick Filter</span>
+                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
 
             {isExpanded && (

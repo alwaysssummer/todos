@@ -26,9 +26,10 @@ interface RightPanelProps {
   selectedTags?: string[]
   onTagsChange?: (tags: string[]) => void
   onOpenTagModal?: (tag: string) => void
+  onOpenArchive?: () => void
 }
 
-export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject, currentDate = new Date(), onDateChange, refetchTasks, selectedTags = [], onTagsChange, onOpenTagModal }: RightPanelProps) {
+export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject, currentDate = new Date(), onDateChange, refetchTasks, selectedTags = [], onTagsChange, onOpenTagModal, onOpenArchive }: RightPanelProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const { syncProjectSchedule } = useScheduleManager()
@@ -69,6 +70,12 @@ export default function RightPanel({ projects, createProject, updateProject, del
     }
   }
 
+  const handleArchiveOpen = () => {
+    if (onOpenArchive) {
+      onOpenArchive()
+    }
+  }
+
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200">
       {/* Header - 미니 달력만 */}
@@ -95,12 +102,17 @@ export default function RightPanel({ projects, createProject, updateProject, del
           </div>
           <div className="grid grid-cols-7 gap-0.5 text-xs">
             {['월', '화', '수', '목', '금', '토', '일'].map((day, i) => (
-              <div key={i} className="text-center font-medium text-gray-500 py-0.5">
+              <div
+                key={day}
+                className={`text-center py-0.5 font-medium ${i >= 5 ? 'text-red-500' : 'text-gray-600'}`}
+              >
                 {day}
               </div>
             ))}
             {(() => {
-              // 선택된 주간 계산 (월요일 시작)
+              const cells = []
+
+              // currentDate가 속한 주의 월요일 계산
               const getWeekStart = (date: Date): Date => {
                 const d = new Date(date)
                 const day = d.getDay()
@@ -115,47 +127,43 @@ export default function RightPanel({ projects, createProject, updateProject, del
               weekEnd.setDate(weekEnd.getDate() + 6)
               weekEnd.setHours(23, 59, 59, 999)
 
-              // 주의 월요일 기준으로 달력 표시
               const year = weekStart.getFullYear()
               const month = weekStart.getMonth()
-              const firstDay = new Date(year, month, 1).getDay()
-              const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-              const now = new Date()
-              const today = now.getDate()
-              const todayMonth = now.getMonth()
-              const todayYear = now.getFullYear()
+              const firstDay = new Date(year, month, 1)
+              const lastDay = new Date(year, month + 1, 0)
+              const daysInMonth = lastDay.getDate()
 
-              const cells = []
+              const startDayOfWeek = firstDay.getDay()
+              const emptyDays = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1
 
-              // 월요일 기준으로 빈 칸 계산 (0=일요일 -> 6칸, 1=월요일 -> 0칸)
-              const emptyDays = firstDay === 0 ? 6 : firstDay - 1
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
 
-              // 이전 달의 날짜들로 채우기
+              // 이전 달의 날짜들로 채우기 (한 주만큼만)
               const prevMonth = month === 0 ? 11 : month - 1
               const prevYear = month === 0 ? year - 1 : year
-              const prevMonthDays = new Date(prevYear, prevMonth + 1, 0).getDate()
+              const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0).getDate()
 
-              for (let i = 0; i < emptyDays; i++) {
-                const prevDay = prevMonthDays - emptyDays + i + 1
-                const prevCellDate = new Date(prevYear, prevMonth, prevDay)
-                prevCellDate.setHours(0, 0, 0, 0)
+              for (let i = emptyDays - 1; i >= 0; i--) {
+                const day = prevMonthLastDay - i
+                const cellDate = new Date(prevYear, prevMonth, day)
+                cellDate.setHours(0, 0, 0, 0)
 
-                // 선택된 주간에 속하는지 확인
                 const weekStartTime = weekStart.getTime()
                 const weekEndTime = weekEnd.getTime()
-                const cellDateTime = prevCellDate.getTime()
+                const cellDateTime = cellDate.getTime()
                 const isInSelectedWeek = cellDateTime >= weekStartTime && cellDateTime <= weekEndTime
 
                 cells.push(
                   <div
-                    key={`prev-${prevDay}`}
+                    key={`prev-${day}`}
                     className={`text-center py-0.5 rounded relative ${isInSelectedWeek
                       ? 'bg-blue-100 text-blue-900 font-medium opacity-50'
                       : 'text-gray-400 hover:bg-gray-100'
                       }`}
                   >
-                    {prevDay}
+                    {day}
                   </div>
                 )
               }
@@ -164,7 +172,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
               for (let day = 1; day <= daysInMonth; day++) {
                 const cellDate = new Date(year, month, day)
                 cellDate.setHours(0, 0, 0, 0)
-                const isToday = day === today && month === todayMonth && year === todayYear
+                const isToday = cellDate.getTime() === today.getTime()
 
                 // 선택된 주간에 속하는지 확인 (날짜만 비교)
                 const weekStartTime = weekStart.getTime()
@@ -196,13 +204,12 @@ export default function RightPanel({ projects, createProject, updateProject, del
               const nextYear = month === 11 ? year + 1 : year
 
               for (let i = 1; i <= remainingCells; i++) {
-                const nextCellDate = new Date(nextYear, nextMonth, i)
-                nextCellDate.setHours(0, 0, 0, 0)
+                const cellDate = new Date(nextYear, nextMonth, i)
+                cellDate.setHours(0, 0, 0, 0)
 
-                // 선택된 주간에 속하는지 확인
                 const weekStartTime = weekStart.getTime()
                 const weekEndTime = weekEnd.getTime()
-                const cellDateTime = nextCellDate.getTime()
+                const cellDateTime = cellDate.getTime()
                 const isInSelectedWeek = cellDateTime >= weekStartTime && cellDateTime <= weekEndTime
 
                 cells.push(
@@ -231,6 +238,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
           tasks={tasks}
           selectedTags={selectedTags}
           onTagClick={handleTagClick}
+          onHeaderClick={handleArchiveOpen}
         />
 
         {/* Folder Projects */}
