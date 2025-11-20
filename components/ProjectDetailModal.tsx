@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Calendar, Edit2, Trash2, CheckCircle } from 'lucide-react'
+import { X, Calendar, Edit2, Trash2, CheckCircle, BookOpen } from 'lucide-react'
 import type { Project } from '@/types/database'
+import { useTextbooks } from '@/hooks/useTextbooks'
 
 interface ProjectDetailModalProps {
   project: Project
@@ -30,6 +31,9 @@ export default function ProjectDetailModal({
   const [repeatDays, setRepeatDays] = useState(project.repeat_days || [])
   const [targetTime, setTargetTime] = useState(project.target_time || '07:00')
   const [targetDuration, setTargetDuration] = useState(project.target_duration || 30)
+  const [assignedTextbooks, setAssignedTextbooks] = useState<string[]>(project.textbooks || [])
+  
+  const { textbooks, cleanTextbookDataFromTasks } = useTextbooks()
 
   const colors = [
     '#bae6fd', // 연한 하늘색 - 30분
@@ -111,6 +115,7 @@ export default function ProjectDetailModal({
       updates.start_date = startDate
       updates.end_date = noEndDate ? undefined : (endDate || undefined)
       updates.schedule_template = scheduleTemplate
+      updates.textbooks = assignedTextbooks // 교재 배정 저장
     } else if (project.type === 'habit') {
       updates.start_date = startDate
       updates.repeat_days = repeatDays
@@ -128,6 +133,52 @@ export default function ProjectDetailModal({
 
     setIsEditing(false)
   }
+
+  // 교재 추가
+  const handleAddTextbook = (textbookId: string) => {
+    if (!textbookId || assignedTextbooks.includes(textbookId)) return
+    if (assignedTextbooks.length >= 4) {
+      alert('교재는 최대 4개까지 배정할 수 있습니다.')
+      return
+    }
+    setAssignedTextbooks([...assignedTextbooks, textbookId])
+  }
+
+  // 교재 제거
+  const handleRemoveTextbook = async (index: number) => {
+    const textbookId = assignedTextbooks[index]
+    const textbook = textbooks.find(t => t.id === textbookId)
+
+    const confirmed = confirm(
+      `"${textbook?.name || '이 교재'}"를 제거하시겠습니까?\n\n` +
+      `⚠️ 이 교재와 관련된 모든 과제 데이터가 삭제됩니다.\n` +
+      `(다시 추가하면 처음부터 시작됩니다)`
+    )
+
+    if (!confirmed) return
+
+    try {
+      // 프로젝트에서 교재 제거
+      const updated = assignedTextbooks.filter((_, i) => i !== index)
+      setAssignedTextbooks(updated)
+      
+      // DB 즉시 저장
+      await onUpdateProject(project.id, { textbooks: updated })
+
+      // 모든 수업에서 해당 교재 과제 데이터 제거
+      await cleanTextbookDataFromTasks(project.id, textbookId)
+
+      alert(`"${textbook?.name || '교재'}"가 제거되었고, 관련 과제 데이터가 정리되었습니다.`)
+    } catch (error) {
+      console.error('Error removing textbook:', error)
+      alert('교재 제거 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 배정 가능한 교재 (이미 배정된 것 제외)
+  const availableTextbooks = textbooks.filter(
+    t => !assignedTextbooks.includes(t.id)
+  )
 
   const handleDelete = async () => {
     if (confirm(`"${project.name}" 프로젝트를 삭제하시겠습니까?\n관련된 모든 태스크도 삭제됩니다.`)) {
@@ -368,6 +419,86 @@ export default function ProjectDetailModal({
                       )
                     })}
                   </div>
+                </div>
+
+                {/* 교재 배정 (Phase 5) */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    배정 교재 (최대 4개)
+                  </label>
+
+                  {/* 현재 배정된 교재 목록 */}
+                  <div className="space-y-2 mb-4">
+                    {assignedTextbooks.length === 0 ? (
+                      <div className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                        배정된 교재가 없습니다
+                      </div>
+                    ) : (
+                      assignedTextbooks.map((textbookId, idx) => {
+                        const textbook = textbooks.find(t => t.id === textbookId)
+                        if (!textbook) return null
+
+                        return (
+                          <div 
+                            key={idx}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                          >
+                            <div className="flex items-center gap-2">
+                              <BookOpen size={16} className="text-gray-600" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {textbook.name}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  총 {textbook.total_chapters}
+                                  {textbook.chapter_unit === '직접입력' 
+                                    ? textbook.custom_chapter_unit 
+                                    : textbook.chapter_unit}
+                                </div>
+                              </div>
+                            </div>
+
+                            {isEditing && (
+                              <button
+                                onClick={() => handleRemoveTextbook(idx)}
+                                className="px-3 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                              >
+                                제거
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+
+                  {/* 교재 추가 */}
+                  {isEditing && assignedTextbooks.length < 4 && (
+                    <div>
+                      <select
+                        onChange={(e) => {
+                          handleAddTextbook(e.target.value)
+                          e.target.value = '' // 초기화
+                        }}
+                        value=""
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">+ 교재 추가...</option>
+                        {availableTextbooks.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.total_chapters}{t.chapter_unit === '직접입력' ? t.custom_chapter_unit : t.chapter_unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 안내 메시지 */}
+                  {!isEditing && assignedTextbooks.length > 0 && (
+                    <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded mt-2">
+                      💡 교재를 제거하면 해당 교재의 모든 과제 데이터가 초기화됩니다.
+                    </div>
+                  )}
                 </div>
               </>
             )}

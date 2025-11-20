@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Calendar, Folder, GraduationCap, Repeat, X } from 'lucide-react'
+import { Plus, Calendar, Folder, GraduationCap, Repeat, X, BookOpen } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Project, Task } from '@/types/database'
 import ProjectCreateModal from './ProjectCreateModal'
 import ProjectDetailModal from './ProjectDetailModal'
 import TagPanel from './TagPanel'
+import TextbookManagementModal from './TextbookManagementModal'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
+import { useTextbooks } from '@/hooks/useTextbooks'
 
 interface RightPanelProps {
   projects: Project[]
@@ -32,7 +34,9 @@ interface RightPanelProps {
 export default function RightPanel({ projects, createProject, updateProject, deleteProject, createTask, tasks = [], updateTask, deleteTask, onSelectMakeupProject, selectedMakeupProject, currentDate = new Date(), onDateChange, refetchTasks, selectedTags = [], onTagsChange, onOpenTagModal, onOpenArchive }: RightPanelProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [showTextbookModal, setShowTextbookModal] = useState(false)
   const { syncProjectSchedule } = useScheduleManager()
+  const { textbooks, createTextbook, deleteTextbook } = useTextbooks()
 
   const handleGenerateTasks = async (newTasks: any[]) => {
     if (!createTask) return
@@ -393,6 +397,17 @@ export default function RightPanel({ projects, createProject, updateProject, del
         {/* Tag Panel - 하단 (Removed from here) */}
       </div>
 
+      {/* 교재 관리 버튼 - TagPanel 위 */}
+      <div className="px-0 py-2 border-t border-gray-200">
+        <button
+          onClick={() => setShowTextbookModal(true)}
+          className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+        >
+          <BookOpen size={16} />
+          <span className="font-medium">교재 관리</span>
+        </button>
+      </div>
+
       {/* Tag Panel - Fixed Bottom */}
       <TagPanel
         tasks={tasks}
@@ -419,6 +434,16 @@ export default function RightPanel({ projects, createProject, updateProject, del
           onUpdateProject={updateProject}
           onDeleteProject={deleteProject}
           onRegenerateSchedule={handleRegenerateSchedule}
+        />
+      )}
+
+      {/* Textbook Management Modal */}
+      {showTextbookModal && (
+        <TextbookManagementModal
+          onClose={() => setShowTextbookModal(false)}
+          textbooks={textbooks}
+          onCreateTextbook={createTextbook}
+          onDeleteTextbook={deleteTextbook}
         />
       )}
 
