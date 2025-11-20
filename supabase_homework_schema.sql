@@ -44,8 +44,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_homework_assignments ON tasks USING GIN (ho
 -- textbooks RLS 활성화
 ALTER TABLE textbooks ENABLE ROW LEVEL SECURITY;
 
+-- 기존 정책이 있으면 삭제 후 재생성
+DROP POLICY IF EXISTS "Enable all access for textbooks" ON textbooks;
+
 -- 모든 접근 허용 정책 (인증 구현 전까지 임시)
-CREATE POLICY IF NOT EXISTS "Enable all access for textbooks" ON textbooks
+CREATE POLICY "Enable all access for textbooks" ON textbooks
     FOR ALL USING (true) WITH CHECK (true);
 
 -- =====================================================
@@ -88,7 +91,7 @@ SELECT
     indexname 
 FROM pg_indexes 
 WHERE tablename IN ('textbooks', 'projects', 'tasks') 
-    AND indexname LIKE '%homework%' OR indexname LIKE '%textbooks%';
+    AND (indexname LIKE '%homework%' OR indexname LIKE '%textbooks%');
 
 -- 완료 메시지
 SELECT '✅ Phase 1: DB 스키마 생성 완료!' as result;
