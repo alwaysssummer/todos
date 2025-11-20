@@ -57,12 +57,12 @@ CREATE POLICY "Enable all access for textbooks" ON textbooks
 -- 샘플 데이터 (개발/테스트용)
 -- =====================================================
 
--- 샘플 교재 추가
-INSERT INTO textbooks (name, total_chapters, chapter_unit) VALUES
-    ('수학의 정석', 20, '강'),
-    ('개념원리 수학', 15, '과'),
-    ('영어 문법 기본', 12, 'Unit'),
-    ('독해 마스터', 18, 'Chapter');
+-- 샘플 교재 추가 (영어 교재)
+INSERT INTO textbooks (name, total_chapters, chapter_unit, custom_chapter_unit) VALUES
+    ('Grammar in Use', 20, 'Unit', NULL),
+    ('Oxford Reading Tree', 15, '직접입력', 'Stage'),
+    ('Phonics Kids', 12, 'Unit', NULL),
+    ('Oxford Discover', 18, 'Chapter', NULL);
 
 -- =====================================================
 -- 검증 쿼리
