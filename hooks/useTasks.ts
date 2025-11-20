@@ -14,9 +14,17 @@ export function useTasks() {
                 .from('tasks')
                 .select('*')
                 .order('order_index', { ascending: true })
-            
+
             if (error) throw error
-            setTasks(data || [])
+            if (error) throw error
+
+            // 클라이언트 필터링: 프로젝트가 없는 자동 생성 태스크(고아 데이터) 제외
+            const validTasks = (data || []).filter(t => {
+                if (t.is_auto_generated && !t.project_id) return false
+                return true
+            })
+
+            setTasks(validTasks)
         } catch (error) {
             console.error('Error fetching tasks:', error)
         } finally {
@@ -34,7 +42,7 @@ export function useTasks() {
         try {
             // order_index 계산 (가장 큰 값 + 1)
             const maxOrder = tasks.reduce((max, t) => Math.max(max, t.order_index || 0), 0)
-            
+
             const newTask = {
                 title: task.title || 'New Task',
                 status: task.status || 'inbox',
@@ -44,15 +52,15 @@ export function useTasks() {
                 updated_at: new Date().toISOString(),
                 ...task
             }
-            
+
             const { data, error } = await supabase
                 .from('tasks')
                 .insert([newTask])
                 .select()
                 .single()
-            
+
             if (error) throw error
-            
+
             // 로컬 상태 업데이트
             setTasks(prev => [data, ...prev])
             return data
@@ -74,13 +82,13 @@ export function useTasks() {
                 .eq('id', id)
                 .select()
                 .single()
-            
+
             if (error) throw error
-            
+
             // 로컬 상태 업데이트
             setTasks(prev => prev.map(t => t.id === id ? data : t))
         } catch (error) {
-            console.error('Error updating task:', error)
+            console.error('Error updating task:', JSON.stringify(error, null, 2))
             throw error
         }
     }
@@ -92,9 +100,9 @@ export function useTasks() {
                 .from('tasks')
                 .delete()
                 .eq('id', id)
-            
+
             if (error) throw error
-            
+
             // 로컬 상태 업데이트
             setTasks(prev => prev.filter(t => t.id !== id))
         } catch (error) {
@@ -113,16 +121,16 @@ export function useTasks() {
         const newTasks = [...tasks]
         const [movedTask] = newTasks.splice(oldIndex, 1)
         newTasks.splice(newIndex, 0, movedTask)
-        
+
         // order_index 재계산
         const updatedTasks = newTasks.map((task, index) => ({
             ...task,
             order_index: index
         }))
-        
+
         // 로컬 상태 즉시 업데이트 (UI 반응성)
         setTasks(updatedTasks)
-        
+
         try {
             // DB 업데이트 (batch update)
             const updates = updatedTasks.map(task => ({
@@ -130,7 +138,7 @@ export function useTasks() {
                 order_index: task.order_index,
                 updated_at: new Date().toISOString()
             }))
-            
+
             // Supabase는 batch update를 직접 지원하지 않으므로
             // 변경된 항목만 개별 업데이트
             const promises = updates.map(update =>
@@ -139,7 +147,7 @@ export function useTasks() {
                     .update({ order_index: update.order_index, updated_at: update.updated_at })
                     .eq('id', update.id)
             )
-            
+
             await Promise.all(promises)
         } catch (error) {
             console.error('Error reordering tasks:', error)
@@ -148,13 +156,13 @@ export function useTasks() {
         }
     }
 
-    return { 
-        tasks, 
-        loading, 
-        createTask, 
-        updateTask, 
-        deleteTask, 
-        reorderTasks, 
+    return {
+        tasks,
+        loading,
+        createTask,
+        updateTask,
+        deleteTask,
+        reorderTasks,
         refetch: fetchTasks,
     }
 }

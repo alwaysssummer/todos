@@ -25,6 +25,7 @@ export default function ProjectDetailModal({
   const [status, setStatus] = useState(project.status || 'active')
   const [startDate, setStartDate] = useState(project.start_date?.split('T')[0] || '')
   const [endDate, setEndDate] = useState(project.end_date?.split('T')[0] || '')
+  const [noEndDate, setNoEndDate] = useState(!project.end_date)
   const [scheduleTemplate, setScheduleTemplate] = useState(project.schedule_template || [])
   const [repeatDays, setRepeatDays] = useState(project.repeat_days || [])
   const [targetTime, setTargetTime] = useState(project.target_time || '07:00')
@@ -108,7 +109,7 @@ export default function ProjectDetailModal({
       scheduleChanged = originalSchedule !== newSchedule
 
       updates.start_date = startDate
-      updates.end_date = endDate || undefined
+      updates.end_date = noEndDate ? undefined : (endDate || undefined)
       updates.schedule_template = scheduleTemplate
     } else if (project.type === 'habit') {
       updates.start_date = startDate
@@ -254,12 +255,32 @@ export default function ProjectDetailModal({
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
                     {isEditing ? (
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          disabled={noEndDate}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={noEndDate}
+                            onChange={(e) => {
+                              setNoEndDate(e.target.checked)
+                              if (!e.target.checked && !endDate) {
+                                // 체크 해제 시 기본값(6개월) 복원
+                                const sixMonthsLater = new Date()
+                                sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6)
+                                setEndDate(sixMonthsLater.toISOString().split('T')[0])
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300"
+                          />
+                          종료일 없음 (계속 반복)
+                        </label>
+                      </div>
                     ) : (
                       <div className="text-gray-900">{endDate || '진행 중'}</div>
                     )}

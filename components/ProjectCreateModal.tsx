@@ -3,28 +3,37 @@
 import { useState } from 'react'
 import { X, Folder, GraduationCap, Repeat } from 'lucide-react'
 import type { Project } from '@/types/database'
+import { useScheduleManager } from '@/hooks/useScheduleManager'
 
 interface ProjectCreateModalProps {
   onClose: () => void
   onCreateProject: (project: Partial<Project>) => Promise<Project>
   onGenerateTasks?: (tasks: any[]) => Promise<void>
+  refetchTasks?: () => void
 }
 
 type ProjectType = 'folder' | 'student' | 'habit'
 
-export default function ProjectCreateModal({ onClose, onCreateProject, onGenerateTasks }: ProjectCreateModalProps) {
+export default function ProjectCreateModal({ onClose, onCreateProject, onGenerateTasks, refetchTasks }: ProjectCreateModalProps) {
+  const { syncProjectSchedule } = useScheduleManager()
   const [step, setStep] = useState<'type' | 'config'>('type')
   const [selectedType, setSelectedType] = useState<ProjectType>('folder')
-  
+
   // 공통 필드
   const [name, setName] = useState('')
   const [color, setColor] = useState('#38bdf8') // 기본값: 하늘색
-  
+
   // 학생 시간표 필드
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
-  const [endDate, setEndDate] = useState('')
+  const [endDate, setEndDate] = useState(() => {
+    // 기본값: 6개월 후
+    const sixMonthsLater = new Date()
+    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6)
+    return sixMonthsLater.toISOString().split('T')[0]
+  })
+  const [noEndDate, setNoEndDate] = useState(false)
   const [scheduleTemplate, setScheduleTemplate] = useState<{ day: number, time: string, duration: number }[]>([])
-  
+
   // 루틴/습관 필드
   const [repeatDays, setRepeatDays] = useState<number[]>([])
   const [targetTime, setTargetTime] = useState('07:00')
@@ -50,10 +59,10 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
   // 색상 변경 핸들러
   const handleColorChange = (newColor: string) => {
     setColor(newColor)
-    
+
     // 색상에 맞는 수업 시간으로 자동 업데이트
     const newDuration = colorToDuration[newColor] || 40
-    
+
     // 이미 등록된 모든 요일의 수업 시간을 업데이트
     setScheduleTemplate(scheduleTemplate.map(s => ({
       ...s,
@@ -73,13 +82,13 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
   }
 
   const updateScheduleTime = (day: number, time: string) => {
-    setScheduleTemplate(scheduleTemplate.map(s => 
+    setScheduleTemplate(scheduleTemplate.map(s =>
       s.day === day ? { ...s, time } : s
     ))
   }
 
   const updateScheduleDuration = (day: number, duration: number) => {
-    setScheduleTemplate(scheduleTemplate.map(s => 
+    setScheduleTemplate(scheduleTemplate.map(s =>
       s.day === day ? { ...s, duration } : s
     ))
   }
@@ -104,7 +113,7 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
       projectData = {
         ...projectData,
         start_date: startDate,
-        end_date: endDate || undefined,
+        end_date: noEndDate ? undefined : (endDate || undefined),
         schedule_template: scheduleTemplate,
       }
     } else if (selectedType === 'habit') {
@@ -118,125 +127,19 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
     }
 
     const project = await onCreateProject(projectData)
-    
-    // 자동 태스크 생성 (학생/습관 프로젝트만)
-    if (onGenerateTasks && (selectedType === 'student' || selectedType === 'habit')) {
-      const tasks = generateTasksFromProject(project)
-      await onGenerateTasks(tasks)
+
+    // 자동 스케줄 생성 (학생 시간표만 - useScheduleManager 사용)
+    if (selectedType === 'student' && project.schedule_template) {
+      await syncProjectSchedule(project)
     }
-    
+    // 습관은 향후 구현 가능 (ensureScheduleInRange에서 자동 처리)
+
     onClose()
-  }
 
-  const generateTasksFromProject = (project: Project): any[] => {
-    const tasks: any[] = []
-    const startDate = project.start_date ? new Date(project.start_date) : new Date()
-    const now = new Date()
-
-    if (project.type === 'student' && project.schedule_template) {
-      // 시작일이 속한 주의 월요일을 찾기 (week의 기준점)
-      const getWeekStart = (date: Date): Date => {
-        const d = new Date(date)
-        const day = d.getDay() // 0(일) ~ 6(토)
-        const diff = day === 0 ? -6 : 1 - day // 월요일을 기준으로
-        d.setDate(d.getDate() + diff)
-        d.setHours(0, 0, 0, 0)
-        return d
-      }
-      
-      // ✨ 수정: startDate와 now 중 더 최근 날짜를 기준으로
-      const baseDate = startDate > now ? startDate : now
-      const weekStart = getWeekStart(baseDate)
-
-      // 향후 4주치 생성
-      for (let week = 0; week < 4; week++) {
-        project.schedule_template.forEach(schedule => {
-          // 각 주의 월요일에서 시작
-          const lessonDate = new Date(weekStart)
-          lessonDate.setDate(lessonDate.getDate() + (week * 7))
-          
-          // 해당 요일로 이동 (0=일요일, 1=월요일, ...)
-          const targetDay = schedule.day
-          const mondayDay = lessonDate.getDay() // 항상 1(월요일)이어야 함
-          let daysToAdd = targetDay - mondayDay
-          if (targetDay === 0) daysToAdd = 6 // 일요일은 +6일
-          lessonDate.setDate(lessonDate.getDate() + daysToAdd)
-
-          // 시간 설정
-          const [hour, minute] = schedule.time.split(':').map(Number)
-          lessonDate.setHours(hour, minute, 0, 0)
-
-          // 현재 시간보다 이전이면 생성하지 않음 (이미 지난 수업은 건너뛰고 다음 주차 생성)
-          if (lessonDate < now) return
-
-          // 종료일 체크
-          if (project.end_date && lessonDate > new Date(project.end_date)) {
-            return
-          }
-
-          tasks.push({
-            title: project.name,
-            project_id: project.id,
-            start_time: lessonDate.toISOString(),
-            duration: schedule.duration || 40,
-            status: 'scheduled',
-            is_auto_generated: true,
-            is_top5: false,
-          })
-        })
-      }
-    } else if (project.type === 'habit' && project.repeat_days) {
-      // 습관 로직도 동일하게 월요일 기준으로 수정
-      const getWeekStart = (date: Date): Date => {
-        const d = new Date(date)
-        const day = d.getDay() // 0(일) ~ 6(토)
-        const diff = day === 0 ? -6 : 1 - day // 월요일을 기준으로
-        d.setDate(d.getDate() + diff)
-        d.setHours(0, 0, 0, 0)
-        return d
-      }
-      
-      // ✨ 수정: startDate와 now 중 더 최근 날짜를 기준으로
-      const baseDate = startDate > now ? startDate : now
-      const weekStart = getWeekStart(baseDate)
-
-      // 향후 4주치 생성
-      for (let week = 0; week < 4; week++) {
-        project.repeat_days.forEach(dayOfWeek => {
-          // 각 주의 월요일에서 시작
-          const instanceDate = new Date(weekStart)
-          instanceDate.setDate(instanceDate.getDate() + (week * 7))
-          
-          // 해당 요일로 이동
-          const currentDay = instanceDate.getDay() // 1(월)
-          let daysToAdd = dayOfWeek - currentDay
-          if (dayOfWeek === 0) daysToAdd = 6 // 일요일은 +6일
-          instanceDate.setDate(instanceDate.getDate() + daysToAdd)
-
-          // 시간 설정
-          if (project.target_time) {
-            const [hour, minute] = project.target_time.split(':').map(Number)
-            instanceDate.setHours(hour, minute, 0, 0)
-          }
-
-          // 현재 시간보다 이전이면 생성하지 않음
-          if (instanceDate < now) return
-
-          tasks.push({
-            title: project.name,
-            project_id: project.id,
-            start_time: instanceDate.toISOString(),
-            duration: project.target_duration || 30,
-            status: 'scheduled',
-            is_auto_generated: true,
-            is_top5: false,
-            habit_completed: false,
-          })
-        })
-      }
+    // ✅ refetchTasks로 UI 즉시 업데이트
+    if (refetchTasks) {
+      refetchTasks()
     }
-
-    return tasks
   }
 
   return (
@@ -257,7 +160,7 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
           {step === 'type' && (
             <div className="space-y-4">
               <p className="text-sm text-gray-600 mb-6">프로젝트 타입을 선택하세요</p>
-              
+
               <div className="grid grid-cols-3 gap-4">
                 <button
                   onClick={() => { setSelectedType('folder'); setStep('config') }}
@@ -316,9 +219,8 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
                     <button
                       key={c}
                       onClick={() => handleColorChange(c)}
-                      className={`flex flex-col items-center gap-0.5 transition-transform ${
-                        color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''
-                      }`}
+                      className={`flex flex-col items-center gap-0.5 transition-transform ${color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''
+                        }`}
                     >
                       <div
                         className="w-6 h-6 rounded-full"
@@ -346,14 +248,36 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">종료일 (선택)</label>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="진행 중"
-                      />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        종료일
+                        <span className="text-xs text-gray-500 ml-2">(기본: 6개월 후)</span>
+                      </label>
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          disabled={noEndDate}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={noEndDate}
+                            onChange={(e) => {
+                              setNoEndDate(e.target.checked)
+                              if (!e.target.checked && !endDate) {
+                                // 체크 해제 시 기본값(6개월) 복원
+                                const sixMonthsLater = new Date()
+                                sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6)
+                                setEndDate(sixMonthsLater.toISOString().split('T')[0])
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300"
+                          />
+                          종료일 없음 (계속 반복)
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -363,14 +287,13 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
                       {[1, 2, 3, 4, 5, 6, 0].map((day) => {
                         const schedule = scheduleTemplate.find(s => s.day === day)
                         const isChecked = !!schedule
-                        
+
                         return (
                           <div key={day} className="flex items-center gap-3">
                             <button
                               onClick={() => toggleScheduleDay(day)}
-                              className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                                isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-green-400'
-                              }`}
+                              className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-green-400'
+                                }`}
                             >
                               {isChecked && <span className="text-white text-xs">✓</span>}
                             </button>
@@ -406,17 +329,18 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
                                     ))}
                                   </select>
                                 </div>
-                                  <select
-                                    value={schedule?.duration || 40}
-                                    onChange={(e) => updateScheduleDuration(day, Number(e.target.value))}
-                                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  >
-                                    <option value={30}>30분</option>
-                                    <option value={40}>40분</option>
-                                    <option value={60}>60분</option>
-                                    <option value={90}>90분</option>
-                                    <option value={120}>120분</option>
-                                  </select>
+                                <select
+                                  value={schedule?.duration || 40}
+                                  onChange={(e) => updateScheduleDuration(day, Number(e.target.value))}
+                                  className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value={30}>30분</option>
+                                  <option value={40}>40분</option>
+                                  <option value={50}>50분</option>
+                                  <option value={60}>60분</option>
+                                  <option value={90}>90분</option>
+                                  <option value={120}>120분</option>
+                                </select>
                               </>
                             )}
                           </div>
@@ -437,11 +361,10 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
                         <button
                           key={day}
                           onClick={() => toggleRepeatDay(day)}
-                          className={`w-10 h-10 rounded-full border-2 transition-all ${
-                            repeatDays.includes(day)
+                          className={`w-10 h-10 rounded-full border-2 transition-all ${repeatDays.includes(day)
                               ? 'bg-amber-500 border-amber-500 text-white font-semibold'
                               : 'border-gray-300 text-gray-600 hover:border-amber-400'
-                          }`}
+                            }`}
                         >
                           {dayNames[day]}
                         </button>

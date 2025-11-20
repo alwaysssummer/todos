@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  DndContext, 
+import {
+  DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  useDroppable
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -34,7 +35,7 @@ interface LeftPanelProps {
   deleteProject: (id: string) => Promise<void>
 }
 
-function SortableTaskItem({ task, onClick, onToggleComplete }: { task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void }) {
+function SortableTaskItem({ id, task, onClick, onToggleComplete }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void }) {
   const {
     attributes,
     listeners,
@@ -42,7 +43,7 @@ function SortableTaskItem({ task, onClick, onToggleComplete }: { task: Task, onC
     transform,
     transition,
     isDragging
-  } = useSortable({ id: task.id })
+  } = useSortable({ id: id || task.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -70,15 +71,15 @@ function SortableTaskItem({ task, onClick, onToggleComplete }: { task: Task, onC
       {/* Checkbox (Square) */}
       <button
         onClick={(e) => {
-            e.stopPropagation() // 드래그나 클릭 방지
-            onToggleComplete(e)
+          e.stopPropagation() // 드래그나 클릭 방지
+          onToggleComplete(e)
         }}
         onPointerDown={(e) => e.stopPropagation()} // 드래그 시작 방지
         className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center transition-colors
-            ${isCompleted 
-                ? 'bg-blue-500 border-blue-500 text-white' 
-                : 'border-gray-300 hover:border-blue-400 text-transparent hover:bg-blue-50'
-            }`}
+            ${isCompleted
+            ? 'bg-blue-500 border-blue-500 text-white'
+            : 'border-gray-300 hover:border-blue-400 text-transparent hover:bg-blue-50'
+          }`}
       >
         <Check size={10} strokeWidth={4} />
       </button>
@@ -86,24 +87,24 @@ function SortableTaskItem({ task, onClick, onToggleComplete }: { task: Task, onC
       {/* Content - 1줄 레이아웃 */}
       <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
         {/* 제목 */}
-        <div className={`text-sm font-medium text-gray-900 truncate ${isCompleted ? 'line-through' : ''}`}>
+        <div className={`text-sm font-medium truncate ${isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-bold text-gray-900' : 'text-gray-900'}`}>
           {task.title}
         </div>
-        
+
         {/* 우측 인디케이터들 */}
         <div className="flex items-center gap-1.5">
           {/* Scheduled - 노란색 동그라미 */}
           {isScheduled && !isCompleted && (
-            <div 
-              className="w-1.5 h-1.5 rounded-full bg-yellow-400 flex-shrink-0" 
+            <div
+              className="w-1.5 h-1.5 rounded-full bg-yellow-400 flex-shrink-0"
               title="Scheduled"
             />
           )}
-          
+
           {/* Top 5 - 빨간색 동그라미 */}
           {task.is_top5 && !isCompleted && (
-            <div 
-              className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" 
+            <div
+              className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"
               title="Today's Top 5"
             />
           )}
@@ -124,9 +125,9 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-        activationConstraint: {
-            distance: 8, // 8px 이상 움직여야 드래그 시작 (단순 클릭과 구분)
-        },
+      activationConstraint: {
+        distance: 8, // 8px 이상 움직여야 드래그 시작 (단순 클릭과 구분)
+      },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -140,17 +141,24 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
       let title = newTaskTitle.trim()
       let isTop5 = false
-      
-      // 별표로 시작하는지 확인 (공백 포함)
+      let dueDate: string | undefined = undefined
+
+      // 별표(*)로 시작하면 Today's Focus (Top 5)
       if (title.startsWith('*')) {
         isTop5 = true
-        title = title.substring(1).trim() // * 제거하고 앞뒤 공백 제거
+        title = title.substring(1).trim()
+      }
+      // 캐럿(^) 대신 슬래시(/)로 시작하면 Today's Task (오늘 할 일)
+      else if (title.startsWith('/')) {
+        dueDate = new Date().toISOString()
+        title = title.substring(1).trim()
       }
 
       await createTask({
         title,
         status: 'inbox',
-        is_top5: isTop5
+        is_top5: isTop5,
+        due_date: dueDate
       })
       setNewTaskTitle('')
     }
@@ -163,14 +171,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   }
 
   const handleToggleComplete = async (task: Task) => {
-      await updateTask(task.id, { status: task.status === 'completed' ? 'inbox' : 'completed' })
-  }
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (active.id !== over?.id) {
-      reorderTasks(active.id as string, over?.id as string)
-    }
+    await updateTask(task.id, { status: task.status === 'completed' ? 'inbox' : 'completed' })
   }
 
   const handleCreateProject = async (project: Partial<Project>) => {
@@ -178,45 +179,183 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
     return newProject
   }
 
+  // 날짜 포맷팅을 위한 import 필요 (상단에 추가해야 함, 여기서는 로직만 수정)
+  const todayStr = new Date().toISOString().split('T')[0]
+
   // 필터링 로직
-  // 자동 생성 태스크 제외 (학생 시간표, 루틴/습관은 인박스에 표시하지 않음)
-  const top5Tasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && !t.is_auto_generated)
-  let activeTasks = tasks.filter(t => t.status !== 'completed' && !t.is_auto_generated) // Inbox (All Active)
-  const completedTasks = tasks.filter(t => t.status === 'completed' && !t.is_auto_generated) // Completed
-  
-  // 최근 10개만 표시용
-  const recentCompletedTasks = completedTasks.slice(0, 10)
-  const hasMoreCompleted = completedTasks.length > 10
+  // 1. Today's Focus: is_top5 (가장 높은 우선순위)
+  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated)
+
+  // 2. Today's Task: !is_top5 && due_date === today
+  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated)
+
+  // 3. Waiting: status === 'waiting'
+  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated)
+
+  // 4. Inbox: ALL active tasks EXCEPT waiting (One Source of Truth)
+  // Inbox에는 Waiting이 아닌 모든 활성 태스크가 포함됨 (Focus, Today 포함)
+  let inboxTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated)
 
   // 프로젝트 필터 적용
   if (selectedProjectId) {
-    activeTasks = activeTasks.filter(t => t.project_id === selectedProjectId)
+    inboxTasks = inboxTasks.filter(t => t.project_id === selectedProjectId)
+    // Waiting도 프로젝트 필터 적용? 요구사항엔 없지만 일반적인 동작
+    // waitingTasks = waitingTasks.filter(t => t.project_id === selectedProjectId) -> const라 재할당 불가, 위에서 처리하거나 여기서 무시.
+    // 일단 Inbox만 필터링하는 기존 로직 유지. Waiting은 전역적으로 보일 수 있음.
+    // 하지만 "Inbox와 원소스를 보관하는 곳"이므로 필터링 되는게 맞을듯.
   }
 
-  // Inbox 정렬: 노란색+빨간색 > 빨간색 > 노란색 > 나머지
-  activeTasks = activeTasks.sort((a, b) => {
-    const aScheduled = a.status === 'scheduled' ? 1 : 0
-    const aTop5 = a.is_top5 ? 1 : 0
-    const bScheduled = b.status === 'scheduled' ? 1 : 0
-    const bTop5 = b.is_top5 ? 1 : 0
-    
-    // 우선순위 계산 (높을수록 위로)
-    const aPriority = aScheduled + aTop5
-    const bPriority = bScheduled + bTop5
-    
-    if (aPriority !== bPriority) {
-      return bPriority - aPriority // 내림차순 (높은 우선순위가 위로)
+  // Inbox 정렬
+  inboxTasks = inboxTasks.sort((a, b) => {
+    const getScore = (task: Task) => {
+      const isRed = task.is_top5
+      const isYellow = task.status === 'scheduled'
+
+      if (isRed && isYellow) return 3 // 1. 빨간색 + 노란색
+      if (isRed) return 2             // 2. 빨간색
+      if (isYellow) return 1          // 3. 노란색
+      return 0                        // 4. 나머지
     }
-    
-    // 우선순위가 같으면 order_index로 정렬
+
+    const scoreA = getScore(a)
+    const scoreB = getScore(b)
+
+    if (scoreA !== scoreB) {
+      return scoreB - scoreA
+    }
+
     return (a.order_index || 0) - (b.order_index || 0)
   })
 
-  // 각 프로젝트의 태스크 개수 계산
-  const projectTaskCounts = projects.reduce((acc, project) => {
-    acc[project.id] = tasks.filter(t => t.project_id === project.id && t.status !== 'completed').length
-    return acc
-  }, {} as Record<string, number>)
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    // ID에서 접미사 제거
+    const realActiveId = activeId.replace(/-inbox$/, '').replace(/-waiting$/, '')
+    const realOverId = overId.replace(/-inbox$/, '').replace(/-waiting$/, '')
+
+    // 컨테이너로 드롭된 경우 처리
+    if (overId === 'focus-container' || overId === 'today-container' || overId === 'inbox-container' || overId === 'waiting-container') {
+      const task = tasks.find(t => t.id === realActiveId)
+      if (!task) return
+
+      const updates: Partial<Task> = {}
+
+      if (overId === 'focus-container') {
+        updates.is_top5 = true
+        updates.status = task.status === 'waiting' ? 'inbox' : task.status
+        // Focus로 가면 날짜는 유지하거나 제거? 일단 유지.
+      } else if (overId === 'today-container') {
+        updates.is_top5 = false
+        updates.due_date = todayStr
+        updates.status = task.status === 'waiting' ? 'inbox' : task.status
+      } else if (overId === 'inbox-container') {
+        updates.is_top5 = false
+        updates.due_date = undefined
+        updates.status = 'inbox' // Waiting에서 왔다면 inbox로 변경
+      } else if (overId === 'waiting-container') {
+        updates.status = 'waiting'
+        updates.is_top5 = false
+        updates.due_date = null // Waiting으로 가면 날짜/중요도 해제
+        updates.start_time = null // 일정 배정 해제
+        updates.duration = null
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await updateTask(realActiveId, updates)
+      }
+      return
+    }
+
+    // 아이템 간 재정렬 (같은 컨테이너 내)
+    if (activeId !== overId) {
+      // 다른 컨테이너의 아이템 위로 드롭된 경우
+      const activeTask = tasks.find(t => t.id === realActiveId)
+      const overTask = tasks.find(t => t.id === realOverId)
+
+      if (activeTask && overTask) {
+        // 드롭된 위치의 컨테이너 확인
+        const isOverInboxList = overId.endsWith('-inbox')
+        const isOverWaitingList = overId.endsWith('-waiting')
+        const isOverFocusList = focusTasks.some(t => t.id === realOverId) && !isOverInboxList && !isOverWaitingList
+        const isOverTodayList = todayTasks.some(t => t.id === realOverId) && !isOverInboxList && !isOverWaitingList
+
+        // 속성 업데이트 로직
+        const updates: Partial<Task> = {}
+        let shouldUpdate = false
+
+        if (isOverFocusList) {
+          if (!activeTask.is_top5 || activeTask.status === 'waiting') {
+            updates.is_top5 = true
+            if (activeTask.status === 'waiting') updates.status = 'inbox'
+            shouldUpdate = true
+          }
+        } else if (isOverTodayList) {
+          if (activeTask.is_top5 || activeTask.due_date?.split('T')[0] !== todayStr || activeTask.status === 'waiting') {
+            updates.is_top5 = false
+            updates.due_date = todayStr
+            if (activeTask.status === 'waiting') updates.status = 'inbox'
+            shouldUpdate = true
+          }
+        } else if (isOverWaitingList) {
+          if (activeTask.status !== 'waiting') {
+            updates.status = 'waiting'
+            updates.is_top5 = false
+            updates.due_date = null
+            updates.start_time = null
+            updates.duration = null
+            shouldUpdate = true
+          }
+        } else if (isOverInboxList) {
+          // Inbox 리스트 내에서의 이동
+          // Waiting에서 왔다면 Inbox로 변경
+          if (activeTask.status === 'waiting') {
+            updates.status = 'inbox'
+            updates.is_top5 = false
+            updates.due_date = undefined
+            shouldUpdate = true
+          } else if (!activeId.endsWith('-inbox')) {
+            // Focus/Today에서 Inbox로 드래그 -> 속성 해제
+            updates.is_top5 = false
+            updates.due_date = undefined
+            shouldUpdate = true
+          }
+        }
+
+        if (shouldUpdate) {
+          await updateTask(realActiveId, updates)
+        } else {
+          // 같은 컨테이너 내 재정렬
+          reorderTasks(realActiveId, realOverId)
+        }
+      }
+    }
+  }
+
+  // Droppable Container Component
+  function DroppableContainer({ id, title, count, children, className }: { id: string, title: string, count?: number, children: React.ReactNode, className?: string }) {
+    const { setNodeRef, isOver } = useDroppable({ id })
+
+    return (
+      <div ref={setNodeRef} className={`flex-1 flex flex-col ${className} ${isOver ? 'bg-blue-50/50' : ''}`}>
+        <h2 className="text-sm font-semibold text-gray-900 mb-3 px-4 pt-4">
+          {title} {count !== undefined && <span className="text-gray-400 font-normal">({count})</span>}
+        </h2>
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {children}
+        </div>
+      </div>
+    )
+  }
+
+  // Completed tasks filtering (remains the same)
+  const completedTasks = tasks.filter(t => t.status === 'completed' && !t.is_auto_generated)
+  const recentCompletedTasks = completedTasks.slice(0, 10)
+  const hasMoreCompleted = completedTasks.length > 10
 
   return (
     <div className="h-full flex flex-col bg-white border-r border-gray-200 relative">
@@ -231,154 +370,171 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
         />
       )}
 
-      {/* Top: TODAY */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">TODAY</h2>
-        <div className="space-y-0.5">
-          {top5Tasks.length === 0 && (
-            <div className="text-xs text-gray-400 text-center py-2">
-              별표(★)를 눌러 중요한 태스크를 추가하세요
-            </div>
-          )}
-          {top5Tasks.map((task) => {
-            const isScheduled = task.status === 'scheduled'
-            
-            return (
-              <div
-                key={task.id}
-                onClick={(e) => handleTaskClick(e, task)}
-                className="flex items-center gap-2 p-2 text-sm text-gray-600 bg-gray-50 rounded border border-gray-100 hover:border-blue-300 transition-colors cursor-pointer group"
-              >
-                <button
-                  onClick={(e) => {
-                      e.stopPropagation()
-                      handleToggleComplete(task)
-                  }}
-                  className="flex-shrink-0 w-4 h-4 rounded-[4px] border border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-colors flex items-center justify-center text-transparent hover:text-blue-400"
-                >
-                  <Check size={10} strokeWidth={4} />
-                </button>
-                
-                <span className="flex-1 truncate">{task.title}</span>
-                
-                {/* 우측 인디케이터들 */}
-                <div className="flex items-center gap-1.5">
-                  {/* Scheduled - 노란색 동그라미 */}
-                  {isScheduled && (
-                    <div 
-                      className="w-1.5 h-1.5 rounded-full bg-yellow-400 flex-shrink-0" 
-                      title="Scheduled"
-                    />
-                  )}
-                  
-                  {/* Top 5 - 빨간색 동그라미 (항상 표시) */}
-                  <div 
-                    className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" 
-                    title="Today's Top 5"
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-
-      {/* Center: Inbox (Master List) */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">
-          {selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name || 'INBOX' : 'INBOX'}
-        </h2>
-        
-        <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-        >
-            <SortableContext 
-                items={activeTasks.map(t => t.id)}
-                strategy={verticalListSortingStrategy}
-            >
-        <div className="space-y-0.5">
-                {activeTasks.map((task) => (
-                    <SortableTaskItem
-              key={task.id}
-              task={task}
-              onClick={(e) => handleTaskClick(e, task)}
-                        onToggleComplete={() => handleToggleComplete(task)}
-            />
-          ))}
-        </div>
-            </SortableContext>
-        </DndContext>
-        
-        {/* Completed Tasks Section - Collapsible */}
-        {completedTasks.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={() => setIsCompletedExpanded(!isCompletedExpanded)}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {isCompletedExpanded ? (
-                  <ChevronDown size={16} className="flex-shrink-0" />
-                ) : (
-                  <ChevronRight size={16} className="flex-shrink-0" />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Top: Today's Focus */}
+        <div className="border-b border-gray-200">
+          <DroppableContainer id="focus-container" title="Today's Focus">
+            <SortableContext items={focusTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-0.5">
+                {focusTasks.length === 0 && (
+                  <div className="text-xs text-gray-400 text-center py-2">
+                    별표(★)를 눌러 중요한 태스크를 추가하세요
+                  </div>
                 )}
-                <span>Completed ({completedTasks.length})</span>
-              </button>
-              
-              <button
-                onClick={async () => {
-                  if (confirm(`완료된 할일 ${completedTasks.length}개를 모두 삭제하시겠습니까?`)) {
-                    for (const task of completedTasks) {
-                      await deleteTask(task.id)
-                    }
-                  }
-                }}
-                className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                title="완료된 할일 비우기"
-              >
-                <Trash2 size={14} />
-              </button>
+                {focusTasks.map((task) => (
+                  <SortableTaskItem
+                    key={task.id}
+                    task={task}
+                    onClick={(e) => handleTaskClick(e, task)}
+                    onToggleComplete={() => handleToggleComplete(task)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DroppableContainer>
+        </div>
+
+        {/* Middle: Today's Task */}
+        <div className="border-b border-gray-200 flex-shrink-0 max-h-[30%] flex flex-col">
+          <DroppableContainer id="today-container" title="Today's Task">
+            <SortableContext items={todayTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-0.5">
+                {todayTasks.length === 0 && (
+                  <div className="text-xs text-gray-400 text-center py-2">
+                    오늘 할 일을 이곳으로 드래그하세요
+                  </div>
+                )}
+                {todayTasks.map((task) => (
+                  <SortableTaskItem
+                    key={task.id}
+                    task={task}
+                    onClick={(e) => handleTaskClick(e, task)}
+                    onToggleComplete={() => handleToggleComplete(task)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DroppableContainer>
+        </div>
+
+        {/* Bottom: Inbox (Master List) */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <DroppableContainer
+            id="inbox-container"
+            title={selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name || 'INBOX' : 'INBOX'}
+            className="h-full"
+          >
+            <SortableContext items={inboxTasks.map(t => `${t.id}-inbox`)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-0.5">
+                {inboxTasks.map((task) => (
+                  <SortableTaskItem
+                    key={`${task.id}-inbox`}
+                    id={`${task.id}-inbox`}
+                    task={task}
+                    onClick={(e) => handleTaskClick(e, task)}
+                    onToggleComplete={() => handleToggleComplete(task)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+
+            {/* Waiting Section */}
+            <div className="mt-8 border-t border-gray-100 pt-4">
+              <DroppableContainer id="waiting-container" title="Waiting" count={waitingTasks.length} className="min-h-[100px]">
+                <SortableContext items={waitingTasks.map(t => `${t.id}-waiting`)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-0.5">
+                    {waitingTasks.length === 0 && (
+                      <div className="text-xs text-gray-400 text-center py-2">
+                        나중에 할 일을 이곳으로 보관하세요
+                      </div>
+                    )}
+                    {waitingTasks.map((task) => (
+                      <SortableTaskItem
+                        key={`${task.id}-waiting`}
+                        id={`${task.id}-waiting`}
+                        task={task}
+                        onClick={(e) => handleTaskClick(e, task)}
+                        onToggleComplete={() => handleToggleComplete(task)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DroppableContainer>
             </div>
-            
-            {isCompletedExpanded && (
-              <>
-                <div className="space-y-0.5 opacity-75">
-                  {recentCompletedTasks.map((task) => (
-                     <div
-                        key={task.id}
-                        className="flex items-center gap-2 p-1 text-xs text-gray-400 bg-white border-b border-gray-100 line-through"
-                     >
-                        <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+
+            {/* Completed Tasks Section */}
+            {completedTasks.length > 0 && (
+              <div className="mt-8 border-t border-gray-100 pt-4">
+                {/* ... Completed tasks UI ... */}
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    onClick={() => setIsCompletedExpanded(!isCompletedExpanded)}
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {isCompletedExpanded ? (
+                      <ChevronDown size={16} className="flex-shrink-0" />
+                    ) : (
+                      <ChevronRight size={16} className="flex-shrink-0" />
+                    )}
+                    <span>Completed ({completedTasks.length})</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      if (confirm(`완료된 할일 ${completedTasks.length}개를 모두 삭제하시겠습니까?`)) {
+                        for (const task of completedTasks) {
+                          await deleteTask(task.id)
+                        }
+                      }
+                    }}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                    title="완료된 할일 비우기"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                {isCompletedExpanded && (
+                  <>
+                    <div className="space-y-0.5 opacity-75">
+                      {recentCompletedTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-2 p-1 text-xs text-gray-400 bg-white border-b border-gray-100 line-through"
+                        >
+                          <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
                             <Check size={10} className="text-blue-400" />
-                        </div>
-                        <span className="flex-1 truncate">{task.title}</span>
-                        <button 
+                          </div>
+                          <span className="flex-1 truncate">{task.title}</span>
+                          <button
                             onClick={() => handleToggleComplete(task)}
                             className="text-xs text-blue-400 hover:underline px-1"
-                        >
+                          >
                             복구
-                        </button>
-                     </div>
-                  ))}
-                </div>
-                
-                {/* More 버튼 */}
-                {hasMoreCompleted && (
-                  <button
-                    onClick={() => setShowAllCompletedModal(true)}
-                    className="mt-2 w-full text-center text-xs text-gray-500 hover:text-blue-500 py-2 hover:bg-blue-50 rounded transition-colors"
-                  >
-                    More ({completedTasks.length - 10} more)
-                  </button>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {/* More 버튼 */}
+                    {hasMoreCompleted && (
+                      <button
+                        onClick={() => setShowAllCompletedModal(true)}
+                        className="mt-2 w-full text-center text-xs text-gray-500 hover:text-blue-500 py-2 hover:bg-blue-50 rounded transition-colors"
+                      >
+                        More ({completedTasks.length - 10} more)
+                      </button>
+                    )}
+                  </>
                 )}
-              </>
+              </div>
             )}
-          </div>
-        )}
-      </div>
+          </DroppableContainer>
+        </div>
+      </DndContext>
 
       {/* Bottom: Quick Capture Input (Sticky) */}
       <div className="p-4 border-t border-gray-200 bg-white">
@@ -386,7 +542,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           value={newTaskTitle}
           onChange={(e) => setNewTaskTitle(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="빠른 입력... (Enter로 추가, *제목으로 Top 5 추가)"
+          placeholder="빠른 입력... (Enter로 추가, *제목: Focus, /제목: Today)"
           className="w-full p-3 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
           rows={2}
         />
@@ -402,11 +558,11 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
       {/* All Completed Tasks Modal */}
       {showAllCompletedModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
           onClick={() => setShowAllCompletedModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -438,7 +594,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                 </button>
               </div>
             </div>
-            
+
             {/* 모달 내용 (스크롤 가능) */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-0.5">
@@ -451,7 +607,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                       <Check size={10} className="text-blue-400" />
                     </div>
                     <span className="flex-1 truncate">{task.title}</span>
-                    <button 
+                    <button
                       onClick={() => {
                         handleToggleComplete(task)
                         // 복구 후 모달이 비어있으면 자동으로 닫기

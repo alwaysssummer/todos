@@ -9,7 +9,7 @@ import RightPanel from '@/components/RightPanel'
 import MobileNavigation from '@/components/MobileNavigation'
 import { useTasks } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
-import { supabase } from '@/lib/supabase'
+import { useScheduleManager } from '@/hooks/useScheduleManager'
 import type { Task } from '@/types/database'
 import { addWeeks, startOfWeek, endOfWeek } from 'date-fns'
 
@@ -18,161 +18,58 @@ type PanelType = 'left' | 'center' | 'right'
 export default function Home() {
   const [activePanel, setActivePanel] = useState<PanelType>('left')
   const { tasks, createTask, updateTask, deleteTask, reorderTasks, loading: tasksLoading, refetch: refetchTasks } = useTasks()
-  const { projects, createProject, updateProject, deleteProject, generateStudentLessons, generateHabitInstances, loading: projectsLoading } = useProjects()
+  const { projects, createProject, updateProject, deleteProject, loading: projectsLoading } = useProjects()
+  const { ensureScheduleInRange } = useScheduleManager()
+
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
-  
+
   // 보충 수업 추가 모드
   const [makeupProject, setMakeupProject] = useState<any>(null)
-  const isGeneratingRef = useRef(false)
 
-  // 자동 재생성 및 중복 제거 로직
-  useEffect(() => {
-    if (tasksLoading || projectsLoading) return
+  // ✨ [완전 수정] useEffect 제거! 
+  // 날짜 변경 시에만 명시적으로 스케줄 체크
+  // 이렇게 하면 새로고침 시 절대 중복 생성 안 됨
 
-    const manageStudentTimetables = async () => {
-      if (isGeneratingRef.current) return
-      isGeneratingRef.current = true
+  // 중복 호출 방지
+  const pendingCheckRef = useRef<NodeJS.Timeout | null>(null)
+  const isCheckingRef = useRef(false)
 
-      try {
-        // 1. 중복 제거 로직 (스마트 정리)
-        const uniqueMap = new Map<string, string>()
-        const duplicatesToDelete: string[] = []
+  // 날짜 변경 핸들러 (스케줄 체크 포함)
+  const handleDateChange = async (newDate: Date) => {
+    setCurrentDate(newDate)
 
-        tasks.forEach(task => {
-          if (task.is_auto_generated && task.status !== 'completed' && task.status !== 'cancelled') {
-            const key = `${task.project_id}-${task.start_time}`
-            if (uniqueMap.has(key)) {
-              duplicatesToDelete.push(task.id)
-            } else {
-              uniqueMap.set(key, task.id)
-            }
-          }
-        })
-
-        if (duplicatesToDelete.length > 0) {
-          console.log(`🧹 중복된 수업 ${duplicatesToDelete.length}개 삭제 중...`)
-          await supabase.from('tasks').delete().in('id', duplicatesToDelete)
-          refetchTasks()
-          return
-        }
-
-        // 2. 자동 생성 로직 (현재 날짜 기준)
-        const studentProjects = projects.filter(p => p.type === 'student' && p.status === 'active')
-        
-        if (studentProjects.length === 0) {
-          isGeneratingRef.current = false
-          return
-        }
-
-        let hasGenerated = false
-
-        for (const project of studentProjects) {
-          // 현재 보고 있는 날짜 기준으로 5주 뒤까지 체크
-          const checkDate = new Date(currentDate)
-          
-          // 해당 프로젝트의 태스크들
-          const projectTasks = tasks.filter(
-            t => t.project_id === project.id && 
-                 t.is_auto_generated && 
-                 t.status !== 'completed' && 
-                 t.status !== 'cancelled'
-          )
-
-          // 생성 로직 시작
-          if (project.schedule_template && project.schedule_template.length > 0) {
-            const startDate = project.start_date ? new Date(project.start_date) : new Date()
-            const now = new Date()
-            
-            // 기준일: 오늘과 (현재 보고 있는 주간 - 1주) 중 더 늦은 날짜
-            // 즉, 과거 데이터는 안 만들지만, 미래 데이터는 보고 있는 시점에 맞춰서 생성
-            const viewStart = new Date(currentDate)
-            viewStart.setDate(viewStart.getDate() - 7) 
-            
-            const baseDate = startDate > now ? startDate : now
-            const effectiveDate = baseDate > viewStart ? baseDate : viewStart
-
-            const getWeekStart = (date: Date): Date => {
-              const d = new Date(date)
-              const day = d.getDay()
-              const diff = day === 0 ? -6 : 1 - day
-              d.setDate(d.getDate() + diff)
-              d.setHours(0, 0, 0, 0)
-              return d
-            }
-
-            const weekStart = getWeekStart(effectiveDate)
-            const lessonsToCreate: any[] = []
-
-            // 현재 시점부터 향후 6주치 스캔 및 생성 (넉넉하게)
-            for (let week = 0; week < 6; week++) {
-              for (const schedule of project.schedule_template) {
-                const lessonDate = new Date(weekStart)
-                lessonDate.setDate(lessonDate.getDate() + (week * 7))
-
-                const targetDay = schedule.day
-                const mondayDay = lessonDate.getDay()
-                let daysToAdd = targetDay - mondayDay
-                if (targetDay === 0) daysToAdd = 6
-                lessonDate.setDate(lessonDate.getDate() + daysToAdd)
-
-                const [hour, minute] = schedule.time.split(':').map(Number)
-                lessonDate.setHours(hour, minute, 0, 0)
-
-                // 1. 과거는 생성 안 함
-                if (lessonDate < now) continue
-
-                // 2. 종료일 체크
-                if (project.end_date && lessonDate > new Date(project.end_date)) {
-                  continue
-                }
-
-                // 3. 이미 존재하는지 체크 (중복 방지)
-                const exists = projectTasks.some(t => {
-                  const tTime = new Date(t.start_time!)
-                  return Math.abs(tTime.getTime() - lessonDate.getTime()) < 60000 // 1분 오차 허용
-                })
-
-                if (exists) continue
-
-                lessonsToCreate.push({
-                  title: project.name,
-                  project_id: project.id,
-                  start_time: lessonDate.toISOString(),
-                  duration: schedule.duration || 40,
-                  status: 'scheduled',
-                  is_auto_generated: true,
-                  is_top5: false,
-                })
-              }
-            }
-
-            if (lessonsToCreate.length > 0) {
-              const { error } = await supabase.from('tasks').insert(lessonsToCreate)
-              if (!error) {
-                console.log(`✅ ${project.name}: 추가 일정 ${lessonsToCreate.length}개 생성됨`)
-                hasGenerated = true
-              }
-            }
-          }
-        }
-
-        if (hasGenerated) {
-          await refetchTasks() // refetch 완료 대기
-          setTimeout(() => { isGeneratingRef.current = false }, 500) // 락 해제
-        } else {
-          setTimeout(() => { isGeneratingRef.current = false }, 500) // 생성 안했으면 금방 해제
-        }
-
-      } catch (e) {
-        console.error(e)
-        isGeneratingRef.current = false
-      }
+    // 기존 대기 중인 타이머 취소 (연속 클릭 방지)
+    if (pendingCheckRef.current) {
+      clearTimeout(pendingCheckRef.current)
     }
 
-    manageStudentTimetables()
-  }, [tasks, projects, tasksLoading, projectsLoading, currentDate])
+    // 디바운스 적용 (500ms 후 실행)
+    pendingCheckRef.current = setTimeout(async () => {
+      // 이미 체크 중이면 무시
+      if (isCheckingRef.current) {
+        console.log('⏭️ 이미 스케줄 체크 중 - 스킵')
+        return
+      }
+
+      if (!projectsLoading && projects.length > 0) {
+        isCheckingRef.current = true
+
+        try {
+          const viewStart = startOfWeek(newDate, { weekStartsOn: 1 })
+          const viewEnd = endOfWeek(addWeeks(newDate, 6), { weekStartsOn: 1 })
+
+          console.log('📅 날짜 변경 → 스케줄 체크:', newDate.toLocaleDateString())
+          await ensureScheduleInRange(projects, viewStart, viewEnd)
+          refetchTasks() // UI 즉시 반영
+        } finally {
+          isCheckingRef.current = false
+          pendingCheckRef.current = null
+        }
+      }
+    }, 500)
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -231,7 +128,7 @@ export default function Home() {
   // 드래그 중인 태스크의 테두리 색상 계산
   const getDragBorderColor = () => {
     if (!activeTask) return 'border-blue-500'
-    
+
     // 학생 시간표인 경우
     if (activeTask.is_auto_generated || activeTask.is_makeup) {
       if (activeTask.is_cancelled) {
@@ -241,7 +138,7 @@ export default function Home() {
       } else {
         // 정규 수업: 주당 횟수로 테두리 색상 결정
         const weeklyCount = activeProject?.schedule_template?.length || 0
-        
+
         if (weeklyCount >= 3) {
           return 'border-sky-200 border-2'      // 주3회 이상: 연한 하늘색
         } else if (weeklyCount === 2) {
@@ -253,7 +150,7 @@ export default function Home() {
         }
       }
     }
-    
+
     return 'border-blue-500' // 일반 태스크
   }
 
@@ -261,7 +158,9 @@ export default function Home() {
   const customModifier = ({ transform }: { transform: { x: number, y: number } }) => {
     return {
       ...transform,
-      y: transform.y - 10 // 커서가 박스 상단 근처에 위치
+      y: transform.y - 10, // 커서가 박스 상단 근처에 위치
+      scaleX: 1,
+      scaleY: 1
     }
   }
 
@@ -307,7 +206,7 @@ export default function Home() {
                 makeupProject={makeupProject}
                 onClearMakeupMode={() => setMakeupProject(null)}
                 currentDate={currentDate}
-                onDateChange={setCurrentDate}
+                onDateChange={handleDateChange}
               />
             </Panel>
 
@@ -327,6 +226,8 @@ export default function Home() {
                 onSelectMakeupProject={setMakeupProject}
                 selectedMakeupProject={makeupProject}
                 currentDate={currentDate}
+                onDateChange={handleDateChange}
+                refetchTasks={refetchTasks}
               />
             </Panel>
           </PanelGroup>
@@ -360,7 +261,7 @@ export default function Home() {
                 makeupProject={makeupProject}
                 onClearMakeupMode={() => setMakeupProject(null)}
                 currentDate={currentDate}
-                onDateChange={setCurrentDate}
+                onDateChange={handleDateChange}
               />
             )}
             {activePanel === 'right' && (
@@ -376,6 +277,8 @@ export default function Home() {
                 onSelectMakeupProject={setMakeupProject}
                 selectedMakeupProject={makeupProject}
                 currentDate={currentDate}
+                onDateChange={handleDateChange}
+                refetchTasks={refetchTasks}
               />
             )}
           </div>
@@ -385,17 +288,17 @@ export default function Home() {
         <DragOverlay modifiers={[customModifier]}>
           {activeTask ? (
             <div
-              style={{ height: `${(activeTask.duration || 60) * 2}px` }}
+              style={{ height: `${(activeTask.duration || 60) * 1.4}px` }}
               className={`text-xs rounded-sm px-1.5 py-0.5 leading-snug shadow-xl cursor-grabbing overflow-hidden min-w-[100px] max-w-[200px] ${
                 // 학생 시간표 색상 로직
                 activeTask.is_auto_generated || activeTask.is_makeup
                   ? activeTask.is_cancelled
                     ? 'bg-gray-100 text-gray-500 border-gray-300' // 취소된 수업
                     : activeTask.is_makeup
-                    ? 'bg-yellow-100 text-yellow-700 border-orange-500 border-2' // 보충 수업 (오렌지 테두리)
-                    : 'bg-sky-100 text-sky-700 ' + getDragBorderColor() // 정규 수업 (주당 횟수별 테두리)
+                      ? 'bg-yellow-100 text-yellow-700 border-orange-500 border-2' // 보충 수업 (오렌지 테두리)
+                      : 'bg-sky-100 text-sky-700 ' + getDragBorderColor() // 정규 수업 (주당 횟수별 테두리)
                   : 'bg-blue-100 text-blue-700 border-blue-500' // 일반 태스크
-              }`}
+                }`}
             >
               <div className="line-clamp-2 font-medium break-words">{activeTask.title}</div>
             </div>

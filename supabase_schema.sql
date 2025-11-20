@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     is_all_day BOOLEAN DEFAULT FALSE,
     due_date TIMESTAMPTZ,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-    status TEXT NOT NULL CHECK (status IN ('inbox', 'scheduled', 'completed', 'cancelled')),
+    status TEXT NOT NULL CHECK (status IN ('inbox', 'scheduled', 'completed', 'cancelled', 'waiting')),
     is_top5 BOOLEAN DEFAULT FALSE,
     order_index INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),

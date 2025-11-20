@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { format, isSameMinute, parseISO, isSameDay } from 'date-fns'
-import { Check } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 
@@ -21,11 +21,11 @@ interface CenterPanelProps {
   onDateChange?: (date: Date) => void
 }
 
-function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewSlot, previewTask }: { 
-  date: Date, 
-  hour: number, 
-  minute: number, 
-  children: React.ReactNode, 
+function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewSlot, previewTask }: {
+  date: Date,
+  hour: number,
+  minute: number,
+  children: React.ReactNode,
   onDoubleClick?: () => void,
   isPreviewSlot?: boolean,
   previewTask?: Task
@@ -36,12 +36,12 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
     id: slotId,
   })
 
-  const previewHeight = previewTask ? (previewTask.duration || 60) * 2 : 0
-  
+  const previewHeight = previewTask ? (previewTask.duration || 60) * 1.4 : 0
+
   // 미리보기 박스 색상 계산
   const getPreviewBgColor = () => {
-    if (!previewTask) return 'bg-blue-200/50'
-    
+    if (!previewTask) return 'bg-yellow-200/50'
+
     // 학생 시간표인 경우
     if (previewTask.is_auto_generated || previewTask.is_makeup) {
       if (previewTask.is_cancelled) {
@@ -52,13 +52,13 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
         return 'bg-sky-200/50' // 정규 수업
       }
     }
-    
-    return 'bg-blue-200/50' // 일반 태스크
+
+    return 'bg-yellow-200/50' // 일반 태스크
   }
-  
+
   const getPreviewBadgeBgColor = () => {
-    if (!previewTask) return 'bg-blue-600'
-    
+    if (!previewTask) return 'bg-yellow-600'
+
     // 학생 시간표인 경우
     if (previewTask.is_auto_generated || previewTask.is_makeup) {
       if (previewTask.is_cancelled) {
@@ -69,8 +69,8 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
         return 'bg-sky-600' // 정규 수업
       }
     }
-    
-    return 'bg-blue-600' // 일반 태스크
+
+    return 'bg-yellow-600' // 일반 태스크
   }
 
   return (
@@ -78,19 +78,18 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
       ref={setNodeRef}
       onDoubleClick={onDoubleClick}
       className={`h-[14px] border-r border-gray-100 last:border-r-0 transition-colors cursor-pointer relative group ${isOver ? 'bg-blue-50 border-blue-200 z-10' : 'hover:bg-gray-50'
-        } ${
-          minute === 0 
-            ? 'border-t border-gray-300'
-            : minute === 30 
-              ? 'border-t border-gray-200'
-              : 'border-t border-dashed border-gray-150'
+        } ${minute === 0
+          ? 'border-t border-gray-300'
+          : minute === 30
+            ? 'border-t border-gray-200'
+            : 'border-t border-dashed border-gray-150'
         }`}
     >
       {children}
-      
+
       {/* Preview Box - 드롭 예상 위치 표시 */}
       {isPreviewSlot && previewTask && (
-        <div 
+        <div
           style={{ height: `${previewHeight}px` }}
           className={`absolute top-0 left-0 right-0 ${getPreviewBgColor()} rounded-sm z-[5] pointer-events-none flex items-start justify-center pt-0.5`}
         >
@@ -103,21 +102,21 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
   )
 }
 
-function DraggableCalendarTask({ 
-  task, 
-  updateTask, 
-  onDoubleClick, 
+function DraggableCalendarTask({
+  task,
+  updateTask,
+  deleteTask,
+  onDoubleClick,
   projectColor,
-  overlayIndex = 0,
-  totalOverlays = 1,
+  layout,
   project
-}: { 
-  task: Task, 
-  updateTask: (id: string, updates: Partial<Task>) => Promise<void>, 
-  onDoubleClick: (e: React.MouseEvent) => void, 
+}: {
+  task: Task,
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>,
+  deleteTask: (id: string) => Promise<void>,
+  onDoubleClick: (e: React.MouseEvent) => void,
   projectColor?: string,
-  overlayIndex?: number,
-  totalOverlays?: number,
+  layout?: { width: number, left: number },
   project?: Project
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -129,7 +128,7 @@ function DraggableCalendarTask({
   const [tempDuration, setTempDuration] = useState<number | null>(null)
 
   const displayDuration = tempDuration ?? task.duration ?? 60
-  const height = displayDuration * 2
+  const height = displayDuration * 1.4
 
   // 완료 여부 확인
   const isCompleted = task.status === 'completed'
@@ -140,7 +139,7 @@ function DraggableCalendarTask({
     if (isCompleted) {
       return 'bg-gray-100'
     }
-    
+
     // 학생 시간표인 경우 - 배경색은 항상 동일
     if (task.is_auto_generated || task.is_makeup) {
       if (task.is_cancelled) {
@@ -151,9 +150,9 @@ function DraggableCalendarTask({
         return 'bg-sky-100' // 정규 수업 - 배경은 항상 하늘색
       }
     }
-    
+
     // 일반 프로젝트인 경우
-    if (!projectColor) return 'bg-blue-100'
+    if (!projectColor) return 'rgba(253, 224, 71, 0.15)' // 아주 연한 투명한 노란색
     // hex to rgb then apply opacity
     const hex = projectColor.replace('#', '')
     const r = parseInt(hex.substring(0, 2), 16)
@@ -167,7 +166,7 @@ function DraggableCalendarTask({
     if (isCompleted) {
       return 'text-gray-400'
     }
-    
+
     // 학생 시간표인 경우
     if (task.is_auto_generated || task.is_makeup) {
       if (task.is_cancelled) {
@@ -178,9 +177,9 @@ function DraggableCalendarTask({
         return 'text-sky-700' // 정규 수업 - 하늘색 텍스트
       }
     }
-    
+
     // 일반 프로젝트인 경우
-    if (!projectColor) return 'text-blue-700'
+    if (!projectColor) return 'text-yellow-900'
     return 'text-gray-800'
   }
 
@@ -189,7 +188,7 @@ function DraggableCalendarTask({
     if (isCompleted) {
       return 'border-gray-300'
     }
-    
+
     // 학생 시간표인 경우
     if (task.is_auto_generated || task.is_makeup) {
       if (task.is_cancelled) {
@@ -204,9 +203,9 @@ function DraggableCalendarTask({
         return 'border-sky-500 border-2' // 기본값
       }
     }
-    
+
     // 일반 프로젝트인 경우
-    if (!projectColor) return 'border-blue-200'
+    if (!projectColor) return 'border-yellow-200'
     return projectColor
   }
 
@@ -217,18 +216,18 @@ function DraggableCalendarTask({
     setIsResizing(true)
     const startY = e.clientY
     const startDuration = task.duration || 60
-    const pixelsPerMinute = 2
+    const pixelsPerMinute = 1.4
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault()
       const deltaY = moveEvent.clientY - startY
       const deltaMinutes = Math.round(deltaY / pixelsPerMinute / 10) * 10
       const newDuration = Math.max(10, startDuration + deltaMinutes)
-      
+
       // 실시간으로 임시 높이 업데이트
       setTempDuration(newDuration)
     }
-    
+
     const handleMouseUp = (upEvent: MouseEvent) => {
       const deltaY = upEvent.clientY - startY
       const deltaMinutes = Math.round(deltaY / pixelsPerMinute / 10) * 10
@@ -253,17 +252,17 @@ function DraggableCalendarTask({
   const borderColor = getBorderColor()
 
   // 너비와 위치 계산 (겹침 처리)
-  const widthPercent = 100 / totalOverlays
-  const leftPercent = (100 / totalOverlays) * overlayIndex
+  const widthPercent = layout ? layout.width : 100
+  const leftPercent = layout ? layout.left : 0
 
   // 학생 시간표의 정규 수업인 경우 프로젝트 색상을 테두리에 적용
   const shouldUseBorderColor = (task.is_auto_generated && !task.is_makeup && !task.is_cancelled) && projectColor
-  
+
   return (
     <div
       ref={setNodeRef}
-      style={{ 
-        height: `${height}px`, 
+      style={{
+        height: `${height}px`,
         width: `${widthPercent}%`,
         left: `${leftPercent}%`,
         opacity: isDragging ? 0.5 : 1,
@@ -285,25 +284,25 @@ function DraggableCalendarTask({
     >
       <div className="flex items-start gap-1 min-w-0 relative">
         <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-                e.stopPropagation()
-                const newStatus = isCompleted ? 'scheduled' : 'completed'
-                // 학생 수업이면 출석 처리도 함께 업데이트
-                const updates: Partial<Task> = { status: newStatus }
-                if (task.is_auto_generated || task.is_makeup) {
-                   updates.attendance = newStatus === 'completed' ? 'present' : undefined
-                }
-                updateTask(task.id, updates)
-            }}
-            className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[3px] border transition-colors flex items-center justify-center
-              ${isCompleted 
-                ? 'bg-gray-500 border-gray-500' 
-                : 'border-blue-300 bg-white/50 hover:bg-blue-500 hover:border-blue-500 group/check'
-              }`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            const newStatus = isCompleted ? 'scheduled' : 'completed'
+            // 학생 수업이면 출석 처리도 함께 업데이트
+            const updates: Partial<Task> = { status: newStatus }
+            if (task.is_auto_generated || task.is_makeup) {
+              updates.attendance = newStatus === 'completed' ? 'present' : undefined
+            }
+            updateTask(task.id, updates)
+          }}
+          className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[3px] border transition-colors flex items-center justify-center
+              ${isCompleted
+              ? 'bg-gray-500 border-gray-500'
+              : 'border-blue-300 bg-white/50 hover:bg-blue-500 hover:border-blue-500 group/check'
+            }`}
         >
-            <Check size={10} className={`text-white ${isCompleted ? 'opacity-100' : 'opacity-0 group-hover/check:opacity-100'}`} strokeWidth={4} />
+          <Check size={10} className={`text-white ${isCompleted ? 'opacity-100' : 'opacity-0 group-hover/check:opacity-100'}`} strokeWidth={4} />
         </button>
         <div className="flex-1 min-w-0">
           <div className={`line-clamp-2 font-medium break-words ${isCompleted ? 'line-through' : ''}`}>
@@ -316,15 +315,33 @@ function DraggableCalendarTask({
             </div>
           )}
         </div>
-        
+
         {/* Duration Display during resize */}
         {isResizing && (
-          <div className="absolute right-1 top-0 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0 rounded shadow-md">
+          <div className="absolute right-1 top-0 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0 rounded shadow-md z-20">
             {displayDuration}분
           </div>
         )}
+
+        {/* Delete Button - 우측 상단 X 표시 */}
+        {!isResizing && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (confirm('정말 이 수업을 삭제하시겠습니까?')) {
+                deleteTask(task.id)
+              }
+            }}
+            className="absolute right-0.5 top-0.5 w-4 h-4 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-white/80 opacity-0 group-hover/task:opacity-100 transition-all z-10"
+            title="삭제"
+          >
+            <X size={12} strokeWidth={2.5} />
+          </button>
+        )}
       </div>
-      
+
       {/* Resize Handle - Enhanced */}
       <div
         className={`absolute bottom-0 left-0 right-0 h-4 cursor-ns-resize flex items-end justify-center transition-opacity
@@ -340,11 +357,96 @@ function DraggableCalendarTask({
   )
 }
 
+// 겹치는 태스크 레이아웃 계산 함수
+function calculateLayout(tasks: Task[]) {
+  if (tasks.length === 0) return {}
+
+  // 1. 시작 시간 순으로 정렬
+  const sorted = [...tasks].sort((a, b) => {
+    if (!a.start_time || !b.start_time) return 0
+    return a.start_time.localeCompare(b.start_time)
+  })
+
+  const layoutMap: Record<string, { width: number, left: number }> = {}
+  const clusters: Task[][] = []
+
+  // 2. 클러스터링 (겹치는 그룹 찾기)
+  for (const task of sorted) {
+    if (!task.start_time) continue
+
+    const taskStart = new Date(task.start_time).getTime()
+    const taskEnd = taskStart + (task.duration || 60) * 60 * 1000
+
+    let added = false
+
+    if (clusters.length > 0) {
+      const lastCluster = clusters[clusters.length - 1]
+      // 클러스터의 마지막 종료 시간 확인
+      const clusterEnd = Math.max(...lastCluster.map(t => {
+        const tStart = new Date(t.start_time!).getTime()
+        return tStart + (t.duration || 60) * 60 * 1000
+      }))
+
+      // 겹치면 같은 클러스터에 추가
+      if (taskStart < clusterEnd) {
+        lastCluster.push(task)
+        added = true
+      }
+    }
+
+    if (!added) {
+      clusters.push([task])
+    }
+  }
+
+  // 3. 각 클러스터별 레이아웃 계산 (컬럼 패킹)
+  for (const cluster of clusters) {
+    const columns: Task[][] = []
+
+    for (const task of cluster) {
+      let colIndex = 0
+      const taskStart = new Date(task.start_time!).getTime()
+      const taskEnd = taskStart + (task.duration || 60) * 60 * 1000
+
+      while (true) {
+        const colTasks = columns[colIndex] || []
+        // 현재 컬럼의 태스크들과 겹치는지 확인
+        const hasOverlap = colTasks.some(t => {
+          const tStart = new Date(t.start_time!).getTime()
+          const tEnd = tStart + (t.duration || 60) * 60 * 1000
+          return taskStart < tEnd && tStart < taskEnd
+        })
+
+        if (!hasOverlap) {
+          if (!columns[colIndex]) columns[colIndex] = []
+          columns[colIndex].push(task)
+          break
+        }
+        colIndex++
+      }
+    }
+
+    const numCols = columns.length
+    const width = 100 / numCols
+
+    columns.forEach((colTasks, colIndex) => {
+      colTasks.forEach(task => {
+        layoutMap[task.id] = {
+          width: width,
+          left: colIndex * width
+        }
+      })
+    })
+  }
+
+  return layoutMap
+}
+
 export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange }: CenterPanelProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
   const [now, setNow] = useState(new Date())
-  
+
   // prop으로 받은 currentDate 사용
   const currentDate = propCurrentDate
 
@@ -358,7 +460,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     acc[project.id] = project.color
     return acc
   }, {} as Record<string, string>)
-  
+
   // 프로젝트 맵
   const projectMap = projects.reduce((acc, project) => {
     acc[project.id] = project
@@ -430,9 +532,9 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     if (!createTask) return
 
     const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute)
-    
+
     let taskData: Partial<Task>
-    
+
     // 보충 수업 모드인 경우
     if (makeupProject && makeupProject.type === 'student') {
       taskData = {
@@ -445,7 +547,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
         is_auto_generated: false, // 수동 추가된 보충
         is_top5: false
       }
-      
+
       // 보충 수업 생성 후 모드 해제
       if (onClearMakeupMode) {
         onClearMakeupMode()
@@ -460,12 +562,12 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
         duration: 30
       }
     }
-    
+
     const newTask = await createTask(taskData)
 
     if (newTask) {
-        setSelectedTask(newTask)
-        setPopoverPosition(undefined)
+      setSelectedTask(newTask)
+      setPopoverPosition(undefined)
     }
   }
 
@@ -475,6 +577,50 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     setPopoverPosition({ x: rect.right + 10, y: rect.top })
     setSelectedTask(task)
   }
+
+  // 레이아웃 계산 최적화 (Memoization)
+  const dailyLayouts = useMemo(() => {
+    const layouts: Record<string, ReturnType<typeof calculateLayout>> = {}
+
+    weekDates.forEach(date => {
+      const dateKey = format(date, 'yyyy-MM-dd')
+      const dayTasks = tasks.filter(t => {
+        if (!t.start_time) return false
+        if (t.status !== 'scheduled' && t.status !== 'completed') return false
+        return isSameDay(parseISO(t.start_time), date)
+      })
+      layouts[dateKey] = calculateLayout(dayTasks)
+    })
+
+    return layouts
+  }, [tasks, currentDate]) // weekDates는 currentDate에 종속됨
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // 초기 스크롤 위치 설정
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const day = now.getDay()
+      const isWeekend = day === 0 || day === 6 // 0: 일요일, 6: 토요일
+
+      // 평일은 12시(오후 12시), 주말은 9시부터 보이도록 설정
+      const targetHour = isWeekend ? 9 : 12
+
+      // 6시 30분부터 시작하므로, 6시 이전은 계산에서 제외
+      // 각 시간 슬롯의 높이는 14px * 6 = 84px (1시간)
+      // 6시 30분부터 시작하므로 첫 30분(42px)은 제외됨
+
+      // targetHour까지의 시간 차이 계산
+      const startHour = 6
+      const hourDiff = targetHour - startHour
+
+      if (hourDiff > 0) {
+        // 시간당 84px
+        const scrollPosition = (hourDiff * 84) - 42 // 30분 보정
+        scrollContainerRef.current.scrollTop = scrollPosition
+      }
+    }
+  }, []) // 컴포넌트 마운트 시 한 번만 실행
 
   return (
     <div className="h-full flex flex-col bg-white relative select-none">
@@ -520,19 +666,19 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
             {weekRangeText}
           </h2>
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={handleToday}
               className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-50"
             >
               오늘
             </button>
-            <button 
+            <button
               onClick={handlePrevWeek}
               className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-50"
             >
               ←
             </button>
-            <button 
+            <button
               onClick={handleNextWeek}
               className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-50"
             >
@@ -542,7 +688,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
         <div className="min-w-[800px]">
           <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
             <div className="grid grid-cols-[4rem_repeat(7,1fr)] gap-0">
@@ -552,7 +698,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                 return (
                   <div
                     key={day}
-                    className={`p-3 text-center text-sm font-medium border-r border-gray-200 last:border-r-0 
+                    className={`py-1 text-center text-sm font-medium border-r border-gray-200 last:border-r-0 
                       ${isToday ? 'bg-blue-50/20 border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 text-blue-900' : 'text-gray-900'}`}
                   >
                     {day}
@@ -573,58 +719,63 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                     {(hour % 12 || 12).toString().padStart(2, '0')}
                   </span>
                 </div>
-                
+
                 {/* Current Time Line - Only render in the correct hour row */}
                 {hour === now.getHours() && (
-                    <div 
-                        className="absolute left-[4rem] right-0 border-t border-red-300 z-20 pointer-events-none flex items-center"
-                        style={{ top: `${(now.getMinutes() / 60) * 100}%` }}
-                    >
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-300 -ml-[3px]" />
-                    </div>
+                  <div
+                    className="absolute left-[4rem] right-0 border-t border-red-300 z-20 pointer-events-none flex items-center"
+                    style={{ top: `${(now.getMinutes() / 60) * 100}%` }}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-300 -ml-[3px]" />
+                  </div>
                 )}
 
-                {weekDates.map((date, i) => (
-                  <div key={i} className={`border-r border-gray-100 last:border-r-0 relative ${isSameDay(date, now) ? 'border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 bg-blue-50/10' : ''}`}>
-                    {minutes
-                      .filter(minute => {
-                        // 6시는 30분부터만, 1시는 00분까지만 (06:30 ~ 01:00)
-                        if (hour === 6 && minute < 30) return false
-                        if (hour === 1 && minute > 0) return false
-                        return true
-                      })
-                      .map((minute) => {
-                        const slotTasks = getTasksForSlot(date, hour, minute)
-                        const slotId = `slot-${format(date, 'yyyy-MM-dd')}-${hour}-${minute}`
-                        const isPreviewSlot = dragOverSlotId === slotId
-                      
-                        return (
-                          <DroppableSlot
-                            key={minute}
-                            date={date}
-                            hour={hour}
-                            minute={minute}
-                            onDoubleClick={() => handleSlotClick(date, hour, minute)}
-                            isPreviewSlot={isPreviewSlot}
-                            previewTask={draggingTask}
-                          >
-                          {slotTasks.map((task, index) => (
-                            <DraggableCalendarTask
-                              key={task.id}
-                              task={task}
-                              updateTask={updateTask}
-                              onDoubleClick={(e) => handleTaskClick(e, task)}
-                              projectColor={task.project_id ? projectColorMap[task.project_id] : undefined}
-                              overlayIndex={index}
-                              totalOverlays={slotTasks.length}
-                              project={task.project_id ? projectMap[task.project_id] : undefined}
-                            />
-                          ))}
-                        </DroppableSlot>
-                      )
-                    })}
-                  </div>
-                ))}
+                {weekDates.map((date, i) => {
+                  const dateKey = format(date, 'yyyy-MM-dd')
+                  const layoutMap = dailyLayouts[dateKey] || {}
+
+                  return (
+                    <div key={i} className={`border-r border-gray-100 last:border-r-0 relative ${isSameDay(date, now) ? 'border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 bg-blue-50/10' : ''}`}>
+                      {minutes
+                        .filter(minute => {
+                          // 6시는 30분부터만, 1시는 00분까지만 (06:30 ~ 01:00)
+                          if (hour === 6 && minute < 30) return false
+                          if (hour === 1 && minute > 0) return false
+                          return true
+                        })
+                        .map((minute) => {
+                          const slotTasks = getTasksForSlot(date, hour, minute)
+                          const slotId = `slot-${format(date, 'yyyy-MM-dd')}-${hour}-${minute}`
+                          const isPreviewSlot = dragOverSlotId === slotId
+
+                          return (
+                            <DroppableSlot
+                              key={minute}
+                              date={date}
+                              hour={hour}
+                              minute={minute}
+                              onDoubleClick={() => handleSlotClick(date, hour, minute)}
+                              isPreviewSlot={isPreviewSlot}
+                              previewTask={draggingTask}
+                            >
+                              {slotTasks.map((task) => (
+                                <DraggableCalendarTask
+                                  key={task.id}
+                                  task={task}
+                                  updateTask={updateTask}
+                                  deleteTask={deleteTask}
+                                  onDoubleClick={(e) => handleTaskClick(e, task)}
+                                  projectColor={task.project_id ? projectColorMap[task.project_id] : undefined}
+                                  layout={layoutMap[task.id]}
+                                  project={task.project_id ? projectMap[task.project_id] : undefined}
+                                />
+                              ))}
+                            </DroppableSlot>
+                          )
+                        })}
+                    </div>
+                  )
+                })}
               </div>
             ))}
           </div>
