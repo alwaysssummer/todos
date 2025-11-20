@@ -60,10 +60,9 @@ CREATE POLICY "Enable all access for textbooks" ON textbooks
 -- 샘플 교재 추가
 INSERT INTO textbooks (name, total_chapters, chapter_unit) VALUES
     ('수학의 정석', 20, '강'),
-    ('개념원리 수학', 15, '단원'),
+    ('개념원리 수학', 15, '과'),
     ('영어 문법 기본', 12, 'Unit'),
-    ('독해 마스터', 18, 'Chapter')
-ON CONFLICT DO NOTHING;
+    ('독해 마스터', 18, 'Chapter');
 
 -- =====================================================
 -- 검증 쿼리
