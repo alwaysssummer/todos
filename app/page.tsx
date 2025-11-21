@@ -119,7 +119,7 @@ export default function Home() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 3,  // 8 → 3px로 줄여서 더 빠른 반응
       },
     })
   )
