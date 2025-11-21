@@ -49,6 +49,11 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [homeworkAssignments, setHomeworkAssignments] = useState<HomeworkAssignmentItem[]>(task.homework_assignments || [])
     const { textbooks } = useTextbooks()
 
+    // 페이지네이션 state (교재별)
+    const [currentPages, setCurrentPages] = useState<Record<string, number>>({})
+    // Shift 선택용 마지막 클릭 단원 (교재별)
+    const [lastClicked, setLastClicked] = useState<Record<string, string>>({})
+
     // task 변경 시 state 초기화 (네비게이터 이동 시 필수!)
     useEffect(() => {
         setTitle(task.title)
@@ -62,7 +67,22 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         setEditedTags(task.tags || [])
         setHomeworkChecks(task.homework_checks || [])
         setHomeworkAssignments(task.homework_assignments || [])
-    }, [task.id])
+        
+        // 각 교재의 초기 페이지 자동 설정 (진도 기반)
+        if (project?.textbooks) {
+            const initialPages: Record<string, number> = {}
+            project.textbooks.forEach(tbId => {
+                const checks = (task.homework_checks || []).filter(c => c.textbook_id === tbId)
+                if (checks.length > 0) {
+                    const maxChapter = Math.max(...checks.map(c => parseInt(c.chapter)))
+                    initialPages[tbId] = Math.floor((maxChapter - 1) / 20)
+                } else {
+                    initialPages[tbId] = 0
+                }
+            })
+            setCurrentPages(initialPages)
+        }
+    }, [task.id, project])
 
     // 학생 시간표 태스크인지 확인
     const isStudentLesson = task.is_auto_generated || task.is_makeup
@@ -359,44 +379,80 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
     // ===== 다음 과제 배정 함수들 (Phase 7) =====
 
-    // 단원 선택 토글
-    const toggleAssignmentChapter = (textbookId: string, chapter: string) => {
+    // 단원 선택 (Ctrl/Shift 지원)
+    const toggleAssignmentChapter = (
+        textbookId: string, 
+        chapter: string, 
+        e?: React.MouseEvent
+    ) => {
         const textbook = textbooks.find(t => t.id === textbookId)
         if (!textbook) return
 
         const existingIdx = homeworkAssignments.findIndex(a => a.textbook_id === textbookId)
+        const currentChapters = existingIdx >= 0 ? homeworkAssignments[existingIdx].chapters : []
 
-        if (existingIdx >= 0) {
-            // 이미 있는 교재
-            const existing = homeworkAssignments[existingIdx]
-            const chapters = existing.chapters.includes(chapter)
-                ? existing.chapters.filter(c => c !== chapter) // 제거
-                : [...existing.chapters, chapter].sort((a, b) => parseInt(a) - parseInt(b)) // 추가 및 정렬
+        let newChapters: string[] = []
 
-            const updated = [...homeworkAssignments]
-            if (chapters.length === 0) {
-                // 모든 단원이 제거되면 교재도 제거
+        // Shift + 클릭: 범위 선택
+        if (e?.shiftKey && lastClicked[textbookId]) {
+            const start = parseInt(lastClicked[textbookId])
+            const end = parseInt(chapter)
+            const [min, max] = [Math.min(start, end), Math.max(start, end)]
+            
+            // 범위 내 모든 단원 생성
+            const rangeChapters = Array.from(
+                { length: max - min + 1 },
+                (_, i) => (min + i).toString()
+            )
+            
+            // 기존 선택과 병합 (중복 제거)
+            newChapters = [...new Set([...currentChapters, ...rangeChapters])]
+                .sort((a, b) => parseInt(a) - parseInt(b))
+        }
+        // Ctrl + 클릭: 다중 선택 (토글)
+        else if (e?.ctrlKey || e?.metaKey) {
+            const isSelected = currentChapters.includes(chapter)
+            newChapters = isSelected
+                ? currentChapters.filter(c => c !== chapter)  // 해제
+                : [...currentChapters, chapter].sort((a, b) => parseInt(a) - parseInt(b))  // 추가
+            
+            setLastClicked({ ...lastClicked, [textbookId]: chapter })
+        }
+        // 일반 클릭: 단일 토글
+        else {
+            const isSelected = currentChapters.includes(chapter)
+            newChapters = isSelected
+                ? currentChapters.filter(c => c !== chapter)
+                : [...currentChapters, chapter].sort((a, b) => parseInt(a) - parseInt(b))
+            
+            setLastClicked({ ...lastClicked, [textbookId]: chapter })
+        }
+
+        // DB 업데이트
+        const updated = [...homeworkAssignments]
+        if (newChapters.length === 0) {
+            // 모든 단원 제거 시 교재도 제거
+            if (existingIdx >= 0) {
                 updated.splice(existingIdx, 1)
-            } else {
-                updated[existingIdx] = { ...existing, chapters }
             }
-
-            setHomeworkAssignments(updated)
-            updateTask(task.id, {
-                homework_assignments: updated.length > 0 ? updated : undefined
-            })
         } else {
-            // 새 교재 추가
             const newAssignment: HomeworkAssignmentItem = {
                 textbook_id: textbookId,
                 textbook_name: textbook.name,
-                chapters: [chapter]
+                chapters: newChapters
             }
-
-            const updated = [...homeworkAssignments, newAssignment]
-            setHomeworkAssignments(updated)
-            updateTask(task.id, { homework_assignments: updated })
+            
+            if (existingIdx >= 0) {
+                updated[existingIdx] = newAssignment
+            } else {
+                updated.push(newAssignment)
+            }
         }
+
+        setHomeworkAssignments(updated)
+        updateTask(task.id, {
+            homework_assignments: updated.length > 0 ? updated : undefined
+        })
     }
 
     // ===== 수업 취소 로직 (Phase 8) =====
@@ -924,23 +980,60 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
                                         const assignment = homeworkAssignments.find(a => a.textbook_id === textbookId)
 
+                                        const page = currentPages[textbookId] || 0
+                                        const pageSize = 20
+                                        const startChapter = page * pageSize + 1
+                                        const endChapter = Math.min(startChapter + pageSize - 1, textbook.total_chapters)
+                                        const totalPages = Math.ceil(textbook.total_chapters / pageSize)
+
                                         return (
                                             <div key={textbookId} className="border rounded-md p-1.5 bg-white">
-                                                {/* 교재명 */}
-                                                <div className="text-xs font-semibold text-gray-900 mb-1 truncate" title={textbook.name}>
-                                                    {textbook.name}
+                                                {/* 헤더: 교재명 + 페이지네이션 */}
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="text-xs font-semibold text-gray-900 truncate" title={textbook.name}>
+                                                        {textbook.name}
+                                                    </div>
+                                                    
+                                                    {/* 페이지네이션 */}
+                                                    {totalPages > 1 && (
+                                                        <div className="flex items-center gap-0.5">
+                                                            <button
+                                                                onClick={() => setCurrentPages({
+                                                                    ...currentPages,
+                                                                    [textbookId]: Math.max(0, page - 1)
+                                                                })}
+                                                                disabled={page === 0}
+                                                                className="p-0.5 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                                                            >
+                                                                ◀
+                                                            </button>
+                                                            <span className="text-[9px] text-gray-500 px-0.5">
+                                                                {startChapter}-{endChapter}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setCurrentPages({
+                                                                    ...currentPages,
+                                                                    [textbookId]: Math.min(totalPages - 1, page + 1)
+                                                                })}
+                                                                disabled={page === totalPages - 1}
+                                                                className="p-0.5 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                                                            >
+                                                                ▶
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* 단원 선택 그리드 (5열 → 4열로 축소) */}
+                                                {/* 단원 선택 그리드 */}
                                                 <div className="grid grid-cols-4 gap-0.5">
-                                                    {Array.from({ length: Math.min(textbook.total_chapters, 20) }, (_, i) => {
-                                                        const chapter = (i + 1).toString()
+                                                    {Array.from({ length: endChapter - startChapter + 1 }, (_, i) => {
+                                                        const chapter = (startChapter + i).toString()
                                                         const isSelected = assignment?.chapters.includes(chapter)
 
                                                         return (
                                                             <button
                                                                 key={chapter}
-                                                                onClick={() => toggleAssignmentChapter(textbookId, chapter)}
+                                                                onClick={(e) => toggleAssignmentChapter(textbookId, chapter, e)}
                                                                 className={`px-1 py-0.5 text-[10px] rounded transition-colors font-medium ${
                                                                     isSelected
                                                                         ? 'bg-blue-500 text-white'
@@ -953,16 +1046,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                     })}
                                                 </div>
 
-                                                {/* 20개 초과시 안내 */}
-                                                {textbook.total_chapters > 20 && (
-                                                    <div className="text-[9px] text-gray-400 mt-1">
-                                                        1-20만 표시 (총 {textbook.total_chapters}개)
-                                                    </div>
-                                                )}
-
                                                 {/* 선택된 단원 요약 */}
                                                 {assignment && assignment.chapters.length > 0 && (
-                                                    <div className="mt-1 text-[10px] text-blue-600 font-medium">
+                                                    <div className="mt-1 text-[10px] text-blue-600 font-medium truncate" title={assignment.chapters.join(',')}>
                                                         ✓ {assignment.chapters.join(',')} ({assignment.chapters.length})
                                                     </div>
                                                 )}
