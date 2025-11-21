@@ -275,7 +275,6 @@ function DraggableCalendarTask({
         height: `${height}px`,
         width: `${widthPercent}%`,
         left: `${leftPercent}%`,
-        opacity: isDragging ? 0.5 : 1,
         backgroundColor: typeof bgColor === 'string' && bgColor.startsWith('rgba') ? bgColor : undefined,
         borderColor: shouldUseBorderColor ? projectColor : undefined,
         borderWidth: shouldUseBorderColor ? '2px' : undefined,
