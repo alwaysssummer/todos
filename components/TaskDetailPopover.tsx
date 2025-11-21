@@ -59,6 +59,10 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [currentPages, setCurrentPages] = useState<Record<string, number>>({})
     // Shift 선택용 마지막 클릭 단원 (교재별)
     const [lastClicked, setLastClicked] = useState<Record<string, string>>({})
+    // 시간 편집 모드
+    const [isEditingTime, setIsEditingTime] = useState(false)
+    const [editHour, setEditHour] = useState(0)
+    const [editMinute, setEditMinute] = useState(0)
 
     // task 변경 시 state 초기화 (네비게이터 이동 시 필수!)
     useEffect(() => {
@@ -709,6 +713,86 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 )
                             })}
                         </div>
+
+                        {/* 시간 수정 UI */}
+                        {task.start_time && (
+                            <div className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-lg mt-1">
+                                <Calendar size={12} className="text-gray-500" />
+                                <span className="text-[10px] text-gray-600">
+                                    {format(new Date(task.start_time), 'M/d (E)', { locale: ko })}
+                                </span>
+                                
+                                <Clock size={12} className="text-gray-500 ml-1" />
+                                
+                                {!isEditingTime ? (
+                                    // 보기 모드
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-medium text-gray-900">
+                                            {format(new Date(task.start_time), 'HH:mm')}
+                                        </span>
+                                        <button 
+                                            onClick={() => {
+                                                const current = new Date(task.start_time!)
+                                                setEditHour(current.getHours())
+                                                setEditMinute(current.getMinutes())
+                                                setIsEditingTime(true)
+                                            }}
+                                            className="text-[10px] text-blue-600 hover:text-blue-700 px-1"
+                                        >
+                                            변경
+                                        </button>
+                                    </div>
+                                ) : (
+                                    // 편집 모드
+                                    <div className="flex items-center gap-0.5">
+                                        <select 
+                                            value={editHour}
+                                            onChange={(e) => setEditHour(Number(e.target.value))}
+                                            className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white"
+                                        >
+                                            {Array.from({length: 24}, (_, i) => (
+                                                <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                                            ))}
+                                        </select>
+                                        <span className="text-xs">:</span>
+                                        <select 
+                                            value={editMinute}
+                                            onChange={(e) => setEditMinute(Number(e.target.value))}
+                                            className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white"
+                                        >
+                                            {[0, 10, 20, 30, 40, 50].map(m => (
+                                                <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                            ))}
+                                        </select>
+                                        
+                                        {/* 확인 */}
+                                        <button
+                                            onClick={async () => {
+                                                const newDate = new Date(task.start_time!)
+                                                newDate.setHours(editHour, editMinute, 0, 0)
+                                                await updateTask(task.id, { start_time: newDate.toISOString() })
+                                                setIsEditingTime(false)
+                                            }}
+                                            className="text-green-600 hover:text-green-700 px-1"
+                                            title="확인"
+                                        >
+                                            ✓
+                                        </button>
+                                        
+                                        {/* 취소 */}
+                                        <button
+                                            onClick={() => {
+                                                setIsEditingTime(false)
+                                            }}
+                                            className="text-red-600 hover:text-red-700 px-1"
+                                            title="취소"
+                                        >
+                                            ✗
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
