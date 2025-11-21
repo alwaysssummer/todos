@@ -723,13 +723,13 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 {/* 시간 선택 - 즉시 편집 모드 */}
                                 <select 
                                     value={new Date(startTime).getHours()}
-                                    onChange={async (e) => {
+                                    onChange={(e) => {
                                         const newHour = Number(e.target.value)
                                         const newDate = new Date(startTime)
                                         newDate.setHours(newHour)
                                         const newIso = newDate.toISOString()
-                                        setStartTime(newIso)  // ← state 즉시 업데이트!
-                                        await updateTask(task.id, { start_time: newIso })
+                                        setStartTime(newIso)  // 즉시 UI 업데이트!
+                                        updateTask(task.id, { start_time: newIso })  // 백그라운드 저장
                                     }}
                                     className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white font-medium hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
@@ -743,13 +743,13 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 {/* 분 선택 - 10분 단위, 즉시 편집 모드 */}
                                 <select 
                                     value={Math.floor(new Date(startTime).getMinutes() / 10) * 10}
-                                    onChange={async (e) => {
+                                    onChange={(e) => {
                                         const newMinute = Number(e.target.value)
                                         const newDate = new Date(startTime)
                                         newDate.setMinutes(newMinute)
                                         const newIso = newDate.toISOString()
-                                        setStartTime(newIso)  // ← state 즉시 업데이트!
-                                        await updateTask(task.id, { start_time: newIso })
+                                        setStartTime(newIso)  // 즉시 UI 업데이트!
+                                        updateTask(task.id, { start_time: newIso })  // 백그라운드 저장
                                     }}
                                     className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white font-medium hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
