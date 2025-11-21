@@ -952,11 +952,19 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                             className="flex items-start gap-1 text-xs bg-gray-50 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
                                         >
                                             <button
-                                                onClick={() => toggleTaskStatus?.(memo.id, memo.status)}
-                                                className={`mt-0.5 w-3 h-3 rounded border flex-shrink-0 ${
+                                                onClick={async () => {
+                                                    // toggleTaskStatus가 있으면 사용, 없으면 updateTask 직접 사용
+                                                    if (toggleTaskStatus) {
+                                                        toggleTaskStatus(memo.id, memo.status)
+                                                    } else {
+                                                        const newStatus = memo.status === 'completed' ? 'inbox' : 'completed'
+                                                        await updateTask(memo.id, { status: newStatus })
+                                                    }
+                                                }}
+                                                className={`mt-0.5 w-3 h-3 rounded border flex-shrink-0 transition-colors ${
                                                     memo.status === 'completed'
                                                         ? 'bg-blue-500 border-blue-500'
-                                                        : 'border-gray-300'
+                                                        : 'border-gray-300 hover:border-blue-400'
                                                 }`}
                                             />
                                             <span className={`flex-1 ${memo.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
