@@ -398,7 +398,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             className="z-50 w-[900px] bg-white rounded-xl shadow-xl border border-gray-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         >
             {/* Header */}
-            <div className="p-4 flex items-start gap-3 border-b border-gray-50">
+            <div className="p-2 flex items-start gap-2 border-b border-gray-50">
                 <button
                     onClick={toggleComplete}
                     className={`mt-1 w-5 h-5 rounded border flex items-center justify-center transition-colors ${task.status === 'completed'
@@ -454,9 +454,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             {/* Body */}
             <div className="p-4 space-y-5">
                 {/* Date Picker Section */}
-                <div className="space-y-2">
+                <div className="space-y-1">
                     {/* Week Navigator */}
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1">
                         <button
                             onClick={() => moveWeek('prev')}
                             className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
@@ -626,9 +626,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
                 {/* 학생 시간표 전용 섹션 */}
                 {isStudentLesson && (
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
                         {/* ===== 과제 체크 (Phase 6) - 가로 4열 레이아웃 ===== */}
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-700 flex items-center gap-2">
                                 <BookCheck size={14} />
                                 과제 체크
@@ -645,9 +645,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         )
 
                                         return (
-                                            <div key={textbookId} className="border rounded-md p-2 bg-white">
+                                            <div key={textbookId} className="border rounded-md p-1.5 bg-white">
                                                 {/* 교재명 */}
-                                                <div className="text-xs font-semibold text-gray-900 mb-1.5 truncate" title={textbook.name}>
+                                                <div className="text-xs font-semibold text-gray-900 mb-1 truncate" title={textbook.name}>
                                                     {textbook.name}
                                                 </div>
 
@@ -656,7 +656,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                         없음
                                                     </div>
                                                 ) : (
-                                                    <div className="space-y-1">
+                                                    <div className="space-y-0.5">
                                                         {checksForTextbook.map((check, idx) => {
                                                             const globalIdx = homeworkChecks.indexOf(check)
                                                             return (
@@ -697,7 +697,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         </div>
 
                         {/* ===== 다음 과제 배정 (Phase 7) - 가로 4열 레이아웃 ===== */}
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-700 flex items-center gap-2">
                                 <PlusCircle size={14} />
                                 다음 과제 배정
@@ -712,9 +712,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         const assignment = homeworkAssignments.find(a => a.textbook_id === textbookId)
 
                                         return (
-                                            <div key={textbookId} className="border rounded-md p-2 bg-white">
+                                            <div key={textbookId} className="border rounded-md p-1.5 bg-white">
                                                 {/* 교재명 */}
-                                                <div className="text-xs font-semibold text-gray-900 mb-1.5 truncate" title={textbook.name}>
+                                                <div className="text-xs font-semibold text-gray-900 mb-1 truncate" title={textbook.name}>
                                                     {textbook.name}
                                                 </div>
 
@@ -783,7 +783,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         */}
 
                         {/* 수업 메모 */}
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <FileText size={16} />
                                 수업 메모
@@ -793,13 +793,13 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 onChange={(e) => setLessonNote(e.target.value)}
                                 onBlur={() => updateTask(task.id, { lesson_note: lessonNote })}
                                 placeholder="수업 내용, 진도, 특이사항 등을 기록하세요..."
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                rows={3}
+                                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                rows={2}
                             />
                         </div>
 
                         {/* 수업 관리 버튼 */}
-                        <div className="flex gap-2 pt-2">
+                        <div className="flex gap-2 pt-1">
                             {!task.is_cancelled && (
                                 <button
                                     onClick={cancelLesson}
