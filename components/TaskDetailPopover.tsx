@@ -97,6 +97,60 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }, [tasks, project, isStudentLesson, task.start_time])
 
+    // 이전 수업 찾기 헬퍼 함수
+    const findPreviousLesson = (projectId: string, currentStartTime: string) => {
+        return tasks
+            .filter(t =>
+                t.project_id === projectId &&
+                t.start_time &&
+                new Date(t.start_time) < new Date(currentStartTime) &&
+                !t.is_cancelled &&
+                (t.is_auto_generated || t.is_makeup)
+            )
+            .sort((a, b) => new Date(b.start_time!).getTime() - new Date(a.start_time!).getTime())
+            [0] // 가장 가까운 이전 수업
+    }
+
+    // 과제 배정 → 과제 체크 자동 전환 (핵심 로직!)
+    useEffect(() => {
+        if (!isStudentLesson || !task.start_time || !project || !task.id) return
+        
+        // 이미 과제 체크가 있으면 스킵 (중복 방지)
+        if (homeworkChecks.length > 0) return
+
+        // 이전 수업 찾기
+        const previousLesson = findPreviousLesson(project.id, task.start_time)
+        
+        // 이전 수업에 배정된 과제가 있으면
+        if (previousLesson?.homework_assignments && previousLesson.homework_assignments.length > 0) {
+            // 과제 배정 → 과제 체크로 변환
+            const newChecks: HomeworkCheckItem[] = previousLesson.homework_assignments.flatMap(
+                assignment => assignment.chapters.map(chapter => ({
+                    textbook_id: assignment.textbook_id,
+                    textbook_name: assignment.textbook_name,
+                    chapter: chapter,
+                    is_completed: false,
+                    note: undefined
+                }))
+            )
+
+            // 중복 체크 (같은 교재-단원 조합)
+            const existingKeys = new Set(
+                homeworkChecks.map(c => `${c.textbook_id}-${c.chapter}`)
+            )
+            const uniqueNewChecks = newChecks.filter(
+                c => !existingKeys.has(`${c.textbook_id}-${c.chapter}`)
+            )
+
+            // 새로운 체크 항목이 있으면 추가
+            if (uniqueNewChecks.length > 0) {
+                const updatedChecks = [...homeworkChecks, ...uniqueNewChecks]
+                setHomeworkChecks(updatedChecks)
+                updateTask(task.id, { homework_checks: updatedChecks })
+            }
+        }
+    }, [task.id, isStudentLesson, task.start_time, project])
+
     // 통합 입력 핸들러 (LeftPanel의 빠른 입력과 동일한 로직)
     const handleQuickInput = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
