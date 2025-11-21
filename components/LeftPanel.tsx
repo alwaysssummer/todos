@@ -418,6 +418,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           position={popoverPosition}
           projects={projects}
           tasks={tasks}
+          createTask={createTask}
           toggleTaskStatus={toggleTaskStatus}
         />
       )}

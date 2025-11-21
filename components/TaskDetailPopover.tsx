@@ -17,12 +17,13 @@ interface TaskDetailPopoverProps {
     position?: { x: number, y: number }
     projects?: Project[]
     tasks?: Task[]
+    createTask?: (task: Partial<Task>) => Promise<any>
     toggleTaskStatus?: (id: string, currentStatus: string) => void
     setPendingCancelTask?: (task: any) => void
     onSelectMakeupProject?: (project: Project | null) => void
 }
 
-export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], tasks = [], toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject }: TaskDetailPopoverProps) {
+export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], tasks = [], createTask, toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject }: TaskDetailPopoverProps) {
     const [title, setTitle] = useState(task.title)
     const [description, setDescription] = useState(task.description || '')
     const [duration, setDuration] = useState(task.duration || 30) // 기본값 30분
@@ -33,7 +34,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     // 학생 시간표 전용 state
     const [attendance, setAttendance] = useState(task.attendance || undefined)
     const [homeworkStatus, setHomeworkStatus] = useState(task.homework_status || undefined)
-    const [lessonNote, setLessonNote] = useState(task.lesson_note || '')
+    const [quickInput, setQuickInput] = useState('') // 통합 입력용 (INBOX Task 생성)
 
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
@@ -83,28 +84,57 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         ).sort((a, b) => new Date(a.start_time!).getTime() - new Date(b.start_time!).getTime())
     }, [tasks, project, weekDays, isStudentLesson])
 
-    // 통합 입력 핸들러 (메모 + 태그)
-    const handleUnifiedInput = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 이 수업 날짜의 INBOX 메모들 (학생 태그 + 수업 날짜)
+    const lessonMemos = useMemo(() => {
+        if (!project || !isStudentLesson || !task.start_time) return []
+        
+        const studentTag = project.name
+        return tasks.filter(t => 
+            t.status === 'inbox' &&
+            t.tags?.includes(studentTag) &&
+            t.start_time &&
+            isSameDay(new Date(t.start_time), new Date(task.start_time!))
+        ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }, [tasks, project, isStudentLesson, task.start_time])
+
+    // 통합 입력 핸들러 (LeftPanel의 빠른 입력과 동일한 로직)
+    const handleQuickInput = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            if (!lessonNote.trim()) return
+            if (!quickInput.trim() || !createTask) return
 
-            // 태그 추출 (LeftPanel과 동일한 로직)
-            const { cleanTitle, tags } = extractTags(lessonNote)
+            let title = quickInput.trim()
+            let isTop5 = false
+            let dueDate: string | undefined = undefined
 
-            // 학생 이름 자동 태그 추가
+            // LeftPanel과 동일: * = Focus, / = Today
+            if (title.startsWith('*')) {
+                isTop5 = true
+                title = title.substring(1).trim()
+            } else if (title.startsWith('/')) {
+                dueDate = new Date().toISOString()
+                title = title.substring(1).trim()
+            }
+
+            // 태그 추출 (LeftPanel과 동일)
+            const { cleanTitle, tags } = extractTags(title)
+
+            // 학생 이름 자동 태그 추가 (유일한 차이점!)
             const studentTag = project?.name || ''
-            const allTags = [...new Set([...tags, studentTag, ...editedTags])]
+            const allTags = [...new Set([...tags, studentTag])]
 
-            // state 동기화
-            setLessonNote(cleanTitle)
-            setEditedTags(allTags)
-
-            // DB 저장
-            await updateTask(task.id, {
-                lesson_note: cleanTitle,
-                tags: allTags
+            // INBOX에 새 Task 생성 (LeftPanel과 동일!)
+            await createTask({
+                title: cleanTitle,
+                status: 'inbox',
+                is_top5: isTop5,
+                due_date: dueDate,
+                project_id: task.project_id,  // 학생 프로젝트 연결
+                tags: allTags,  // #서원 자동 포함
+                start_time: task.start_time  // 수업 날짜/시간
             })
+
+            setQuickInput('')  // 입력 초기화
         }
     }
 
@@ -895,41 +925,45 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         </div>
                         */}
 
-                        {/* 수업 메모 (통합 입력: 메모 + 태그) */}
+                        {/* 빠른 입력 (INBOX Task 생성) */}
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
                                 <FileText size={14} />
                                 수업 메모
                                 <span className="text-[10px] text-gray-400 ml-auto">
-                                    (Enter로 저장, [[태그]] #태그 자동, #{project?.name} 자동)
+                                    (*Focus /Today [[태그]] #태그 #{project?.name}자동)
                                 </span>
                             </label>
                             <textarea
-                                value={lessonNote}
-                                onChange={(e) => setLessonNote(e.target.value)}
-                                onKeyDown={handleUnifiedInput}
-                                onBlur={() => updateTask(task.id, { lesson_note: lessonNote })}
-                                placeholder="수업 내용 입력... 예: Unit 5 완료 [[문법]] #복습필요"
+                                value={quickInput}
+                                onChange={(e) => setQuickInput(e.target.value)}
+                                onKeyDown={handleQuickInput}
+                                placeholder="예: Unit 5 완료 [[문법]] #복습 (Enter로 INBOX 추가)"
                                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                 rows={2}
                             />
                             
-                            {/* 태그 표시 */}
-                            {editedTags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {editedTags.map(tag => (
-                                        <span
-                                            key={tag}
-                                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded-full font-medium"
+                            {/* 이 수업의 메모 목록 (INBOX에서 가져옴) */}
+                            {lessonMemos.length > 0 && (
+                                <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                                    {lessonMemos.map(memo => (
+                                        <div
+                                            key={memo.id}
+                                            className="flex items-start gap-1 text-xs bg-gray-50 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
                                         >
-                                            #{tag}
                                             <button
-                                                onClick={() => handleRemoveTag(tag)}
-                                                className="hover:text-red-500 transition-colors"
-                                            >
-                                                <X size={10} />
-                                            </button>
-                                        </span>
+                                                onClick={() => toggleTaskStatus?.(memo.id, memo.status)}
+                                                className={`mt-0.5 w-3 h-3 rounded border flex-shrink-0 ${
+                                                    memo.status === 'completed'
+                                                        ? 'bg-blue-500 border-blue-500'
+                                                        : 'border-gray-300'
+                                                }`}
+                                            />
+                                            <span className={`flex-1 ${memo.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                                {memo.title}
+                                            </span>
+                                            {memo.is_top5 && <span className="text-red-500 text-[10px]">★</span>}
+                                        </div>
                                     ))}
                                 </div>
                             )}
