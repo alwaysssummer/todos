@@ -149,9 +149,6 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     // 과제 배정 → 과제 체크 자동 전환 (핵심 로직!)
     useEffect(() => {
         if (!isStudentLesson || !task.start_time || !project || !task.id) return
-        
-        // 이미 과제 체크가 있으면 스킵 (중복 방지)
-        if (homeworkChecks.length > 0) return
 
         // 이전 수업 찾기
         const previousLesson = findPreviousLesson(project.id, task.start_time)
@@ -169,7 +166,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 }))
             )
 
-            // 중복 체크 (같은 교재-단원 조합)
+            // 중복 체크 (같은 교재-단원 조합 제거)
             const existingKeys = new Set(
                 homeworkChecks.map(c => `${c.textbook_id}-${c.chapter}`)
             )
@@ -177,7 +174,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 c => !existingKeys.has(`${c.textbook_id}-${c.chapter}`)
             )
 
-            // 새로운 체크 항목이 있으면 추가
+            // 새로운 체크 항목이 있으면 추가 (기존 + 신규 병합)
             if (uniqueNewChecks.length > 0) {
                 const updatedChecks = [...homeworkChecks, ...uniqueNewChecks]
                 setHomeworkChecks(updatedChecks)
