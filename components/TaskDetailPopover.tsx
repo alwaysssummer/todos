@@ -1075,7 +1075,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                 </div>
 
                                                 {/* 단원 선택 그리드 */}
-                                                <div className="grid grid-cols-4 gap-0.5">
+                                                <div className="grid grid-cols-5 gap-0.5">
                                                     {Array.from({ length: endChapter - startChapter + 1 }, (_, i) => {
                                                         const chapter = (startChapter + i).toString()
                                                         const isSelected = assignment?.chapters.includes(chapter)
