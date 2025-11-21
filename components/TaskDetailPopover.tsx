@@ -491,7 +491,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         onSelectMakeupProject(project)
 
         alert(
-            '보충 수업을 추가할 시간을 시간표에서 더블클릭하세요.\n' +
+            '보충 수업을 추가할 시간을 시간표에서 클릭하세요.\n' +
             '보충이 추가되면 자동으로 과제가 배정되고 이 수업이 취소됩니다.'
         )
 

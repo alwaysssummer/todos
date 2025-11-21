@@ -28,14 +28,15 @@ interface CenterPanelProps {
   onSelectMakeupProject?: (project: Project | null) => void
 }
 
-function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewSlot, previewTask }: {
+function DroppableSlot({ date, hour, minute, children, onClick, isPreviewSlot, previewTask, makeupMode }: {
   date: Date,
   hour: number,
   minute: number,
   children: React.ReactNode,
-  onDoubleClick?: () => void,
+  onClick?: () => void,
   isPreviewSlot?: boolean,
-  previewTask?: Task
+  previewTask?: Task,
+  makeupMode?: boolean
 }) {
   const slotId = `slot-${format(date, 'yyyy-MM-dd')}-${hour}-${minute}`
 
@@ -83,7 +84,8 @@ function DroppableSlot({ date, hour, minute, children, onDoubleClick, isPreviewS
   return (
     <div
       ref={setNodeRef}
-      onDoubleClick={onDoubleClick}
+      onClick={makeupMode ? onClick : undefined}
+      onDoubleClick={!makeupMode ? onClick : undefined}
       className={`h-[14px] border-r border-gray-100 last:border-r-0 transition-colors cursor-pointer relative group ${isOver ? 'bg-blue-50 border-blue-200 z-10' : 'hover:bg-gray-50'
         } ${minute === 0
           ? 'border-t border-gray-300'
@@ -113,7 +115,7 @@ function DraggableCalendarTask({
   task,
   updateTask,
   deleteTask,
-  onDoubleClick,
+  onClick,
   projectColor,
   layout,
   project
@@ -121,14 +123,15 @@ function DraggableCalendarTask({
   task: Task,
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>,
   deleteTask: (id: string) => Promise<void>,
-  onDoubleClick: (e: React.MouseEvent) => void,
+  onClick: (e: React.MouseEvent) => void,
   projectColor?: string,
   layout?: { width: number, left: number },
   project?: Project
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, setNodeRef } = useDraggable({
     id: task.id,
-    data: { type: 'calendar-task', task }
+    data: { type: 'calendar-task', task },
+    disabled: true  // 드래그 비활성화 (시간 수정은 모달 버튼 사용)
   })
 
   const [isResizing, setIsResizing] = useState(false)
@@ -278,14 +281,12 @@ function DraggableCalendarTask({
         borderWidth: shouldUseBorderColor ? '2px' : undefined,
         borderStyle: shouldUseBorderColor ? 'solid' : undefined,
       }}
-      {...listeners}
       {...attributes}
-      onDoubleClick={(e) => {
+      onClick={(e) => {
         e.stopPropagation()
-        onDoubleClick(e)
+        onClick(e)
       }}
-      className={`absolute top-0 text-xs ${typeof bgColor === 'string' && bgColor.startsWith('bg-') ? bgColor : ''} ${textColor} ${!shouldUseBorderColor ? borderColor : ''} rounded-sm px-1.5 py-0.5 leading-snug hover:opacity-90 transition-all overflow-hidden group/task select-none flex flex-col
-        ${isDragging ? 'cursor-grabbing z-30 shadow-lg' : 'cursor-grab z-10 hover:z-20'}
+      className={`absolute top-0 text-xs ${typeof bgColor === 'string' && bgColor.startsWith('bg-') ? bgColor : ''} ${textColor} ${!shouldUseBorderColor ? borderColor : ''} rounded-sm px-1.5 py-0.5 leading-snug hover:opacity-90 transition-all overflow-hidden group/task select-none flex flex-col cursor-pointer z-10 hover:z-20
         ${isResizing ? 'ring-2 ring-blue-400 shadow-lg' : ''}
       `}
     >
@@ -699,7 +700,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                   보충 수업 추가: {makeupProject.name}
                 </div>
                 <div className="text-xs text-yellow-700 mt-0.5">
-                  시간표에서 원하는 시간을 더블클릭하세요 ({makeupProject.schedule_template?.[0]?.duration || 40}분)
+                  시간표에서 원하는 시간을 클릭하세요 ({makeupProject.schedule_template?.[0]?.duration || 40}분)
                 </div>
               </div>
             </div>
@@ -807,7 +808,8 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                               date={date}
                               hour={hour}
                               minute={minute}
-                              onDoubleClick={() => handleSlotClick(date, hour, minute)}
+                              onClick={() => handleSlotClick(date, hour, minute)}
+                              makeupMode={!!makeupProject}
                               isPreviewSlot={isPreviewSlot}
                               previewTask={draggingTask}
                             >
@@ -817,7 +819,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                                   task={task}
                                   updateTask={updateTask}
                                   deleteTask={deleteTask}
-                                  onDoubleClick={(e) => handleTaskClick(e, task)}
+                                  onClick={(e) => handleTaskClick(e, task)}
                                   projectColor={task.project_id ? projectColorMap[task.project_id] : undefined}
                                   layout={layoutMap[task.id]}
                                   project={task.project_id ? projectMap[task.project_id] : undefined}
