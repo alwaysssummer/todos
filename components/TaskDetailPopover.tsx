@@ -453,176 +453,186 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
             {/* Body */}
             <div className="p-4 space-y-5">
-                {/* Date Picker Section */}
-                <div className="space-y-1">
-                    {/* Week Navigator */}
-                    <div className="flex items-center justify-between mb-1">
-                        <button
-                            onClick={() => moveWeek('prev')}
-                            className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
-                        >
-                            <ChevronLeft size={20} />
-                        </button>
-                        <span className="text-sm font-medium text-gray-600">
-                            {format(weekDays[0], 'M월 d일', { locale: ko })} - {format(weekDays[6], 'M월 d일', { locale: ko })}
-                        </span>
-                        <button
-                            onClick={() => moveWeek('next')}
-                            className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
-                        >
-                            <ChevronRight size={20} />
-                        </button>
+                {/* Date Picker Section - 학생 수업에서는 숨김 */}
+                {!isStudentLesson && (
+                    <div className="space-y-1">
+                        {/* Week Navigator */}
+                        <div className="flex items-center justify-between mb-1">
+                            <button
+                                onClick={() => moveWeek('prev')}
+                                className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <span className="text-sm font-medium text-gray-600">
+                                {format(weekDays[0], 'M월 d일', { locale: ko })} - {format(weekDays[6], 'M월 d일', { locale: ko })}
+                            </span>
+                            <button
+                                onClick={() => moveWeek('next')}
+                                className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+
+                        {/* Days Grid */}
+                        <div className="grid grid-cols-7 gap-1">
+                            {weekDays.map((date, index) => {
+                                const isSelected = startTime && new Date(startTime).toDateString() === date.toDateString()
+                                const isToday = new Date().toDateString() === date.toDateString()
+
+                                return (
+                                    <button
+                                        key={date.toISOString()}
+                                        onClick={() => handleDateSelect(date)}
+                                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${isSelected
+                                            ? 'bg-blue-600 text-white shadow-md scale-105'
+                                            : isToday
+                                                ? 'bg-blue-50 text-blue-600 border border-blue-100 font-medium'
+                                                : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'
+                                            }`}
+                                    >
+                                        <span className="text-xs font-semibold mb-0.5">{format(date, 'E', { locale: ko })}</span>
+                                        <span className="text-[11px]">{format(date, 'd')}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
+                )}
 
-                    {/* Days Grid */}
-                    <div className="grid grid-cols-7 gap-1">
-                        {weekDays.map((date, index) => {
-                            const isSelected = startTime && new Date(startTime).toDateString() === date.toDateString()
-                            const isToday = new Date().toDateString() === date.toDateString()
+                {/* Time & Options Row - 학생 수업에서는 숨김 */}
+                {!isStudentLesson && (
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Time Selector (Hour : Minute) */}
+                        <div className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                            <Clock size={16} className="text-gray-400 mr-1" />
 
-                            return (
-                                <button
-                                    key={date.toISOString()}
-                                    onClick={() => handleDateSelect(date)}
-                                    className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${isSelected
-                                        ? 'bg-blue-600 text-white shadow-md scale-105'
-                                        : isToday
-                                            ? 'bg-blue-50 text-blue-600 border border-blue-100 font-medium'
-                                            : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'
-                                        }`}
-                                >
-                                    <span className="text-xs font-semibold mb-0.5">{format(date, 'E', { locale: ko })}</span>
-                                    <span className="text-[11px]">{format(date, 'd')}</span>
-                                </button>
-                            )
-                        })}
+                            {/* Hour */}
+                            <select
+                                value={currentHour}
+                                onChange={(e) => updateTime(Number(e.target.value), roundedMinute)}
+                                className="bg-transparent font-medium focus:outline-none cursor-pointer text-right"
+                            >
+                                {Array.from({ length: 24 }, (_, i) => (
+                                    <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                                ))}
+                            </select>
+                            <span className="text-gray-400">:</span>
+                            {/* Minute (10 min step) */}
+                            <select
+                                value={roundedMinute}
+                                onChange={(e) => updateTime(currentHour, Number(e.target.value))}
+                                className="bg-transparent font-medium focus:outline-none cursor-pointer"
+                            >
+                                {[0, 10, 20, 30, 40, 50].map((m) => (
+                                    <option key={m} value={m}>{m.toString().padStart(2, '00')}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Duration Selector */}
+                        <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                            <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                            <select
+                                value={duration}
+                                onChange={(e) => {
+                                    const val = Number(e.target.value)
+                                    setDuration(val)
+                                    updateTask(task.id, { duration: val })
+                                }}
+                                className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium text-right pr-1"
+                            >
+                                {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120].map(min => (
+                                    <option key={min} value={min}>
+                                        {min}분 {min >= 60 ? `(${Math.floor(min / 60)}시간${min % 60 ? ' ' + min % 60 + '분' : ''})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* Time & Options Row */}
-                <div className="grid grid-cols-2 gap-4">
-                    {/* Time Selector (Hour : Minute) */}
-                    <div className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-                        <Clock size={16} className="text-gray-400 mr-1" />
-
-                        {/* Hour */}
-                        <select
-                            value={currentHour}
-                            onChange={(e) => updateTime(Number(e.target.value), roundedMinute)}
-                            className="bg-transparent font-medium focus:outline-none cursor-pointer text-right"
-                        >
-                            {Array.from({ length: 24 }, (_, i) => (
-                                <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
-                            ))}
-                        </select>
-                        <span className="text-gray-400">:</span>
-                        {/* Minute (10 min step) */}
-                        <select
-                            value={roundedMinute}
-                            onChange={(e) => updateTime(currentHour, Number(e.target.value))}
-                            className="bg-transparent font-medium focus:outline-none cursor-pointer"
-                        >
-                            {[0, 10, 20, 30, 40, 50].map((m) => (
-                                <option key={m} value={m}>{m.toString().padStart(2, '00')}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Duration Selector */}
+                {/* Project Selector - 학생 수업에서는 숨김 */}
+                {!isStudentLesson && (
                     <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-                        <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                        <Folder size={16} className="text-gray-400" />
                         <select
-                            value={duration}
+                            value={selectedProjectId || ''}
                             onChange={(e) => {
-                                const val = Number(e.target.value)
-                                setDuration(val)
-                                updateTask(task.id, { duration: val })
+                                const val = e.target.value || undefined
+                                setSelectedProjectId(val)
+                                updateTask(task.id, { project_id: val })
                             }}
-                            className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium text-right pr-1"
+                            className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium"
                         >
-                            {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120].map(min => (
-                                <option key={min} value={min}>
-                                    {min}분 {min >= 60 ? `(${Math.floor(min / 60)}시간${min % 60 ? ' ' + min % 60 + '분' : ''})` : ''}
+                            <option value="">프로젝트 없음</option>
+                            {projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                    {project.name}
                                 </option>
                             ))}
                         </select>
                     </div>
-                </div>
+                )}
 
-                {/* Project Selector */}
-                <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-                    <Folder size={16} className="text-gray-400" />
-                    <select
-                        value={selectedProjectId || ''}
-                        onChange={(e) => {
-                            const val = e.target.value || undefined
-                            setSelectedProjectId(val)
-                            updateTask(task.id, { project_id: val })
-                        }}
-                        className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium"
-                    >
-                        <option value="">프로젝트 없음</option>
-                        {projects.map((project) => (
-                            <option key={project.id} value={project.id}>
-                                {project.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Memo */}
-                <div className="flex gap-3 text-sm text-gray-600 items-start bg-gray-50 p-3 rounded-lg">
-                    <FileText size={16} className="text-gray-400 mt-0.5" />
-                    <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        onBlur={() => updateTask(task.id, { description })}
-                        placeholder="메모 추가..."
-                        className="flex-1 bg-transparent resize-none focus:outline-none text-sm min-h-[60px] placeholder-gray-400 text-gray-900"
-                    />
-                </div>
-
-                {/* Tags */}
-                <div className="space-y-2">
-                    <label className="text-xs text-gray-500 font-medium">Tags</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                        {editedTags.map(tag => (
-                            <span
-                                key={tag}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                            >
-                                #{tag}
-                                <button
-                                    onClick={() => handleRemoveTag(tag)}
-                                    className="hover:text-red-500 transition-colors"
-                                >
-                                    <X size={12} />
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            value={newTag}
-                            onChange={(e) => setNewTag(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    handleAddTag()
-                                }
-                            }}
-                            placeholder="태그 추가..."
-                            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {/* Memo - 학생 수업에서는 숨김 (수업 메모 별도 있음) */}
+                {!isStudentLesson && (
+                    <div className="flex gap-3 text-sm text-gray-600 items-start bg-gray-50 p-3 rounded-lg">
+                        <FileText size={16} className="text-gray-400 mt-0.5" />
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            onBlur={() => updateTask(task.id, { description })}
+                            placeholder="메모 추가..."
+                            className="flex-1 bg-transparent resize-none focus:outline-none text-sm min-h-[60px] placeholder-gray-400 text-gray-900"
                         />
-                        <button
-                            onClick={handleAddTag}
-                            className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                        >
-                            추가
-                        </button>
                     </div>
-                </div>
+                )}
+
+                {/* Tags - 학생 수업에서는 숨김 */}
+                {!isStudentLesson && (
+                    <div className="space-y-2">
+                        <label className="text-xs text-gray-500 font-medium">Tags</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                            {editedTags.map(tag => (
+                                <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                                >
+                                    #{tag}
+                                    <button
+                                        onClick={() => handleRemoveTag(tag)}
+                                        className="hover:text-red-500 transition-colors"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newTag}
+                                onChange={(e) => setNewTag(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        handleAddTag()
+                                    }
+                                }}
+                                placeholder="태그 추가..."
+                                className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                                onClick={handleAddTag}
+                                className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                            >
+                                추가
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* 학생 시간표 전용 섹션 */}
                 {isStudentLesson && (
