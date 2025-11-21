@@ -727,7 +727,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         const newHour = Number(e.target.value)
                                         const newDate = new Date(startTime)
                                         newDate.setHours(newHour)
-                                        await updateTask(task.id, { start_time: newDate.toISOString() })
+                                        const newIso = newDate.toISOString()
+                                        setStartTime(newIso)  // ← state 즉시 업데이트!
+                                        await updateTask(task.id, { start_time: newIso })
                                     }}
                                     className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white font-medium hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
@@ -745,7 +747,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         const newMinute = Number(e.target.value)
                                         const newDate = new Date(startTime)
                                         newDate.setMinutes(newMinute)
-                                        await updateTask(task.id, { start_time: newDate.toISOString() })
+                                        const newIso = newDate.toISOString()
+                                        setStartTime(newIso)  // ← state 즉시 업데이트!
+                                        await updateTask(task.id, { start_time: newIso })
                                     }}
                                     className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white font-medium hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
