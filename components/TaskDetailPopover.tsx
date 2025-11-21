@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { format } from 'date-fns'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { format, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen } from 'lucide-react'
 import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 import { supabase } from '@/lib/supabase'
+import { extractTags } from '@/utils/textParser'
 
 interface TaskDetailPopoverProps {
     task: Task
@@ -15,12 +16,13 @@ interface TaskDetailPopoverProps {
     onClose: () => void
     position?: { x: number, y: number }
     projects?: Project[]
+    tasks?: Task[]
     toggleTaskStatus?: (id: string, currentStatus: string) => void
     setPendingCancelTask?: (task: any) => void
     onSelectMakeupProject?: (project: Project | null) => void
 }
 
-export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject }: TaskDetailPopoverProps) {
+export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], tasks = [], toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject }: TaskDetailPopoverProps) {
     const [title, setTitle] = useState(task.title)
     const [description, setDescription] = useState(task.description || '')
     const [duration, setDuration] = useState(task.duration || 30) // 기본값 30분
@@ -67,6 +69,43 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         const newBase = new Date(baseDate)
         newBase.setDate(newBase.getDate() + (direction === 'next' ? 7 : -7))
         setBaseDate(newBase)
+    }
+
+    // 이번 주의 모든 수업 찾기 (학생 수업 네비게이터용)
+    const thisWeekLessons = useMemo(() => {
+        if (!project || !isStudentLesson) return []
+        
+        return tasks.filter(t => 
+            t.project_id === project.id &&
+            t.start_time &&
+            (t.is_auto_generated || t.is_makeup) &&
+            weekDays.some(day => isSameDay(new Date(t.start_time!), day))
+        ).sort((a, b) => new Date(a.start_time!).getTime() - new Date(b.start_time!).getTime())
+    }, [tasks, project, weekDays, isStudentLesson])
+
+    // 통합 입력 핸들러 (메모 + 태그)
+    const handleUnifiedInput = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            if (!lessonNote.trim()) return
+
+            // 태그 추출 (LeftPanel과 동일한 로직)
+            const { cleanTitle, tags } = extractTags(lessonNote)
+
+            // 학생 이름 자동 태그 추가
+            const studentTag = project?.name || ''
+            const allTags = [...new Set([...tags, studentTag, ...editedTags])]
+
+            // state 동기화
+            setLessonNote(cleanTitle)
+            setEditedTags(allTags)
+
+            // DB 저장
+            await updateTask(task.id, {
+                lesson_note: cleanTitle,
+                tags: allTags
+            })
+        }
     }
 
     useEffect(() => {
@@ -453,7 +492,71 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
             {/* Body */}
             <div className="p-4 space-y-5">
-                {/* Date Picker Section - 학생 수업에서는 숨김 */}
+                {/* 학생 수업 네비게이터 (이번 주 수업 표시) */}
+                {isStudentLesson && (
+                    <div className="space-y-1">
+                        {/* Week Navigator */}
+                        <div className="flex items-center justify-between">
+                            <button
+                                onClick={() => moveWeek('prev')}
+                                className="p-0.5 hover:bg-gray-100 rounded text-gray-500 transition-colors"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <span className="text-xs font-medium text-gray-600">
+                                {format(weekDays[0], 'M.d', { locale: ko })} - {format(weekDays[6], 'M.d', { locale: ko })}
+                            </span>
+                            <button
+                                onClick={() => moveWeek('next')}
+                                className="p-0.5 hover:bg-gray-100 rounded text-gray-500 transition-colors"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+
+                        {/* Days Grid - 수업이 있는 날 표시 */}
+                        <div className="grid grid-cols-7 gap-0.5">
+                            {weekDays.map((date) => {
+                                const lessonOnThisDay = thisWeekLessons.find(
+                                    lesson => isSameDay(new Date(lesson.start_time!), date)
+                                )
+                                const isCurrentLesson = lessonOnThisDay?.id === task.id
+                                const isToday = isSameDay(new Date(), date)
+
+                                return (
+                                    <button
+                                        key={date.toISOString()}
+                                        onClick={() => {
+                                            if (lessonOnThisDay && lessonOnThisDay.id !== task.id) {
+                                                // 해당 수업으로 전환 (popover 닫고 다시 열기)
+                                                onClose()
+                                                // Note: 부모 컴포넌트에서 처리 필요
+                                            } else if (!isStudentLesson) {
+                                                handleDateSelect(date)
+                                            }
+                                        }}
+                                        className={`flex flex-col items-center justify-center py-1 px-0.5 rounded text-[10px] transition-all ${
+                                            isCurrentLesson
+                                                ? 'bg-blue-600 text-white font-bold'
+                                                : lessonOnThisDay
+                                                    ? 'bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200'
+                                                    : isToday
+                                                        ? 'bg-gray-100 text-gray-600'
+                                                        : 'bg-gray-50 text-gray-400'
+                                        }`}
+                                        disabled={!lessonOnThisDay && isStudentLesson}
+                                    >
+                                        <div className="leading-tight">{format(date, 'E', { locale: ko })}</div>
+                                        <div className="leading-tight font-bold">{format(date, 'd')}</div>
+                                        {lessonOnThisDay && <div className="text-blue-600 leading-tight">●</div>}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Date Picker Section - 일반 태스크용 */}
                 {!isStudentLesson && (
                     <div className="space-y-1">
                         {/* Week Navigator */}
@@ -792,20 +895,44 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         </div>
                         */}
 
-                        {/* 수업 메모 */}
+                        {/* 수업 메모 (통합 입력: 메모 + 태그) */}
                         <div className="space-y-1">
-                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <FileText size={16} />
+                            <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <FileText size={14} />
                                 수업 메모
+                                <span className="text-[10px] text-gray-400 ml-auto">
+                                    (Enter로 저장, [[태그]] #태그 자동, #{project?.name} 자동)
+                                </span>
                             </label>
                             <textarea
                                 value={lessonNote}
                                 onChange={(e) => setLessonNote(e.target.value)}
+                                onKeyDown={handleUnifiedInput}
                                 onBlur={() => updateTask(task.id, { lesson_note: lessonNote })}
-                                placeholder="수업 내용, 진도, 특이사항 등을 기록하세요..."
+                                placeholder="수업 내용 입력... 예: Unit 5 완료 [[문법]] #복습필요"
                                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                 rows={2}
                             />
+                            
+                            {/* 태그 표시 */}
+                            {editedTags.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {editedTags.map(tag => (
+                                        <span
+                                            key={tag}
+                                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded-full font-medium"
+                                        >
+                                            #{tag}
+                                            <button
+                                                onClick={() => handleRemoveTag(tag)}
+                                                className="hover:text-red-500 transition-colors"
+                                            >
+                                                <X size={10} />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* 수업 관리 버튼 */}

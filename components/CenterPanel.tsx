@@ -677,6 +677,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
           onClose={() => setSelectedTask(null)}
           position={popoverPosition}
           projects={projects}
+          tasks={tasks}
           setPendingCancelTask={setPendingCancelTask}
           onSelectMakeupProject={onSelectMakeupProject}
         />
