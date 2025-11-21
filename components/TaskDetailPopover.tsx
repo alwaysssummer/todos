@@ -583,11 +583,19 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     }
 
     return (
-        <div
-            ref={popoverRef}
-            style={style}
-            className="z-50 w-[900px] bg-white rounded-xl shadow-xl border border-gray-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-        >
+        <>
+            {/* 어두운 배경 오버레이 */}
+            <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-200"
+                onClick={onClose}
+            />
+            
+            {/* 모달 */}
+            <div
+                ref={popoverRef}
+                style={style}
+                className="z-50 w-[900px] bg-white rounded-xl shadow-2xl border-2 border-gray-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            >
             {/* Header */}
             <div className="p-2 flex items-start gap-2 border-b border-gray-50">
                 <button
@@ -1282,5 +1290,6 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 </div>
             </div>
         </div>
+        </>
     )
 }
