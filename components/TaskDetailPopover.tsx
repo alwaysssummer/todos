@@ -627,161 +627,138 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 {/* 학생 시간표 전용 섹션 */}
                 {isStudentLesson && (
                     <div className="space-y-4 pt-4 border-t border-gray-100">
-                        {/* ===== 과제 체크 (Phase 6) ===== */}
+                        {/* ===== 과제 체크 (Phase 6) - 가로 4열 레이아웃 ===== */}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <BookCheck size={16} />
+                            <label className="text-xs font-medium text-gray-700 flex items-center gap-2">
+                                <BookCheck size={14} />
                                 과제 체크
-                                <span className="text-xs text-gray-400 ml-auto">(이전 수업에서 배정받은 과제)</span>
                             </label>
 
                             {project?.textbooks && project.textbooks.length > 0 ? (
-                                project.textbooks.map(textbookId => {
-                                    const textbook = textbooks.find(t => t.id === textbookId)
-                                    if (!textbook) return null
+                                <div className="grid grid-cols-4 gap-2">
+                                    {project.textbooks.map(textbookId => {
+                                        const textbook = textbooks.find(t => t.id === textbookId)
+                                        if (!textbook) return null
 
-                                    const checksForTextbook = homeworkChecks.filter(
-                                        check => check.textbook_id === textbookId
-                                    )
+                                        const checksForTextbook = homeworkChecks.filter(
+                                            check => check.textbook_id === textbookId
+                                        )
 
-                                    if (checksForTextbook.length === 0) {
                                         return (
-                                            <div key={textbookId} className="border rounded-lg p-3 bg-gray-50">
-                                                <div className="font-semibold text-sm text-gray-700 mb-1">
+                                            <div key={textbookId} className="border rounded-md p-2 bg-white">
+                                                {/* 교재명 */}
+                                                <div className="text-xs font-semibold text-gray-900 mb-1.5 truncate" title={textbook.name}>
                                                     {textbook.name}
                                                 </div>
-                                                <div className="text-xs text-gray-400">
-                                                    배정된 과제 없음
-                                                </div>
+
+                                                {checksForTextbook.length === 0 ? (
+                                                    <div className="text-xs text-gray-400">
+                                                        없음
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-1">
+                                                        {checksForTextbook.map((check, idx) => {
+                                                            const globalIdx = homeworkChecks.indexOf(check)
+                                                            return (
+                                                                <div key={idx} className="flex items-center gap-1">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={check.is_completed}
+                                                                        onChange={() => toggleHomeworkCheck(globalIdx)}
+                                                                        className="w-3 h-3 rounded border-gray-300 text-blue-600"
+                                                                    />
+                                                                    <span className={`text-xs flex-1 ${check.is_completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                                                                        {check.chapter}
+                                                                        {textbook.chapter_unit === '직접입력' 
+                                                                            ? textbook.custom_chapter_unit 
+                                                                            : textbook.chapter_unit}
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={() => removeHomeworkCheck(globalIdx)}
+                                                                        className="text-red-400 hover:text-red-600 p-0.5"
+                                                                        title="삭제"
+                                                                    >
+                                                                        <X size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
                                         )
-                                    }
-
-                                    return (
-                                        <div key={textbookId} className="border rounded-lg p-3 space-y-2 bg-white">
-                                            <div className="flex items-center justify-between">
-                                                <div className="font-semibold text-sm text-gray-900">
-                                                    {textbook.name}
-                                                </div>
-                                                <button
-                                                    onClick={() => removeDuplicateChecks(textbookId)}
-                                                    className="text-xs text-blue-600 hover:text-blue-700"
-                                                >
-                                                    🔧 중복 제거
-                                                </button>
-                                            </div>
-
-                                            {checksForTextbook.map((check, idx) => {
-                                                const globalIdx = homeworkChecks.indexOf(check)
-
-                                                return (
-                                                    <div key={idx} className="flex items-start gap-2 py-1">
-                                                        {/* 체크박스 */}
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={check.is_completed}
-                                                            onChange={() => toggleHomeworkCheck(globalIdx)}
-                                                            className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                                        />
-
-                                                        {/* 단원 + 메모 */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className={`text-sm ${check.is_completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                                                                {check.chapter}
-                                                                {textbook.chapter_unit === '직접입력' 
-                                                                    ? textbook.custom_chapter_unit 
-                                                                    : textbook.chapter_unit}
-                                                            </div>
-
-                                                            {/* 인라인 메모 입력 */}
-                                                            <input
-                                                                type="text"
-                                                                value={check.note || ''}
-                                                                onChange={(e) => updateCheckNote(globalIdx, e.target.value)}
-                                                                placeholder="메모 (노하우, 문제점 등)..."
-                                                                className="w-full mt-1 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                                                            />
-                                                        </div>
-
-                                                        {/* 삭제 버튼 */}
-                                                        <button
-                                                            onClick={() => removeHomeworkCheck(globalIdx)}
-                                                            className="text-red-400 hover:text-red-600 transition-colors p-1 flex-shrink-0"
-                                                            title="삭제"
-                                                        >
-                                                            <X size={14} />
-                                                        </button>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    )
-                                })
+                                    })}
+                                </div>
                             ) : (
-                                <div className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                                <div className="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
                                     배정된 교재가 없습니다
                                 </div>
                             )}
                         </div>
 
-                        {/* ===== 다음 과제 배정 (Phase 7) ===== */}
+                        {/* ===== 다음 과제 배정 (Phase 7) - 가로 4열 레이아웃 ===== */}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <PlusCircle size={16} />
+                            <label className="text-xs font-medium text-gray-700 flex items-center gap-2">
+                                <PlusCircle size={14} />
                                 다음 과제 배정
-                                <span className="text-xs text-gray-400 ml-auto">(다음 수업에 배정)</span>
                             </label>
 
                             {project?.textbooks && project.textbooks.length > 0 ? (
-                                project.textbooks.map(textbookId => {
-                                    const textbook = textbooks.find(t => t.id === textbookId)
-                                    if (!textbook) return null
+                                <div className="grid grid-cols-4 gap-2">
+                                    {project.textbooks.map(textbookId => {
+                                        const textbook = textbooks.find(t => t.id === textbookId)
+                                        if (!textbook) return null
 
-                                    const assignment = homeworkAssignments.find(a => a.textbook_id === textbookId)
+                                        const assignment = homeworkAssignments.find(a => a.textbook_id === textbookId)
 
-                                    return (
-                                        <div key={textbookId} className="border rounded-lg p-3 bg-white">
-                                            <div className="font-semibold text-sm text-gray-900 mb-2">
-                                                {textbook.name}
-                                            </div>
-
-                                            {/* 단원 선택 그리드 (5열) */}
-                                            <div className="grid grid-cols-5 gap-1">
-                                                {Array.from({ length: textbook.total_chapters }, (_, i) => {
-                                                    const chapter = (i + 1).toString()
-                                                    const isSelected = assignment?.chapters.includes(chapter)
-
-                                                    return (
-                                                        <button
-                                                            key={chapter}
-                                                            onClick={() => toggleAssignmentChapter(textbookId, chapter)}
-                                                            className={`px-2 py-1.5 text-xs rounded transition-colors font-medium ${
-                                                                isSelected
-                                                                    ? 'bg-blue-500 text-white'
-                                                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                                            }`}
-                                                        >
-                                                            {chapter}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-
-                                            {/* 선택된 단원 요약 */}
-                                            {assignment && assignment.chapters.length > 0 && (
-                                                <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
-                                                    선택: {assignment.chapters.join(', ')}
-                                                    {textbook.chapter_unit === '직접입력' 
-                                                        ? textbook.custom_chapter_unit 
-                                                        : textbook.chapter_unit}
-                                                    {' '}(총 {assignment.chapters.length}개)
+                                        return (
+                                            <div key={textbookId} className="border rounded-md p-2 bg-white">
+                                                {/* 교재명 */}
+                                                <div className="text-xs font-semibold text-gray-900 mb-1.5 truncate" title={textbook.name}>
+                                                    {textbook.name}
                                                 </div>
-                                            )}
-                                        </div>
-                                    )
-                                })
+
+                                                {/* 단원 선택 그리드 (5열 → 4열로 축소) */}
+                                                <div className="grid grid-cols-4 gap-0.5">
+                                                    {Array.from({ length: Math.min(textbook.total_chapters, 20) }, (_, i) => {
+                                                        const chapter = (i + 1).toString()
+                                                        const isSelected = assignment?.chapters.includes(chapter)
+
+                                                        return (
+                                                            <button
+                                                                key={chapter}
+                                                                onClick={() => toggleAssignmentChapter(textbookId, chapter)}
+                                                                className={`px-1 py-0.5 text-[10px] rounded transition-colors font-medium ${
+                                                                    isSelected
+                                                                        ? 'bg-blue-500 text-white'
+                                                                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                                                }`}
+                                                            >
+                                                                {chapter}
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+
+                                                {/* 20개 초과시 안내 */}
+                                                {textbook.total_chapters > 20 && (
+                                                    <div className="text-[9px] text-gray-400 mt-1">
+                                                        1-20만 표시 (총 {textbook.total_chapters}개)
+                                                    </div>
+                                                )}
+
+                                                {/* 선택된 단원 요약 */}
+                                                {assignment && assignment.chapters.length > 0 && (
+                                                    <div className="mt-1 text-[10px] text-blue-600 font-medium">
+                                                        ✓ {assignment.chapters.join(',')} ({assignment.chapters.length})
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
                             ) : (
-                                <div className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                                <div className="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
                                     배정된 교재가 없습니다
                                 </div>
                             )}
