@@ -420,6 +420,10 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           tasks={tasks}
           createTask={createTask}
           toggleTaskStatus={toggleTaskStatus}
+          onNavigateToTask={(task) => {
+            setSelectedTask(task)
+            setPopoverPosition(undefined)
+          }}
         />
       )}
 

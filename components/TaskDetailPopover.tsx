@@ -21,9 +21,10 @@ interface TaskDetailPopoverProps {
     toggleTaskStatus?: (id: string, currentStatus: string) => void
     setPendingCancelTask?: (task: any) => void
     onSelectMakeupProject?: (project: Project | null) => void
+    onNavigateToTask?: (task: Task) => void
 }
 
-export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], tasks = [], createTask, toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject }: TaskDetailPopoverProps) {
+export default function TaskDetailPopover({ task, updateTask, deleteTask, onClose, position, projects = [], tasks = [], createTask, toggleTaskStatus, setPendingCancelTask, onSelectMakeupProject, onNavigateToTask }: TaskDetailPopoverProps) {
     const [title, setTitle] = useState(task.title)
     const [description, setDescription] = useState(task.description || '')
     const [duration, setDuration] = useState(task.duration || 30) // 기본값 30분
@@ -612,9 +613,10 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         key={date.toISOString()}
                                         onClick={() => {
                                             if (lessonOnThisDay && lessonOnThisDay.id !== task.id) {
-                                                // 해당 수업으로 전환 (popover 닫고 다시 열기)
-                                                onClose()
-                                                // Note: 부모 컴포넌트에서 처리 필요
+                                                // 해당 수업으로 전환
+                                                if (onNavigateToTask) {
+                                                    onNavigateToTask(lessonOnThisDay)
+                                                }
                                             } else if (!isStudentLesson) {
                                                 handleDateSelect(date)
                                             }
