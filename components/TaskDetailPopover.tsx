@@ -49,6 +49,12 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [homeworkAssignments, setHomeworkAssignments] = useState<HomeworkAssignmentItem[]>(task.homework_assignments || [])
     const { textbooks } = useTextbooks()
 
+    // 현재 태스크의 프로젝트 (먼저 정의!)
+    const project = projects.find(p => p.id === task.project_id)
+    
+    // 학생 시간표 태스크인지 확인
+    const isStudentLesson = task.is_auto_generated || task.is_makeup
+
     // 페이지네이션 state (교재별)
     const [currentPages, setCurrentPages] = useState<Record<string, number>>({})
     // Shift 선택용 마지막 클릭 단원 (교재별)
@@ -83,12 +89,6 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             setCurrentPages(initialPages)
         }
     }, [task.id, project])
-
-    // 학생 시간표 태스크인지 확인
-    const isStudentLesson = task.is_auto_generated || task.is_makeup
-    
-    // 현재 태스크의 프로젝트
-    const project = projects.find(p => p.id === task.project_id)
 
     // 주 단위 네비게이션을 위한 기준 날짜 (기본값: 오늘)
     const [baseDate, setBaseDate] = useState(new Date())
