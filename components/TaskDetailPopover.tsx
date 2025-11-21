@@ -1013,38 +1013,69 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             </div>
 
             {/* Footer */}
-            <div className="p-3 bg-gray-50 flex justify-between items-center border-t border-gray-100">
-                <div className="flex gap-1">
+            <div className="p-2 bg-gray-50 flex justify-between items-center border-t border-gray-100">
+                {/* 왼쪽: 일반 태스크 관리 버튼 */}
+                {!isStudentLesson && (
+                    <div className="flex gap-1">
+                        <button
+                            onClick={handleConvertToMemo}
+                            className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors tooltip"
+                            title="메모로 전환"
+                        >
+                            <StickyNote size={16} />
+                        </button>
+                        <button
+                            onClick={handleMoveToProject}
+                            className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors tooltip"
+                            title="프로젝트로 이동"
+                        >
+                            <FolderInput size={16} />
+                        </button>
+                        <div className="w-px h-4 bg-gray-300 mx-2 self-center"></div>
+                        <button
+                            onClick={() => {
+                                if (confirm('이 태스크를 삭제하시겠습니까?')) {
+                                    deleteTask(task.id)
+                                    onClose()
+                                }
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="삭제"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                )}
+
+                {/* 왼쪽: 학생 수업 관리 버튼 */}
+                {isStudentLesson && (
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => {
+                                if (confirm('이 수업을 삭제하시겠습니까?')) {
+                                    deleteTask(task.id)
+                                    onClose()
+                                }
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-xs"
+                            title="삭제"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                )}
+
+                {/* 오른쪽: 저장 및 닫기 */}
+                <div className="flex items-center gap-2">
+                    <div className="text-xs text-gray-400">
+                        {format(new Date(task.created_at), 'yyyy. MM. dd')}
+                    </div>
                     <button
-                        onClick={handleConvertToMemo}
-                        className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors tooltip"
-                        title="메모로 전환"
+                        onClick={onClose}
+                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
                     >
-                        <StickyNote size={16} />
+                        닫기
                     </button>
-                    <button
-                        onClick={handleMoveToProject}
-                        className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors tooltip"
-                        title="프로젝트로 이동"
-                    >
-                        <FolderInput size={16} />
-                    </button>
-                    <div className="w-px h-4 bg-gray-300 mx-2 self-center"></div>
-                    <button
-                        onClick={() => {
-                            if (confirm('이 태스크를 삭제하시겠습니까?')) {
-                                deleteTask(task.id)
-                                onClose()
-                            }
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="삭제"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                </div>
-                <div className="text-xs text-gray-400 px-2">
-                    {format(new Date(task.created_at), 'yyyy. MM. dd')}
                 </div>
             </div>
         </div>
