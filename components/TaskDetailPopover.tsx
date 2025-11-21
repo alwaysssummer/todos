@@ -49,6 +49,21 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [homeworkAssignments, setHomeworkAssignments] = useState<HomeworkAssignmentItem[]>(task.homework_assignments || [])
     const { textbooks } = useTextbooks()
 
+    // task 변경 시 state 초기화 (네비게이터 이동 시 필수!)
+    useEffect(() => {
+        setTitle(task.title)
+        setDescription(task.description || '')
+        setDuration(task.duration || 30)
+        setStartTime(task.start_time || '')
+        setSelectedProjectId(task.project_id)
+        setAttendance(task.attendance || undefined)
+        setHomeworkStatus(task.homework_status || undefined)
+        setIsTop5(task.is_top5 || false)
+        setEditedTags(task.tags || [])
+        setHomeworkChecks(task.homework_checks || [])
+        setHomeworkAssignments(task.homework_assignments || [])
+    }, [task.id])
+
     // 학생 시간표 태스크인지 확인
     const isStudentLesson = task.is_auto_generated || task.is_makeup
     
@@ -85,18 +100,17 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         ).sort((a, b) => new Date(a.start_time!).getTime() - new Date(b.start_time!).getTime())
     }, [tasks, project, weekDays, isStudentLesson])
 
-    // 이 수업 날짜의 INBOX 메모들 (학생 태그 + 수업 날짜)
+    // 학생의 모든 수업 메모 (학생 태그로 필터링, 날짜 무관)
     const lessonMemos = useMemo(() => {
-        if (!project || !isStudentLesson || !task.start_time) return []
+        if (!project || !isStudentLesson) return []
         
         const studentTag = project.name
         return tasks.filter(t => 
             t.status === 'inbox' &&
             t.tags?.includes(studentTag) &&
-            t.start_time &&
-            isSameDay(new Date(t.start_time), new Date(task.start_time!))
+            t.project_id === project.id  // 같은 학생 프로젝트
         ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    }, [tasks, project, isStudentLesson, task.start_time])
+    }, [tasks, project, isStudentLesson])
 
     // 이전 수업 찾기 헬퍼 함수
     const findPreviousLesson = (projectId: string, currentStartTime: string) => {
