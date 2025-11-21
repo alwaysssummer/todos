@@ -395,7 +395,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         <div
             ref={popoverRef}
             style={style}
-            className="z-50 w-[400px] bg-white rounded-xl shadow-xl border border-gray-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+            className="z-50 w-[700px] bg-white rounded-xl shadow-xl border border-gray-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         >
             {/* Header */}
             <div className="p-4 flex items-start gap-3 border-b border-gray-50">
