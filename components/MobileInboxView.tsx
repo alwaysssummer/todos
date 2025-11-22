@@ -57,9 +57,11 @@ export default function MobileInboxView({
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* INBOX 헤더 */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <h1 className="text-lg font-bold text-gray-900">INBOX</h1>
-        <p className="text-xs text-gray-500 mt-0.5">{inboxTasks.length}개의 태스크</p>
+      <div className="bg-white border-b border-gray-200 px-3 py-2">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-base font-bold text-gray-900">INBOX</h1>
+          <span className="text-xs text-gray-500">{inboxTasks.length}개</span>
+        </div>
       </div>
 
       {/* INBOX 목록 */}
@@ -74,16 +76,16 @@ export default function MobileInboxView({
               return (
                 <div
                   key={task.id}
-                  className="flex items-center gap-2 px-4 py-2.5 active:bg-gray-50"
+                  className="flex items-center gap-2 px-3 py-1.5 active:bg-gray-50"
                 >
                   <input
                     type="checkbox"
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleComplete(task)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <div className={`text-sm truncate ${
+                    <div className={`text-xs truncate ${
                       task.status === 'completed' 
                         ? 'line-through text-gray-400' 
                         : isRed 
@@ -93,24 +95,24 @@ export default function MobileInboxView({
                       {task.title}
                     </div>
                     {task.tags && task.tags.length > 0 && (
-                      <div className="flex gap-1 flex-shrink-0">
+                      <div className="flex gap-0.5 flex-shrink-0">
                         {task.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="text-[11px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                          <span key={tag} className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
                             #{tag}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
                     {isRed && (
-                      <div className="w-2 h-2 bg-red-500 rounded-full" title="Focus" />
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full" title="Focus" />
                     )}
                     {isGreen && (
-                      <div className="w-2 h-2 bg-green-500 rounded-full" title="Today" />
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" title="Today" />
                     )}
                     {isYellow && (
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Scheduled" />
+                      <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Scheduled" />
                     )}
                   </div>
                 </div>
