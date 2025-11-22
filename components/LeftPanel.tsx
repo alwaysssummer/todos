@@ -260,12 +260,15 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   inboxTasks = inboxTasks.sort((a, b) => {
     const getScore = (task: Task) => {
       const isRed = task.is_top5
+      const isGreen = task.due_date?.split('T')[0] === todayStr
       const isYellow = task.status === 'scheduled'
 
-      if (isRed && isYellow) return 3 // 1. 빨간색 + 노란색
-      if (isRed) return 2             // 2. 빨간색
-      if (isYellow) return 1          // 3. 노란색
-      return 0                        // 4. 나머지
+      if (isRed && !isGreen && !isYellow) return 5  // 1. 빨간색
+      if (isRed && isGreen) return 4                // 2. 빨간색 + 초록색
+      if (isRed && isYellow) return 3               // 3. 빨간색 + 노란색
+      if (isGreen) return 2                         // 4. 초록색
+      if (isYellow) return 1                        // 5. 노란색
+      return 0                                      // 6. 나머지
     }
 
     const scoreA = getScore(a)
