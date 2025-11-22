@@ -82,7 +82,7 @@ export default function MobileTodayView({
         {/* Today's Focus */}
         {focusTasks.length > 0 && (
           <div className="bg-red-50/30 mb-2">
-            <div className="px-3 py-2 border-b border-red-100/40">
+            <div className="px-3 py-2 border-b border-red-200 bg-red-100/50">
               <h2 className="text-sm font-bold text-red-700">Today's Focus</h2>
             </div>
             <div className="divide-y divide-red-100/40">
@@ -123,7 +123,7 @@ export default function MobileTodayView({
         {/* Today's Task */}
         {todayTasks.length > 0 && (
           <div className="bg-green-50/30 mb-2">
-            <div className="px-3 py-2 border-b border-green-100/40">
+            <div className="px-3 py-2 border-b border-green-200 bg-green-100/50">
               <h2 className="text-sm font-bold text-green-700">Today's Task</h2>
             </div>
             <div className="divide-y divide-green-100/40">
