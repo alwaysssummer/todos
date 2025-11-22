@@ -89,22 +89,22 @@ export default function MobileTodayView({
               {focusTasks.map(task => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-3 px-3 py-3 active:bg-gray-50"
+                  className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
                 >
                   <input
                     type="checkbox"
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleComplete(task)}
-                    className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 flex-shrink-0"
+                    className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 flex-shrink-0"
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className={`text-xs truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                       {task.title}
                     </div>
                     {task.tags && task.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {task.tags.map(tag => (
-                          <span key={tag} className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                      <div className="flex gap-1 flex-shrink-0">
+                        {task.tags.slice(0, 2).map(tag => (
+                          <span key={tag} className="text-[10px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
                             #{tag}
                           </span>
                         ))}
@@ -130,22 +130,22 @@ export default function MobileTodayView({
               {todayTasks.map(task => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-3 px-3 py-3 active:bg-gray-50"
+                  className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
                 >
                   <input
                     type="checkbox"
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleComplete(task)}
-                    className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
+                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className={`text-xs truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                       {task.title}
                     </div>
                     {task.tags && task.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {task.tags.map(tag => (
-                          <span key={tag} className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                      <div className="flex gap-1 flex-shrink-0">
+                        {task.tags.slice(0, 2).map(tag => (
+                          <span key={tag} className="text-[10px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
                             #{tag}
                           </span>
                         ))}
