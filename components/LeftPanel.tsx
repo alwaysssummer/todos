@@ -234,17 +234,18 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
   // 필터링 로직
   // 1. Today's Focus: is_top5 (가장 높은 우선순위)
-  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated)
+  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
   // 2. Today's Task: !is_top5 && due_date === today
-  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated)
+  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
   // 3. Waiting: status === 'waiting'
-  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated)
+  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
   // 4. Inbox: ALL active tasks EXCEPT waiting (One Source of Truth)
   // Inbox에는 Waiting이 아닌 모든 활성 태스크가 포함됨 (Focus, Today 포함)
-  let inboxTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated)
+  // 보충수업(is_makeup)과 정규수업(is_auto_generated)은 INBOX에서 제외
+  let inboxTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
   // 프로젝트 필터 적용
   if (selectedProjectId) {
