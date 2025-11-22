@@ -81,15 +81,15 @@ export default function MobileTodayView({
       <div className="flex-1 overflow-y-auto pb-32">
         {/* Today's Focus */}
         {focusTasks.length > 0 && (
-          <div className="bg-white mb-2">
-            <div className="px-3 py-2 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-red-600">⭐ Today's Focus</h2>
+          <div className="bg-red-50 mb-2">
+            <div className="px-3 py-2 border-b border-red-100">
+              <h2 className="text-sm font-bold text-red-700">Today's Focus</h2>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-red-100">
               {focusTasks.map(task => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
+                  className="flex items-center gap-2 px-3 py-2 active:bg-red-100"
                 >
                   <input
                     type="checkbox"
@@ -98,7 +98,7 @@ export default function MobileTodayView({
                     className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <div className={`text-sm truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                    <div className={`text-sm font-semibold truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                       {task.title}
                     </div>
                     {task.tags && task.tags.length > 0 && (
@@ -124,7 +124,7 @@ export default function MobileTodayView({
         {todayTasks.length > 0 && (
           <div className="bg-white mb-2">
             <div className="px-3 py-2 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-green-600">📅 Today's Task</h2>
+              <h2 className="text-sm font-bold text-green-600">Today's Task</h2>
             </div>
             <div className="divide-y divide-gray-100">
               {todayTasks.map(task => (
