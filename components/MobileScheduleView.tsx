@@ -74,7 +74,7 @@ export default function MobileScheduleView({
               {format(currentDate, 'M월 d일', { locale: ko })}
             </div>
             <div className="text-xs text-gray-500">
-              {format(currentDate, 'EEEE', { locale: ko })}
+              {format(currentDate, 'EEEE', { locale: ko })} ({todayLessons.length})
             </div>
           </div>
 
