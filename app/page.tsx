@@ -8,6 +8,7 @@ import CenterPanel from '@/components/CenterPanel'
 import RightPanel from '@/components/RightPanel'
 import MobileNavigation from '@/components/MobileNavigation'
 import MobileTodayView from '@/components/MobileTodayView'
+import MobileInboxView from '@/components/MobileInboxView'
 import MobileScheduleView from '@/components/MobileScheduleView'
 import MobileTagsView from '@/components/MobileTagsView'
 import MobileMoreView from '@/components/MobileMoreView'
@@ -303,17 +304,12 @@ export default function Home() {
               />
             )}
             {activePanel === 'inbox' && (
-              <LeftPanel
+              <MobileInboxView
                 tasks={tasks}
-                createTask={createTask}
                 updateTask={updateTask}
                 deleteTask={deleteTask}
-                reorderTasks={reorderTasks}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
-                createProject={createProject}
-                updateProject={updateProject}
-                deleteProject={deleteProject}
               />
             )}
             {activePanel === 'schedule' && (
