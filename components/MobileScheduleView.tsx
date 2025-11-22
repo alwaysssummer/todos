@@ -120,16 +120,6 @@ export default function MobileScheduleView({
                     <span className="text-[10px] text-gray-500 flex-shrink-0">
                       {lesson.duration}분
                     </span>
-                    {lesson.is_makeup && (
-                      <span className="text-[9px] bg-yellow-200 text-yellow-800 px-1 py-0.5 rounded flex-shrink-0">
-                        보충
-                      </span>
-                    )}
-                    {lesson.is_cancelled && (
-                      <span className="text-[9px] bg-gray-200 text-gray-600 px-1 py-0.5 rounded flex-shrink-0">
-                        취소
-                      </span>
-                    )}
                   </div>
                 </div>
               )
