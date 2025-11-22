@@ -77,23 +77,8 @@ export default function MobileTodayView({
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      {/* 빠른 입력창 - 최상단 고정 */}
-      <div className="bg-white border-b border-gray-200 p-3">
-        <textarea
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="* Focus, / 오늘, [[태그]]"
-          className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          rows={2}
-        />
-        <div className="mt-1.5 text-xs text-gray-500">
-          * Focus | / 오늘 | [[태그]]
-        </div>
-      </div>
-
       {/* 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-32">
         {/* Today's Focus */}
         {focusTasks.length > 0 && (
           <div className="bg-white mb-2">
@@ -182,6 +167,21 @@ export default function MobileTodayView({
             오늘 할 일이 없습니다 ✨
           </div>
         )}
+      </div>
+
+      {/* 빠른 입력창 - 하단 고정 */}
+      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40">
+        <textarea
+          value={newTaskTitle}
+          onChange={(e) => setNewTaskTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="* Focus, / 오늘, [[태그]]"
+          className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          rows={2}
+        />
+        <div className="mt-1.5 text-xs text-gray-500">
+          * Focus | / 오늘 | [[태그]]
+        </div>
       </div>
     </div>
   )
