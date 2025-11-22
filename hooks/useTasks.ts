@@ -70,30 +70,30 @@ export function useTasks() {
         }
     }
 
-    // Task 업데이트 (낙관적 업데이트 적용)
+    // Task 업데이트 (낙관적 업데이트 최적화)
     const updateTask = async (id: string, updates: Partial<Task>) => {
         // 1. 로컬 상태 즉시 업데이트 (UI 반응성 향상)
         const previousTasks = tasks
+        const updatedAt = new Date().toISOString()
+        
         setTasks(prev => prev.map(t => 
-            t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+            t.id === id ? { ...t, ...updates, updated_at: updatedAt } : t
         ))
 
         try {
-            // 2. 서버에 업데이트 요청
-            const { data, error } = await supabase
+            // 2. 서버에 업데이트 요청 (select 제거로 성능 향상)
+            const { error } = await supabase
                 .from('tasks')
                 .update({
                     ...updates,
-                    updated_at: new Date().toISOString()
+                    updated_at: updatedAt
                 })
                 .eq('id', id)
-                .select()
-                .single()
 
             if (error) throw error
 
-            // 3. 서버 응답으로 최종 업데이트 (서버 데이터와 동기화)
-            setTasks(prev => prev.map(t => t.id === id ? data : t))
+            // 3. 서버 응답으로 재업데이트 안 함 (이미 로컬 상태가 정확하므로)
+            // 중복 리렌더링 방지!
         } catch (error) {
             console.error('Error updating task:', JSON.stringify(error, null, 2))
             // 4. 에러 시 이전 상태로 롤백

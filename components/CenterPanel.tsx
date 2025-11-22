@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, memo } from 'react'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { format, isSameMinute, parseISO, isSameDay } from 'date-fns'
 import { Check, X } from 'lucide-react'
@@ -28,7 +28,7 @@ interface CenterPanelProps {
   onSelectMakeupProject?: (project: Project | null) => void
 }
 
-function DroppableSlot({ date, hour, minute, children, onClick, isPreviewSlot, previewTask, makeupMode }: {
+const DroppableSlot = memo(function DroppableSlot({ date, hour, minute, children, onClick, isPreviewSlot, previewTask, makeupMode }: {
   date: Date,
   hour: number,
   minute: number,
@@ -109,9 +109,9 @@ function DroppableSlot({ date, hour, minute, children, onClick, isPreviewSlot, p
       )}
     </div>
   )
-}
+})
 
-function DraggableCalendarTask({
+const DraggableCalendarTask = memo(function DraggableCalendarTask({
   task,
   updateTask,
   deleteTask,
@@ -362,7 +362,7 @@ function DraggableCalendarTask({
       </div>
     </div>
   )
-}
+})
 
 // 겹치는 태스크 레이아웃 계산 함수
 function calculateLayout(tasks: Task[]) {
@@ -623,7 +623,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     setSelectedTask(task)
   }
 
-  // 레이아웃 계산 최적화 (Memoization)
+  // 레이아웃 계산 최적화 (Memoization) - 성능 개선
   const dailyLayouts = useMemo(() => {
     const layouts: Record<string, ReturnType<typeof calculateLayout>> = {}
 
@@ -638,7 +638,12 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     })
 
     return layouts
-  }, [tasks, currentDate]) // weekDates는 currentDate에 종속됨
+  }, [
+    tasks.length, 
+    tasks.filter(t => t.status === 'scheduled' || t.status === 'completed')
+         .map(t => `${t.id}:${t.start_time}:${t.duration}`).join('|'),
+    currentDate
+  ]) // 더 세밀한 의존성으로 불필요한 재계산 방지
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
