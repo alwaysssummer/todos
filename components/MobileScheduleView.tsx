@@ -108,38 +108,28 @@ export default function MobileScheduleView({
                 <div
                   key={lesson.id}
                   onClick={() => setSelectedTask(lesson)}
-                  className={`${getTaskBgColor(lesson)} ${getTaskBorderColor(lesson)} border-l-4 rounded-lg p-3 active:opacity-70`}
+                  className={`${getTaskBgColor(lesson)} ${getTaskBorderColor(lesson)} border-l-4 rounded-lg px-3 py-2 active:opacity-70`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {formatTime(lesson.start_time!)}
-                        </span>
-                        {lesson.is_makeup && (
-                          <span className="text-xs bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded">
-                            보충
-                          </span>
-                        )}
-                        {lesson.is_cancelled && (
-                          <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
-                            취소
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-base font-bold text-gray-900 mt-1">
-                        {lesson.title}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                        <span>{lesson.duration}분</span>
-                        {project && (
-                          <span>• {project.name}</span>
-                        )}
-                      </div>
-                    </div>
-                    <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-700 flex-shrink-0">
+                      {formatTime(lesson.start_time!)}
+                    </span>
+                    <span className="text-sm font-bold text-gray-900 flex-1 truncate">
+                      {lesson.title}
+                    </span>
+                    <span className="text-[10px] text-gray-500 flex-shrink-0">
+                      {lesson.duration}분
+                    </span>
+                    {lesson.is_makeup && (
+                      <span className="text-[9px] bg-yellow-200 text-yellow-800 px-1 py-0.5 rounded flex-shrink-0">
+                        보충
+                      </span>
+                    )}
+                    {lesson.is_cancelled && (
+                      <span className="text-[9px] bg-gray-200 text-gray-600 px-1 py-0.5 rounded flex-shrink-0">
+                        취소
+                      </span>
+                    )}
                   </div>
                 </div>
               )
