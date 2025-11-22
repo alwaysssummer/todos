@@ -4,9 +4,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { format, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen } from 'lucide-react'
-import type { Task, Project, Homework } from '@/types/database'
+import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
-import { useHomework } from '@/hooks/useHomework'
 import { supabase } from '@/lib/supabase'
 import { extractTags } from '@/utils/textParser'
 import ChapterGrid from './ChapterGrid'
@@ -316,39 +315,68 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         await updateTask(task.id, { homework_status: status })
     }
 
-    // 교재별 과제 맵 (렌더링 최적화용)
-    const homeworkMap = useMemo(() => {
-        const map = new Map<string, Homework[]>()
-        lessonHomeworks.forEach(hw => {
-            const list = map.get(hw.textbook_id) || []
-            list.push(hw)
-            map.set(hw.textbook_id, list)
-        })
-        return map
-    }, [lessonHomeworks])
-
     // 페이지 변경 핸들러 (ChapterGrid용)
     const handlePageChange = useCallback((textbookId: string, page: number) => {
         setCurrentPages(prev => ({ ...prev, [textbookId]: page }))
     }, [])
 
-    // 과제 체크 토글 (DB 테이블 기반)
-    const toggleHomeworkCheck = async (homeworkId: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'completed' ? 'assigned' : 'completed'
-        
-        // Optimistic UI update
-        setLessonHomeworks(prev => prev.map(hw => 
-            hw.id === homeworkId ? { ...hw, status: newStatus } : hw
-        ))
+    // ===== 과제 체크 함수들 (Phase 6) =====
+    
+    // 과제 체크 토글
+    const toggleHomeworkCheck = (index: number) => {
+        const updated = [...homeworkChecks]
+        updated[index] = {
+            ...updated[index],
+            is_completed: !updated[index].is_completed,
+            completed_at: !updated[index].is_completed ? new Date().toISOString() : undefined
+        }
+        setHomeworkChecks(updated)
+        updateTask(task.id, { homework_checks: updated })
+    }
 
-        try {
-            await updateHomeworkStatusDB(homeworkId, newStatus)
-        } catch (err) {
-            console.error('과제 상태 업데이트 실패', err)
-            // Rollback
-            setLessonHomeworks(prev => prev.map(hw => 
-                hw.id === homeworkId ? { ...hw, status: currentStatus as any } : hw
-            ))
+    // 과제 체크 메모 업데이트
+    const updateCheckNote = (index: number, note: string) => {
+        const updated = [...homeworkChecks]
+        updated[index] = {
+            ...updated[index],
+            note
+        }
+        setHomeworkChecks(updated)
+        // 디바운스 없이 즉시 저장
+        updateTask(task.id, { homework_checks: updated })
+    }
+
+    // 과제 체크 항목 삭제
+    const removeHomeworkCheck = (index: number) => {
+        const updated = homeworkChecks.filter((_, i) => i !== index)
+        setHomeworkChecks(updated)
+        updateTask(task.id, { 
+            homework_checks: updated.length > 0 ? updated : undefined 
+        })
+    }
+
+    // 중복 제거 (같은 교재 + 단원)
+    const removeDuplicateChecks = (textbookId: string) => {
+        const seen = new Set<string>()
+        const cleaned = homeworkChecks.filter(check => {
+            if (check.textbook_id !== textbookId) return true
+            
+            const key = `${check.textbook_id}-${check.chapter}`
+            if (seen.has(key)) {
+                return false // 중복 제거
+            }
+            seen.add(key)
+            return true
+        })
+        
+        const removed = homeworkChecks.length - cleaned.length
+        
+        if (removed > 0) {
+            setHomeworkChecks(cleaned)
+            updateTask(task.id, { homework_checks: cleaned })
+            alert(`${removed}개의 중복 항목이 제거되었습니다.`)
+        } else {
+            alert('중복 항목이 없습니다.')
         }
     }
 
@@ -1011,14 +1039,15 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         const textbook = textbooks.find(t => t.id === textbookId)
                                         if (!textbook) return null
 
-                                        const currentTasks = homeworkMap.get(textbookId) || []
+                                        const assignment = homeworkAssignments.find(a => a.textbook_id === textbookId)
+                                        const selectedChapters = assignment?.chapters || []
                                         const page = currentPages[textbookId] || 0
 
                                         return (
                                             <ChapterGrid
                                                 key={textbookId}
                                                 textbook={textbook}
-                                                currentTasks={currentTasks}
+                                                selectedChapters={selectedChapters}
                                                 page={page}
                                                 onPageChange={(p) => handlePageChange(textbookId, p)}
                                                 onToggle={toggleAssignmentChapter}

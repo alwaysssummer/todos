@@ -1,23 +1,21 @@
 'use client'
 
 import { memo } from 'react'
-import type { Textbook, Homework } from '@/types/database'
+import type { Textbook } from '@/types/database'
 
 interface ChapterGridProps {
     textbook: Textbook
-    currentTasks: Homework[]
+    selectedChapters: string[]
     page: number
     onPageChange: (page: number) => void
     onToggle: (textbookId: string, chapter: string, e?: React.MouseEvent) => void
 }
 
-const ChapterGrid = memo(({ textbook, currentTasks, page, onPageChange, onToggle }: ChapterGridProps) => {
+const ChapterGrid = memo(({ textbook, selectedChapters, page, onPageChange, onToggle }: ChapterGridProps) => {
     const pageSize = 20
     const startChapter = page * pageSize + 1
     const endChapter = Math.min(startChapter + pageSize - 1, textbook.total_chapters)
     const totalPages = Math.ceil(textbook.total_chapters / pageSize)
-
-    const selectedChapters = currentTasks.map(t => t.chapter)
 
     return (
         <div className="border rounded-md p-1.5 bg-white h-full flex flex-col">
