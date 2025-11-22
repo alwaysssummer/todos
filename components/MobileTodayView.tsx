@@ -81,15 +81,15 @@ export default function MobileTodayView({
       <div className="flex-1 overflow-y-auto pb-32">
         {/* Today's Focus */}
         {focusTasks.length > 0 && (
-          <div className="bg-red-50 mb-2">
-            <div className="px-3 py-2 border-b border-red-100">
+          <div className="bg-red-50/30 mb-2">
+            <div className="px-3 py-2 border-b border-red-100/40">
               <h2 className="text-sm font-bold text-red-700">Today's Focus</h2>
             </div>
-            <div className="divide-y divide-red-100">
+            <div className="divide-y divide-red-100/40">
               {focusTasks.map(task => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-2 px-3 py-2 active:bg-red-100"
+                  className="flex items-center gap-2 px-3 py-2 active:bg-red-100/50"
                 >
                   <input
                     type="checkbox"
@@ -122,15 +122,15 @@ export default function MobileTodayView({
 
         {/* Today's Task */}
         {todayTasks.length > 0 && (
-          <div className="bg-green-50 mb-2">
-            <div className="px-3 py-2 border-b border-green-100">
+          <div className="bg-green-50/30 mb-2">
+            <div className="px-3 py-2 border-b border-green-100/40">
               <h2 className="text-sm font-bold text-green-700">Today's Task</h2>
             </div>
-            <div className="divide-y divide-green-100">
+            <div className="divide-y divide-green-100/40">
               {todayTasks.map(task => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-2 px-3 py-2 active:bg-green-100"
+                  className="flex items-center gap-2 px-3 py-2 active:bg-green-100/50"
                 >
                   <input
                     type="checkbox"
