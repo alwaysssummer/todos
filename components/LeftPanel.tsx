@@ -263,9 +263,9 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       const isGreen = task.due_date?.split('T')[0] === todayStr
       const isYellow = task.status === 'scheduled'
 
-      if (isRed && !isGreen && !isYellow) return 5  // 1. 빨간색
-      if (isRed && isGreen) return 4                // 2. 빨간색 + 초록색
-      if (isRed && isYellow) return 3               // 3. 빨간색 + 노란색
+      if (isRed && isYellow) return 5               // 1. 빨간색 + 노란색
+      if (isRed) return 4                           // 2. 빨간색
+      if (isGreen && isYellow) return 3             // 3. 초록색 + 노란색
       if (isGreen) return 2                         // 4. 초록색
       if (isYellow) return 1                        // 5. 노란색
       return 0                                      // 6. 나머지
