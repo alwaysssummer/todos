@@ -7,6 +7,10 @@ import LeftPanel from '@/components/LeftPanel'
 import CenterPanel from '@/components/CenterPanel'
 import RightPanel from '@/components/RightPanel'
 import MobileNavigation from '@/components/MobileNavigation'
+import MobileTodayView from '@/components/MobileTodayView'
+import MobileScheduleView from '@/components/MobileScheduleView'
+import MobileTagsView from '@/components/MobileTagsView'
+import MobileMoreView from '@/components/MobileMoreView'
 import TagModal from '@/components/TagModal'
 import TagArchiveDashboard from '@/components/TagArchiveDashboard'
 import { useTasks } from '@/hooks/useTasks'
@@ -15,10 +19,10 @@ import { useScheduleManager } from '@/hooks/useScheduleManager'
 import type { Task } from '@/types/database'
 import { addWeeks, startOfWeek, endOfWeek } from 'date-fns'
 
-type PanelType = 'left' | 'center' | 'right'
+type PanelType = 'today' | 'inbox' | 'schedule' | 'tags' | 'more'
 
 export default function Home() {
-  const [activePanel, setActivePanel] = useState<PanelType>('left')
+  const [activePanel, setActivePanel] = useState<PanelType>('today')
   const { tasks, createTask, updateTask, deleteTask, reorderTasks, toggleTaskStatus, loading: tasksLoading, refetch: refetchTasks } = useTasks()
   const { projects, createProject, updateProject, deleteProject, loading: projectsLoading } = useProjects()
   const { ensureScheduleInRange } = useScheduleManager()
@@ -289,7 +293,16 @@ export default function Home() {
         {/* Mobile: Single Panel with Bottom Navigation */}
         <div className="md:hidden h-full flex flex-col">
           <div className="flex-1 overflow-hidden">
-            {activePanel === 'left' && (
+            {activePanel === 'today' && (
+              <MobileTodayView
+                tasks={tasks}
+                createTask={createTask}
+                updateTask={updateTask}
+                toggleTaskStatus={toggleTaskStatus}
+                projects={projects}
+              />
+            )}
+            {activePanel === 'inbox' && (
               <LeftPanel
                 tasks={tasks}
                 createTask={createTask}
@@ -303,43 +316,25 @@ export default function Home() {
                 deleteProject={deleteProject}
               />
             )}
-            {activePanel === 'center' && (
-              <CenterPanel
+            {activePanel === 'schedule' && (
+              <MobileScheduleView
                 tasks={tasks}
-                createTask={createTask}
                 updateTask={updateTask}
                 deleteTask={deleteTask}
-                dragOverSlotId={overId}
-                draggingTask={activeTask}
                 projects={projects}
-                makeupProject={makeupProject}
-                onClearMakeupMode={() => setMakeupProject(null)}
-                currentDate={currentDate}
-                onDateChange={handleDateChange}
-                pendingCancelTask={pendingCancelTask}
-                setPendingCancelTask={setPendingCancelTask}
-                onSelectMakeupProject={setMakeupProject}
+                createTask={createTask}
               />
             )}
-            {activePanel === 'right' && (
-              <RightPanel
-                projects={projects}
-                createProject={createProject}
-                updateProject={updateProject}
-                deleteProject={deleteProject}
-                createTask={createTask}
+            {activePanel === 'tags' && (
+              <MobileTagsView
                 tasks={tasks}
-                updateTask={updateTask}
-                deleteTask={deleteTask}
-                onSelectMakeupProject={setMakeupProject}
-                selectedMakeupProject={makeupProject}
-                currentDate={currentDate}
-                onDateChange={handleDateChange}
-                refetchTasks={refetchTasks}
-                selectedTags={selectedTags}
-                onTagsChange={setSelectedTags}
-                onOpenTagModal={handleOpenTagModal}
-                onOpenArchive={() => setIsArchiveOpen(true)}
+                onTagSelect={handleOpenTagModal}
+              />
+            )}
+            {activePanel === 'more' && (
+              <MobileMoreView
+                projects={projects}
+                onArchiveOpen={() => setIsArchiveOpen(true)}
               />
             )}
           </div>
