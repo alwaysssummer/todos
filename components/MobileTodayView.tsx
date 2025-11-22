@@ -122,15 +122,15 @@ export default function MobileTodayView({
 
         {/* Today's Task */}
         {todayTasks.length > 0 && (
-          <div className="bg-white mb-2">
-            <div className="px-3 py-2 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-green-600">Today's Task</h2>
+          <div className="bg-green-50 mb-2">
+            <div className="px-3 py-2 border-b border-green-100">
+              <h2 className="text-sm font-bold text-green-700">Today's Task</h2>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-green-100">
               {todayTasks.map(task => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
+                  className="flex items-center gap-2 px-3 py-2 active:bg-green-100"
                 >
                   <input
                     type="checkbox"
