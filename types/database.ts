@@ -1,4 +1,5 @@
 export interface Task {
+    // ===== 기존 필드 (100% 유지) =====
     id: string
     title: string
     description?: string
@@ -34,6 +35,11 @@ export interface Task {
     habit_completed?: boolean
     actual_duration?: number  // 실제 소요 시간 (분)
     streak_count?: number     // 연속 달성일
+
+    // ===== 블록 기반 확장 필드 (Phase 3) =====
+    parent_id?: string | null  // 계층 구조 지원 (부모 Task ID)
+    type?: TaskType            // Task 타입 (동적 확장 가능)
+    properties?: TaskProperties // 타입별 동적 속성
 }
 
 export interface Project {
@@ -98,4 +104,208 @@ export interface HomeworkAssignmentItem {
     textbook_id: string
     textbook_name: string  // 캐시용
     chapters: string[]     // ["1", "2", "3"]
+}
+
+// =====================================================
+// 블록 기반 Task 시스템 (Phase 3)
+// =====================================================
+
+// Task 타입 정의 (무한 확장 가능)
+export type TaskType = 
+  | 'task'           // 일반 작업 (기본값)
+  | 'lesson'         // 수업 (is_auto_generated 대체 가능)
+  | 'exam'           // 시험
+  | 'exam_question'  // 시험 문제 (exam의 자식)
+  | 'homework'       // 과제 (향후)
+  | 'quiz'           // 퀴즈
+  | 'note'           // 노트
+  | 'habit'          // 습관
+  | 'project'        // 프로젝트
+
+// 동적 속성 타입 (타입별로 다른 구조)
+export type TaskProperties = 
+  | Record<string, any>        // 기본 (모든 타입 허용)
+  | ExamProperties             // 시험
+  | ExamQuestionProperties     // 시험 문제
+  | QuizProperties             // 퀴즈
+  | NoteProperties             // 노트
+
+// =====================================================
+// 시험 관련 타입
+// =====================================================
+
+// 시험 속성
+export interface ExamProperties {
+  subject?: string             // 과목 (예: '수학', '영어')
+  total_score?: number         // 만점
+  user_score?: number          // 획득 점수
+  duration?: number            // 시험 시간 (분)
+  exam_date?: string           // 시험 날짜 (ISO string)
+  difficulty?: 'easy' | 'medium' | 'hard'
+  syllabus?: string[]          // 출제 범위
+  passing_score?: number       // 합격 점수
+  description?: string         // 시험 설명
+}
+
+// 시험 문제 속성
+export interface ExamQuestionProperties {
+  question: string             // 문제 내용
+  correct_answer: string       // 정답
+  user_answer?: string         // 학생 답안
+  points: number              // 배점
+  is_correct?: boolean        // 정답 여부 (자동 채점 결과)
+  question_type?: 'multiple_choice' | 'short_answer' | 'essay' | 'true_false'
+  choices?: string[]          // 선택지 (객관식)
+  explanation?: string        // 해설
+  tags?: string[]            // 문제 태그 (예: '함수', '미분')
+  difficulty?: 'easy' | 'medium' | 'hard'
+  hint?: string              // 힌트
+  image_url?: string         // 문제 이미지 URL
+}
+
+// =====================================================
+// 퀴즈 관련 타입
+// =====================================================
+
+export interface QuizProperties {
+  questions: QuizQuestion[]
+  total_questions: number
+  correct_count?: number
+  time_limit?: number         // 제한 시간 (초)
+  started_at?: string         // 시작 시간
+  completed_at?: string       // 완료 시간
+  score?: number             // 점수
+}
+
+export interface QuizQuestion {
+  question: string
+  correct_answer: string
+  user_answer?: string
+  is_correct?: boolean
+  points?: number
+}
+
+// =====================================================
+// 노트 관련 타입
+// =====================================================
+
+export interface NoteProperties {
+  content?: string            // 마크다운 콘텐츠
+  attachments?: string[]      // 첨부 파일 URL
+  references?: string[]       // 참고 링크
+  color?: string             // 노트 색상
+  pinned?: boolean           // 고정 여부
+}
+
+// =====================================================
+// 타입 가드 (런타임 타입 체크)
+// =====================================================
+
+export function isExamTask(task: Task): task is Task & { properties: ExamProperties } {
+  return task.type === 'exam'
+}
+
+export function isExamQuestionTask(task: Task): task is Task & { properties: ExamQuestionProperties } {
+  return task.type === 'exam_question'
+}
+
+export function isQuizTask(task: Task): task is Task & { properties: QuizProperties } {
+  return task.type === 'quiz'
+}
+
+export function isNoteTask(task: Task): task is Task & { properties: NoteProperties } {
+  return task.type === 'note'
+}
+
+export function isLessonTask(task: Task): boolean {
+  return task.type === 'lesson' || task.is_auto_generated === true || task.is_makeup === true
+}
+
+// =====================================================
+// 계층 구조 헬퍼
+// =====================================================
+
+export interface TaskWithChildren extends Task {
+  children?: TaskWithChildren[]
+}
+
+/**
+ * 평면 배열을 트리 구조로 변환
+ * @param tasks 전체 Task 배열
+ * @returns 루트 Task들의 배열 (children 포함)
+ */
+export function buildTaskTree(tasks: Task[]): TaskWithChildren[] {
+  const taskMap = new Map<string, TaskWithChildren>()
+  const roots: TaskWithChildren[] = []
+
+  // 1. 모든 Task를 맵에 추가
+  tasks.forEach(task => {
+    taskMap.set(task.id, { ...task, children: [] })
+  })
+
+  // 2. 트리 구조 구성
+  tasks.forEach(task => {
+    const node = taskMap.get(task.id)!
+    if (task.parent_id) {
+      const parent = taskMap.get(task.parent_id)
+      if (parent) {
+        parent.children!.push(node)
+      } else {
+        // 부모를 찾을 수 없으면 루트로 처리
+        roots.push(node)
+      }
+    } else {
+      roots.push(node)
+    }
+  })
+
+  return roots
+}
+
+/**
+ * 특정 Task의 모든 자식 Task 가져오기 (재귀)
+ * @param tasks 전체 Task 배열
+ * @param parentId 부모 Task ID
+ * @returns 자식 Task 배열
+ */
+export function getChildTasks(tasks: Task[], parentId: string): Task[] {
+  return tasks.filter(t => t.parent_id === parentId)
+}
+
+/**
+ * 특정 Task의 모든 자손 Task 가져오기 (재귀)
+ * @param tasks 전체 Task 배열
+ * @param parentId 부모 Task ID
+ * @returns 모든 자손 Task 배열
+ */
+export function getAllDescendants(tasks: Task[], parentId: string): Task[] {
+  const children = getChildTasks(tasks, parentId)
+  const descendants: Task[] = [...children]
+  
+  children.forEach(child => {
+    descendants.push(...getAllDescendants(tasks, child.id))
+  })
+  
+  return descendants
+}
+
+/**
+ * Task의 계층 깊이 계산
+ * @param tasks 전체 Task 배열
+ * @param taskId Task ID
+ * @returns 깊이 (루트는 0)
+ */
+export function getTaskDepth(tasks: Task[], taskId: string): number {
+  const task = tasks.find(t => t.id === taskId)
+  if (!task || !task.parent_id) return 0
+  return 1 + getTaskDepth(tasks, task.parent_id)
+}
+
+/**
+ * 루트 Task만 필터링 (중첩되지 않은 Task)
+ * @param tasks 전체 Task 배열
+ * @returns 루트 Task 배열
+ */
+export function getRootTasks(tasks: Task[]): Task[] {
+  return tasks.filter(t => !t.parent_id)
 }
