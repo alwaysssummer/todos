@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Calendar, Edit2, Trash2, CheckCircle, BookOpen } from 'lucide-react'
+import { X, Calendar, Edit2, Trash2, BookOpen } from 'lucide-react'
 import type { Project } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 
@@ -194,11 +194,6 @@ export default function ProjectDetailModal({
     }
   }
 
-  const handleToggleStatus = async () => {
-    const newStatus = status === 'active' ? 'completed' : 'active'
-    await onUpdateProject(project.id, { status: newStatus })
-    setStatus(newStatus)
-  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -623,17 +618,6 @@ export default function ProjectDetailModal({
         <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
           <div className="flex gap-2">
             <button
-              onClick={handleToggleStatus}
-              className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                status === 'active'
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-              }`}
-            >
-              <CheckCircle size={16} />
-              {status === 'active' ? '완료 처리' : '재개하기'}
-            </button>
-            <button
               onClick={handleDelete}
               className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium flex items-center gap-2"
             >
@@ -643,16 +627,16 @@ export default function ProjectDetailModal({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-            >
-              저장
-            </button>
-            <button
               onClick={onClose}
               className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
             >
               닫기
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              저장
             </button>
           </div>
         </div>
