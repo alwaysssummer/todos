@@ -7,7 +7,7 @@ import type { DailyNote, DailyNoteCategory, Weather, Mood } from '@/types/databa
 interface DailyNoteModalProps {
   date: Date
   existingNote?: DailyNote | null
-  onSave: (note: Omit<DailyNote, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>
+  onSave: (note: Omit<DailyNote, 'id' | 'created_at' | 'updated_at'>) => Promise<void>
   onUpdate?: (id: string, updates: Partial<DailyNote>) => Promise<void>
   onDelete?: (id: string) => Promise<void>
   onClose: () => void

@@ -31,7 +31,7 @@ export function useDailyNotes() {
     return getNoteByDate(date) !== null
   }
   
-  const createNote = async (note: Omit<DailyNote, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  const createNote = async (note: Omit<DailyNote, 'id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase
       .from('daily_notes')
       .insert(note)
@@ -39,7 +39,8 @@ export function useDailyNotes() {
       .single()
     
     if (error) {
-      console.error('Error creating daily note:', error)
+      console.error('Error creating daily note:', JSON.stringify(error, null, 2))
+      console.error('Note data:', note)
       throw error
     }
     
@@ -58,7 +59,8 @@ export function useDailyNotes() {
       .single()
     
     if (error) {
-      console.error('Error updating daily note:', error)
+      console.error('Error updating daily note:', JSON.stringify(error, null, 2))
+      console.error('Update data:', updates)
       throw error
     }
     
@@ -75,7 +77,7 @@ export function useDailyNotes() {
       .eq('id', id)
     
     if (error) {
-      console.error('Error deleting daily note:', error)
+      console.error('Error deleting daily note:', JSON.stringify(error, null, 2))
       throw error
     }
     

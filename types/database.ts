@@ -84,7 +84,6 @@ export interface Memo {
 
 export interface DailyNote {
     id: string
-    user_id: string
     date: string // 'YYYY-MM-DD'
     title: string
     content?: string

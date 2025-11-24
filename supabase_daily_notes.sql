@@ -1,10 +1,10 @@
 -- Daily Notes 테이블 생성
 -- 일기, 이벤트, 여행 일지 등을 기록하는 테이블
+-- 단일 사용자용으로 설계 (user_id 없음, RLS 없음)
 
 CREATE TABLE IF NOT EXISTS daily_notes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id),
-  date DATE NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL UNIQUE,
   title TEXT NOT NULL,
   content TEXT,
   emoji TEXT DEFAULT '📅',
@@ -19,36 +19,13 @@ CREATE TABLE IF NOT EXISTS daily_notes (
   category TEXT DEFAULT 'diary',
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  CONSTRAINT daily_notes_user_date_unique UNIQUE(user_id, date)
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS 활성화
-ALTER TABLE daily_notes ENABLE ROW LEVEL SECURITY;
-
--- 정책: 본인 기록만 접근
-CREATE POLICY "Users can view own daily notes"
-  ON daily_notes FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own daily notes"
-  ON daily_notes FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own daily notes"
-  ON daily_notes FOR UPDATE
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own daily notes"
-  ON daily_notes FOR DELETE
-  USING (auth.uid() = user_id);
-
--- 인덱스
-CREATE INDEX idx_daily_notes_user_date ON daily_notes(user_id, date);
-CREATE INDEX idx_daily_notes_date ON daily_notes(date);
-CREATE INDEX idx_daily_notes_category ON daily_notes(category);
-CREATE INDEX idx_daily_notes_tags ON daily_notes USING GIN(tags);
+-- 인덱스 (기존 인덱스가 있으면 건너뛰기)
+CREATE INDEX IF NOT EXISTS idx_daily_notes_date ON daily_notes(date);
+CREATE INDEX IF NOT EXISTS idx_daily_notes_category ON daily_notes(category);
+CREATE INDEX IF NOT EXISTS idx_daily_notes_tags ON daily_notes USING GIN(tags);
 
 -- 업데이트 트리거
 CREATE OR REPLACE FUNCTION update_daily_notes_updated_at()
@@ -59,6 +36,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 기존 트리거 삭제 후 재생성
+DROP TRIGGER IF EXISTS update_daily_notes_updated_at ON daily_notes;
 CREATE TRIGGER update_daily_notes_updated_at
   BEFORE UPDATE ON daily_notes
   FOR EACH ROW

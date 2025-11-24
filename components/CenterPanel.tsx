@@ -6,6 +6,7 @@ import { format, isSameMinute, parseISO, isSameDay } from 'date-fns'
 import { Check, X } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
+import { DailyNoteModal } from './DailyNoteModal'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
 
 interface CenterPanelProps {
@@ -27,6 +28,7 @@ interface CenterPanelProps {
   } | null
   setPendingCancelTask?: (task: any) => void
   onSelectMakeupProject?: (project: Project | null) => void
+  onDateHeaderClick?: (date: Date) => void
 }
 
 const DroppableSlot = memo(function DroppableSlot({ date, hour, minute, children, onClick, isPreviewSlot, previewTask, makeupMode }: {
@@ -451,11 +453,13 @@ function calculateLayout(tasks: Task[]) {
   return layoutMap
 }
 
-export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange, pendingCancelTask, setPendingCancelTask, onSelectMakeupProject }: CenterPanelProps) {
+export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange, pendingCancelTask, setPendingCancelTask, onSelectMakeupProject, onDateHeaderClick }: CenterPanelProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
   const [now, setNow] = useState(new Date())
-  const { getNoteByDate } = useDailyNotes()
+  const [showDailyNoteModal, setShowDailyNoteModal] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const { getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
 
   // prop으로 받은 currentDate 사용
   const currentDate = propCurrentDate
@@ -760,7 +764,12 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                 return (
                   <div
                     key={day}
-                    className={`py-1 text-center text-sm font-medium border-r border-gray-200 last:border-r-0 
+                    onClick={() => {
+                      setSelectedDate(weekDates[i])
+                      setShowDailyNoteModal(true)
+                      onDateHeaderClick?.(weekDates[i])
+                    }}
+                    className={`py-1 text-center text-sm font-medium border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors
                       ${isToday ? 'bg-blue-50/20 border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 text-blue-900' : 'text-gray-900'}`}
                   >
                     {day}
@@ -850,6 +859,21 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
           </div>
         </div>
       </div>
+
+      {/* Daily Note Modal */}
+      {showDailyNoteModal && selectedDate && (
+        <DailyNoteModal
+          date={selectedDate}
+          existingNote={getNoteByDate(selectedDate)}
+          onSave={createNote}
+          onUpdate={updateNote}
+          onDelete={deleteNote}
+          onClose={() => {
+            setShowDailyNoteModal(false)
+            setSelectedDate(null)
+          }}
+        />
+      )}
     </div>
   )
 }
