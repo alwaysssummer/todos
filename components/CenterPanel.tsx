@@ -6,6 +6,7 @@ import { format, isSameMinute, parseISO, isSameDay } from 'date-fns'
 import { Check, X } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
+import { useDailyNotes } from '@/hooks/useDailyNotes'
 
 interface CenterPanelProps {
   tasks: Task[]
@@ -454,6 +455,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
   const [now, setNow] = useState(new Date())
+  const { getNoteByDate } = useDailyNotes()
 
   // prop으로 받은 currentDate 사용
   const currentDate = propCurrentDate
@@ -754,6 +756,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
               <div className="w-12 border-r border-gray-100 bg-gray-50"></div>
               {days.map((day, i) => {
                 const isToday = isSameDay(weekDates[i], now)
+                const dailyNote = getNoteByDate(weekDates[i])
                 return (
                   <div
                     key={day}
@@ -764,6 +767,12 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                     <div className={`text-xs font-normal ${isToday ? 'text-blue-700' : 'text-gray-400'}`}>
                       {format(weekDates[i], 'd')}
                     </div>
+                    {dailyNote && (
+                      <div className="text-xs mt-0.5 px-1 truncate text-gray-600">
+                        <span className="mr-0.5">{dailyNote.emoji}</span>
+                        {dailyNote.title}
+                      </div>
+                    )}
                   </div>
                 )
               })}

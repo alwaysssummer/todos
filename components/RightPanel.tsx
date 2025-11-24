@@ -8,8 +8,10 @@ import ProjectCreateModal from './ProjectCreateModal'
 import ProjectDetailModal from './ProjectDetailModal'
 import TagPanel from './TagPanel'
 import TextbookManagementModal from './TextbookManagementModal'
+import { DailyNoteModal } from './DailyNoteModal'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
 import { useTextbooks } from '@/hooks/useTextbooks'
+import { useDailyNotes } from '@/hooks/useDailyNotes'
 
 interface RightPanelProps {
   projects: Project[]
@@ -35,8 +37,11 @@ export default function RightPanel({ projects, createProject, updateProject, del
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showTextbookModal, setShowTextbookModal] = useState(false)
+  const [showDailyNoteModal, setShowDailyNoteModal] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const { syncProjectSchedule } = useScheduleManager()
   const { textbooks, createTextbook, deleteTextbook } = useTextbooks()
+  const { hasNoteOnDate, getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
 
   const handleGenerateTasks = async (newTasks: any[]) => {
     if (!createTask) return
@@ -189,6 +194,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
                 const cellDate = new Date(year, month, day)
                 cellDate.setHours(0, 0, 0, 0)
                 const isToday = cellDate.getTime() === today.getTime()
+                const hasNote = hasNoteOnDate(cellDate)
 
                 // 선택된 주간에 속하는지 확인 (날짜만 비교)
                 const weekStartTime = weekStart.getTime()
@@ -199,7 +205,11 @@ export default function RightPanel({ projects, createProject, updateProject, del
                 cells.push(
                   <div
                     key={day}
-                    className={`text-center py-0.5 rounded relative ${isToday
+                    onClick={() => {
+                      setSelectedDate(cellDate)
+                      setShowDailyNoteModal(true)
+                    }}
+                    className={`text-center py-0.5 rounded relative cursor-pointer ${isToday
                       ? 'bg-blue-600 text-white font-bold shadow-md ring-2 ring-blue-400'
                       : isInSelectedWeek
                         ? 'bg-blue-100 text-blue-900 font-medium'
@@ -207,6 +217,9 @@ export default function RightPanel({ projects, createProject, updateProject, del
                       }`}
                   >
                     {day}
+                    {hasNote && (
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-500 rounded-full" />
+                    )}
                   </div>
                 )
               }
@@ -552,6 +565,21 @@ export default function RightPanel({ projects, createProject, updateProject, del
           textbooks={textbooks}
           onCreateTextbook={createTextbook}
           onDeleteTextbook={deleteTextbook}
+        />
+      )}
+
+      {/* Daily Note Modal */}
+      {showDailyNoteModal && selectedDate && (
+        <DailyNoteModal
+          date={selectedDate}
+          existingNote={getNoteByDate(selectedDate)}
+          onSave={createNote}
+          onUpdate={updateNote}
+          onDelete={deleteNote}
+          onClose={() => {
+            setShowDailyNoteModal(false)
+            setSelectedDate(null)
+          }}
         />
       )}
 

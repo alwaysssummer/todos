@@ -79,6 +79,40 @@ export interface Memo {
 }
 
 // =====================================================
+// Daily Notes (일일 기록)
+// =====================================================
+
+export interface DailyNote {
+    id: string
+    user_id: string
+    date: string // 'YYYY-MM-DD'
+    title: string
+    content?: string
+    emoji?: string
+    
+    // 확장 필드
+    photos?: string[]
+    location?: {
+        lat: number
+        lng: number
+        address: string
+        place_name?: string
+    }
+    weather?: 'sunny' | 'cloudy' | 'rainy' | 'snowy'
+    mood?: 1 | 2 | 3 | 4 | 5
+    tags?: string[]
+    is_private?: boolean
+    category?: 'diary' | 'event' | 'travel' | 'memory'
+    
+    created_at: string
+    updated_at: string
+}
+
+export type DailyNoteCategory = 'diary' | 'event' | 'travel' | 'memory'
+export type Weather = 'sunny' | 'cloudy' | 'rainy' | 'snowy'
+export type Mood = 1 | 2 | 3 | 4 | 5
+
+// =====================================================
 // 과제 관리 타입 (Phase 2)
 // =====================================================
 
