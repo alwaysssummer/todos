@@ -152,6 +152,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const inboxScrollRef = useRef<HTMLDivElement>(null)
+  const [savedScrollPosition, setSavedScrollPosition] = useState<number | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -163,6 +164,14 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  // 스크롤 위치 복원
+  useEffect(() => {
+    if (savedScrollPosition !== null && inboxScrollRef.current) {
+      inboxScrollRef.current.scrollTop = savedScrollPosition
+      setSavedScrollPosition(null)
+    }
+  }, [tasks, savedScrollPosition])
 
   // 태그 추출 함수는 utils/textParser.ts로 이동 (공통 사용)
 
@@ -209,6 +218,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const handleToggleComplete = (task: Task) => {
     // 현재 스크롤 위치 저장
     const scrollTop = inboxScrollRef.current?.scrollTop || 0
+    setSavedScrollPosition(scrollTop)
     
     if (task.status !== 'completed') {
       // 완료로 전환하는 경우 - 애니메이션 후 상태 변경
@@ -222,24 +232,10 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           next.delete(task.id)
           return next
         })
-        
-        // 스크롤 위치 복원
-        requestAnimationFrame(() => {
-          if (inboxScrollRef.current) {
-            inboxScrollRef.current.scrollTop = scrollTop
-          }
-        })
       }, 300)
     } else {
       // 완료 취소는 즉시
       toggleTaskStatus(task.id, task.status)
-      
-      // 스크롤 위치 복원
-      requestAnimationFrame(() => {
-        if (inboxScrollRef.current) {
-          inboxScrollRef.current.scrollTop = scrollTop
-        }
-      })
     }
   }
 
