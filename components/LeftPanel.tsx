@@ -57,8 +57,9 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
   const isCompleted = task.status === 'completed'
   const isScheduled = task.status === 'scheduled'
 
-  // 오늘 날짜인지 확인
-  const isToday = task.due_date && new Date(task.due_date).toDateString() === new Date().toDateString()
+  // 오늘 날짜인지 확인 (todayTasks 필터링과 동일한 방식 사용)
+  const todayStr = new Date().toISOString().split('T')[0]
+  const isToday = task.due_date?.split('T')[0] === todayStr
 
   // 제목에서 #태그 부분을 연하게 표시
   const renderTitle = (title: string) => {
