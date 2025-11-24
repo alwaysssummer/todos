@@ -152,7 +152,8 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const inboxScrollRef = useRef<HTMLDivElement>(null)
-  const [savedScrollPosition, setSavedScrollPosition] = useState<number | null>(null)
+  const savedScrollPositionRef = useRef<number>(0)
+  const shouldRestoreScrollRef = useRef<boolean>(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -167,18 +168,21 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
   // 스크롤 위치 복원
   useEffect(() => {
-    if (savedScrollPosition !== null && inboxScrollRef.current) {
-      // 이중 requestAnimationFrame으로 확실히 리렌더링 후 실행
+    if (shouldRestoreScrollRef.current && inboxScrollRef.current) {
+      const scrollPos = savedScrollPositionRef.current
+      // 삼중 requestAnimationFrame으로 확실히 리렌더링 후 실행
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (inboxScrollRef.current) {
-            inboxScrollRef.current.scrollTop = savedScrollPosition
-            setSavedScrollPosition(null)
-          }
+          requestAnimationFrame(() => {
+            if (inboxScrollRef.current) {
+              inboxScrollRef.current.scrollTop = scrollPos
+              shouldRestoreScrollRef.current = false
+            }
+          })
         })
       })
     }
-  }, [savedScrollPosition])
+  })
 
   // 태그 추출 함수는 utils/textParser.ts로 이동 (공통 사용)
 
@@ -224,8 +228,8 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
   const handleToggleComplete = (task: Task) => {
     // 현재 스크롤 위치 저장
-    const scrollTop = inboxScrollRef.current?.scrollTop || 0
-    setSavedScrollPosition(scrollTop)
+    savedScrollPositionRef.current = inboxScrollRef.current?.scrollTop || 0
+    shouldRestoreScrollRef.current = true
     
     if (task.status !== 'completed') {
       // 완료로 전환하는 경우 - 애니메이션 후 상태 변경
