@@ -237,6 +237,10 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       
       // 300ms 후 실제 상태 변경
       setTimeout(() => {
+        // 다시 스크롤 위치 저장 (애니메이션 중 스크롤이 변경되었을 수 있음)
+        savedScrollPositionRef.current = inboxScrollRef.current?.scrollTop || 0
+        shouldRestoreScrollRef.current = true
+        
         toggleTaskStatus(task.id, task.status)
         setCompletingIds(prev => {
           const next = new Set(prev)
