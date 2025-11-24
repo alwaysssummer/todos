@@ -755,7 +755,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
 
       <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
         <div className="min-w-[800px]">
-          <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+          <div className="sticky top-0 bg-white border-b border-gray-200 z-30">
             <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-0">
               <div className="w-12 border-r border-gray-100 bg-gray-50"></div>
               {days.map((day, i) => {
