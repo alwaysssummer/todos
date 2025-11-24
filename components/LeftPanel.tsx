@@ -420,7 +420,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   }
 
   // Droppable Container Component
-  function DroppableContainer({ id, title, count, children, className, scrollRef }: { id: string, title: string, count?: number, children: React.ReactNode, className?: string, scrollRef?: React.RefObject<HTMLDivElement> }) {
+  function DroppableContainer({ id, title, count, children, className, scrollRef }: { id: string, title: string, count?: number, children: React.ReactNode, className?: string, scrollRef?: React.RefObject<HTMLDivElement | null> }) {
     const { setNodeRef, isOver } = useDroppable({ id })
 
     return (
