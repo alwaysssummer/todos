@@ -78,9 +78,9 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`group flex items-start gap-2 transition-all duration-300 ease-out cursor-grab active:cursor-grabbing border-b
+      className={`group flex items-start gap-2 transition-all duration-200 ease-in-out cursor-grab active:cursor-grabbing border-b
         ${isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
-        ${isCompleting ? 'opacity-0 scale-95 -translate-x-4' : 'opacity-100 scale-100 translate-x-0'}
+        ${isCompleting ? 'opacity-0 scale-98 -translate-x-2' : 'opacity-100 scale-100 translate-x-0'}
         ${isCompleting
           ? 'text-gray-400 border-gray-100 bg-gray-50/50'
           : isCompleted
@@ -235,7 +235,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       // 완료로 전환하는 경우 - 애니메이션 후 상태 변경
       setCompletingIds(prev => new Set(prev).add(task.id))
       
-      // 300ms 후 실제 상태 변경
+      // 200ms 후 실제 상태 변경 (애니메이션 시간과 동일)
       setTimeout(() => {
         // 다시 스크롤 위치 저장 (애니메이션 중 스크롤이 변경되었을 수 있음)
         savedScrollPositionRef.current = inboxScrollRef.current?.scrollTop || 0
@@ -247,7 +247,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           next.delete(task.id)
           return next
         })
-      }, 300)
+      }, 200)
     } else {
       // 완료 취소는 즉시
       toggleTaskStatus(task.id, task.status)
