@@ -95,6 +95,7 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
       {/* Checkbox */}
       <button
         onClick={(e) => {
+          e.preventDefault() // 기본 동작 방지
           e.stopPropagation() // 드래그나 클릭 방지
           onToggleComplete(e)
         }}
