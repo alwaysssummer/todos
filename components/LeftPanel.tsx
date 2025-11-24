@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -168,10 +168,17 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   // 스크롤 위치 복원
   useEffect(() => {
     if (savedScrollPosition !== null && inboxScrollRef.current) {
-      inboxScrollRef.current.scrollTop = savedScrollPosition
-      setSavedScrollPosition(null)
+      // 이중 requestAnimationFrame으로 확실히 리렌더링 후 실행
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (inboxScrollRef.current) {
+            inboxScrollRef.current.scrollTop = savedScrollPosition
+            setSavedScrollPosition(null)
+          }
+        })
+      })
     }
-  }, [tasks, savedScrollPosition])
+  }, [savedScrollPosition])
 
   // 태그 추출 함수는 utils/textParser.ts로 이동 (공통 사용)
 
@@ -260,41 +267,39 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   // 4. Inbox: ALL active tasks EXCEPT waiting (One Source of Truth)
   // Inbox에는 Waiting이 아닌 모든 활성 태스크가 포함됨 (Focus, Today 포함)
   // 보충수업(is_makeup)과 정규수업(is_auto_generated)은 INBOX에서 제외
-  let inboxTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
+  const inboxTasks = useMemo(() => {
+    let filtered = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
-  // 프로젝트 필터 적용
-  if (selectedProjectId) {
-    inboxTasks = inboxTasks.filter(t => t.project_id === selectedProjectId)
-    // Waiting도 프로젝트 필터 적용? 요구사항엔 없지만 일반적인 동작
-    // waitingTasks = waitingTasks.filter(t => t.project_id === selectedProjectId) -> const라 재할당 불가, 위에서 처리하거나 여기서 무시.
-    // 일단 Inbox만 필터링하는 기존 로직 유지. Waiting은 전역적으로 보일 수 있음.
-    // 하지만 "Inbox와 원소스를 보관하는 곳"이므로 필터링 되는게 맞을듯.
-  }
-
-  // Inbox 정렬
-  inboxTasks = inboxTasks.sort((a, b) => {
-    const getScore = (task: Task) => {
-      const isRed = task.is_top5
-      const isGreen = task.due_date?.split('T')[0] === todayStr
-      const isYellow = task.status === 'scheduled'
-
-      if (isRed && isYellow) return 5               // 1. 빨간색 + 노란색
-      if (isRed) return 4                           // 2. 빨간색
-      if (isGreen && isYellow) return 3             // 3. 초록색 + 노란색
-      if (isGreen) return 2                         // 4. 초록색
-      if (isYellow) return 1                        // 5. 노란색
-      return 0                                      // 6. 나머지
+    // 프로젝트 필터 적용
+    if (selectedProjectId) {
+      filtered = filtered.filter(t => t.project_id === selectedProjectId)
     }
 
-    const scoreA = getScore(a)
-    const scoreB = getScore(b)
+    // Inbox 정렬
+    return filtered.sort((a, b) => {
+      const getScore = (task: Task) => {
+        const isRed = task.is_top5
+        const isGreen = task.due_date?.split('T')[0] === todayStr
+        const isYellow = task.status === 'scheduled'
 
-    if (scoreA !== scoreB) {
-      return scoreB - scoreA
-    }
+        if (isRed && isYellow) return 5               // 1. 빨간색 + 노란색
+        if (isRed) return 4                           // 2. 빨간색
+        if (isGreen && isYellow) return 3             // 3. 초록색 + 노란색
+        if (isGreen) return 2                         // 4. 초록색
+        if (isYellow) return 1                        // 5. 노란색
+        return 0                                      // 6. 나머지
+      }
 
-    return (a.order_index || 0) - (b.order_index || 0)
-  })
+      const scoreA = getScore(a)
+      const scoreB = getScore(b)
+
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA
+      }
+
+      return (a.order_index || 0) - (b.order_index || 0)
+    })
+  }, [tasks, selectedProjectId, todayStr])
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
