@@ -1169,24 +1169,21 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
             {/* Footer */}
             <div className="p-4 bg-gray-50 flex justify-between items-center border-t border-gray-100">
-                {/* 왼쪽: 날짜 */}
-                <div className="text-xs text-gray-400">
-                    {format(new Date(task.created_at), 'yyyy. MM. dd')}
-                </div>
+                {/* 왼쪽: 삭제 버튼 */}
+                <button
+                    onClick={() => {
+                        if (confirm('이 태스크를 삭제하시겠습니까?')) {
+                            deleteTask(task.id)
+                            onClose()
+                        }
+                    }}
+                    className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+                >
+                    🗑️ 삭제
+                </button>
 
                 {/* 오른쪽: 버튼 그룹 */}
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => {
-                            if (confirm('이 태스크를 삭제하시겠습니까?')) {
-                                deleteTask(task.id)
-                                onClose()
-                            }
-                        }}
-                        className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                        삭제
-                    </button>
                     <button
                         onClick={onClose}
                         className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
