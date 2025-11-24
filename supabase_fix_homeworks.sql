@@ -19,6 +19,3 @@ WHERE task_id IS NOT NULL;
 
 
 
-
-
-
