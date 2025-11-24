@@ -780,9 +780,11 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                       {format(weekDates[i], 'd')}
                     </div>
                     {dailyNote && (
-                      <div className="text-xs mt-0.5 px-1 truncate text-gray-600">
+                      <div className="text-xs mt-0.5 px-1 text-gray-600">
                         <span className="mr-0.5">{dailyNote.emoji}</span>
-                        {dailyNote.title}
+                        {dailyNote.title.split('//').map((line, idx) => (
+                          <div key={idx} className="truncate">{line.trim()}</div>
+                        ))}
                       </div>
                     )}
                   </div>
