@@ -316,8 +316,10 @@ const DraggableCalendarTask = memo(function DraggableCalendarTask({
           <Check size={10} className={`text-white ${isCompleted ? 'opacity-100' : 'opacity-0 group-hover/check:opacity-100'}`} strokeWidth={4} />
         </button>
         <div className="flex-1 min-w-0">
-          <div className={`line-clamp-2 font-medium break-words ${isCompleted ? 'line-through' : ''}`}>
-            {task.title || '(제목 없음)'}
+          <div className={`font-medium break-words ${isCompleted ? 'line-through' : ''}`}>
+            {(task.title || '(제목 없음)').split('//').map((line, i) => (
+              <div key={i}>{line.trim()}</div>
+            ))}
           </div>
           {/* 시작 시간 표시 */}
           {task.start_time && (

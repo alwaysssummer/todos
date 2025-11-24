@@ -191,7 +191,7 @@ export function DailyNoteModal({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력하세요"
+            placeholder="제목을 입력하세요 (//로 줄바꿈 가능)"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium"
             autoFocus
           />
