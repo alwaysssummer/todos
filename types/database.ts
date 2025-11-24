@@ -59,6 +59,9 @@ export interface Project {
         duration: number // 분 단위
     }[]
     textbooks?: string[]  // 배정된 교재 ID (최대 4개)
+    is_private?: boolean      // 비공개 수업 여부
+    tuition?: number          // 수업료 (만원 단위, 12 = 12만원)
+    tuition_paid?: boolean    // 수업료 납부 여부
 
     // 루틴/습관 전용
     repeat_days?: number[]    // [1, 2, 3, 4, 5] = 월~금

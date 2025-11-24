@@ -20,7 +20,7 @@ export default function ProjectDetailModal({
   onDeleteProject,
   onRegenerateSchedule 
 }: ProjectDetailModalProps) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(true)
   const [name, setName] = useState(project.name)
   const [color, setColor] = useState(project.color)
   const [status, setStatus] = useState(project.status || 'active')
@@ -32,6 +32,9 @@ export default function ProjectDetailModal({
   const [targetTime, setTargetTime] = useState(project.target_time || '07:00')
   const [targetDuration, setTargetDuration] = useState(project.target_duration || 30)
   const [assignedTextbooks, setAssignedTextbooks] = useState<string[]>(project.textbooks || [])
+  const [isPrivate, setIsPrivate] = useState(project.is_private || false)
+  const [tuition, setTuition] = useState<number | ''>(project.tuition || '')
+  const [tuitionPaid, setTuitionPaid] = useState(project.tuition_paid || false)
   
   const { textbooks, cleanTextbookDataFromTasks } = useTextbooks()
 
@@ -116,6 +119,9 @@ export default function ProjectDetailModal({
       updates.end_date = noEndDate ? undefined : (endDate || undefined)
       updates.schedule_template = scheduleTemplate
       updates.textbooks = assignedTextbooks // 교재 배정 저장
+      updates.is_private = isPrivate
+      updates.tuition = tuition === '' ? undefined : Number(tuition)
+      updates.tuition_paid = tuitionPaid
     } else if (project.type === 'habit') {
       updates.start_date = startDate
       updates.repeat_days = repeatDays
@@ -131,7 +137,8 @@ export default function ProjectDetailModal({
       await onRegenerateSchedule(updatedProject)
     }
 
-    setIsEditing(false)
+    // 저장 후 모달 닫기
+    onClose()
   }
 
   // 교재 추가
@@ -224,30 +231,6 @@ export default function ProjectDetailModal({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    저장
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-                  title="수정"
-                >
-                  <Edit2 size={18} />
-                </button>
-              )}
               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400">
                 <X size={20} />
               </button>
@@ -336,6 +319,62 @@ export default function ProjectDetailModal({
                       <div className="text-gray-900">{endDate || '진행 중'}</div>
                     )}
                   </div>
+                </div>
+
+                {/* 수업료 입력 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    수업료 <span className="text-xs text-gray-500">(만원 단위)</span>
+                  </label>
+                  {isEditing ? (
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={tuition}
+                          onChange={(e) => setTuition(e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder="12"
+                          min="0"
+                          step="1"
+                          className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-600">만원</span>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={tuitionPaid}
+                          onChange={(e) => setTuitionPaid(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <span>납부 완료</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="text-gray-900">
+                      {tuition ? `${tuition}만원` : '미설정'}
+                      {tuitionPaid && ' (납부 완료)'}
+                    </div>
+                  )}
+                </div>
+
+                {/* 비공개 체크박스 */}
+                <div>
+                  {isEditing ? (
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isPrivate}
+                        onChange={(e) => setIsPrivate(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300"
+                      />
+                      <span className="font-medium">🔒 비공개 수업</span>
+                    </label>
+                  ) : (
+                    <div className="text-sm text-gray-700">
+                      {isPrivate ? '🔒 비공개 수업' : '공개 수업'}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -602,12 +641,20 @@ export default function ProjectDetailModal({
               삭제
             </button>
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
-          >
-            닫기
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              저장
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+            >
+              닫기
+            </button>
+          </div>
         </div>
       </div>
     </div>

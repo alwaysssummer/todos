@@ -61,7 +61,19 @@ export default function RightPanel({ projects, createProject, updateProject, del
   }
 
   const folderProjects = projects.filter(p => p.type === 'folder')
-  const studentProjects = projects.filter(p => p.type === 'student')
+  const studentProjects = projects
+    .filter(p => p.type === 'student')
+    .sort((a, b) => {
+      // start_date의 '일(day)'만 기준으로 오름차순 정렬 (월은 무시)
+      if (!a.start_date && !b.start_date) return 0
+      if (!a.start_date) return 1
+      if (!b.start_date) return -1
+      
+      const dayA = new Date(a.start_date).getDate() // 1~31
+      const dayB = new Date(b.start_date).getDate() // 1~31
+      
+      return dayA - dayB
+    })
   const habitProjects = projects.filter(p => p.type === 'habit')
 
   const handleProjectClick = (project: Project) => {
@@ -271,49 +283,145 @@ export default function RightPanel({ projects, createProject, updateProject, del
         {/* Student Projects */}
         {studentProjects.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <GraduationCap size={16} className="text-green-600" />
-              <span className="text-xs text-gray-400">({studentProjects.length})</span>
-
-              {/* 색상별 학생 수 요약 */}
-              <div className="flex gap-1.5 ml-auto">
+            {/* 2줄 통계 */}
+            <div className="mb-2 px-1 space-y-1">
+              {/* 1줄: 인원 통계 */}
+              <div className="flex items-center gap-3 text-xs">
+                {/* 총원 */}
+                <span className="text-gray-600">
+                  <span className="font-semibold text-gray-900">{studentProjects.length}</span>
+                </span>
+                
+                <span className="text-gray-300">/</span>
+                
+                {/* 공개학생 수 */}
+                <span className="text-gray-600">
+                  <span className="font-semibold text-gray-900">
+                    {studentProjects.filter(p => !p.is_private).length}
+                  </span>
+                </span>
+                
+                <span className="text-gray-300">/</span>
+                
+                {/* 비공개학생 수 */}
+                <span className="text-gray-600">
+                  <span className="font-semibold text-gray-900">
+                    {studentProjects.filter(p => p.is_private).length}
+                  </span>
+                </span>
+                
+                <span className="text-gray-300">/</span>
+                
+                {/* 색상별 학생 수 (연한하늘색, 하늘색, 파란색만) */}
                 {(() => {
-                  const colorGroups: Record<string, number> = {}
-                  studentProjects.forEach(p => {
-                    colorGroups[p.color] = (colorGroups[p.color] || 0) + 1
-                  })
-                  return Object.entries(colorGroups).map(([color, count]) => (
-                    <div key={color} className="flex items-center gap-1">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: color }}
-                      />
-                      <span className="text-xs font-medium text-gray-600">{count}</span>
-                    </div>
-                  ))
+                  const targetColors = ['#bae6fd', '#38bdf8', '#2563eb']
+                  return targetColors.map((color) => {
+                    const count = studentProjects.filter(p => p.color === color).length
+                    if (count === 0) return null
+                    return (
+                      <div key={color} className="flex items-center gap-1">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="font-semibold text-gray-900">{count}</span>
+                      </div>
+                    )
+                  }).filter(Boolean)
+                })()}
+              </div>
+              
+              {/* 2줄: 금액 통계 */}
+              <div className="flex items-center gap-2 text-xs">
+                {(() => {
+                  // 총 금액 계산
+                  const totalAmount = studentProjects.reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const totalPaid = studentProjects.filter(p => p.tuition_paid).reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const totalUnpaid = totalAmount - totalPaid
+                  
+                  // 공개학생 금액
+                  const publicProjects = studentProjects.filter(p => !p.is_private)
+                  const publicAmount = publicProjects.reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const publicPaid = publicProjects.filter(p => p.tuition_paid).reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const publicUnpaid = publicAmount - publicPaid
+                  
+                  // 비공개학생 금액
+                  const privateProjects = studentProjects.filter(p => p.is_private)
+                  const privateAmount = privateProjects.reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const privatePaid = privateProjects.filter(p => p.tuition_paid).reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const privateUnpaid = privateAmount - privatePaid
+                  
+                  return (
+                    <>
+                      {/* 총 금액 */}
+                      <span className="text-gray-600">
+                        <span className="font-semibold text-gray-900">{totalAmount}</span>
+                        <span className="text-xs"> (<span className="text-green-600 font-medium">{totalPaid}</span>/<span className="text-yellow-600 font-medium">{totalUnpaid}</span>)</span>
+                      </span>
+                      
+                      <span className="text-gray-300">|</span>
+                      
+                      {/* 공개학생 금액 */}
+                      <span className="text-gray-600">
+                        <span className="font-semibold text-gray-900">{publicAmount}</span>
+                        <span className="text-xs"> (<span className="text-green-600 font-medium">{publicPaid}</span>/<span className="text-yellow-600 font-medium">{publicUnpaid}</span>)</span>
+                      </span>
+                      
+                      <span className="text-gray-300">|</span>
+                      
+                      {/* 비공개학생 금액 */}
+                      <span className="text-gray-600">
+                        <span className="font-semibold text-gray-900">{privateAmount}</span>
+                        <span className="text-xs"> (<span className="text-green-600 font-medium">{privatePaid}</span>/<span className="text-yellow-600 font-medium">{privateUnpaid}</span>)</span>
+                      </span>
+                    </>
+                  )
                 })()}
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-1.5">
               {studentProjects.map((project) => {
                 const isSelected = selectedMakeupProject?.id === project.id
                 return (
                   <div key={project.id} className="flex items-center p-1.5 rounded-lg hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-all group">
                     <button
                       onClick={() => handleProjectClick(project)}
-                      className="flex-1 flex items-center gap-2 text-left min-w-0"
+                      className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                     >
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: project.color }}
-                      />
                       <div className="flex-1 min-w-0 flex items-center gap-1.5">
                         <span className="text-sm font-medium text-gray-900 truncate">
                           {project.name}
                         </span>
-                        {project.schedule_template && project.schedule_template.length > 0 && (
-                          <span className="text-xs text-gray-400 flex-shrink-0">
-                            (주 {project.schedule_template.length}회)
+                        {project.start_date && (
+                          <span className={`text-xs flex-shrink-0 ${
+                            (() => {
+                              // 납부 완료 시 녹색
+                              if (project.tuition_paid) {
+                                return 'text-green-600 font-semibold'
+                              }
+                              
+                              // 미납 시: 이번 달 시작일 기준으로 경과 일수 계산
+                              const startDate = new Date(project.start_date)
+                              const startDay = startDate.getDate() // 시작일의 날짜 (예: 19일)
+                              
+                              const today = new Date()
+                              const currentDay = today.getDate() // 현재 날짜 (예: 24일)
+                              
+                              // 이번 달 시작일부터 경과 일수
+                              const daysPassed = currentDay - startDay
+                              
+                              if (daysPassed >= 7) {
+                                return 'text-red-600 font-semibold'      // 7일 이상: 빨간색
+                              } else if (daysPassed >= 1) {
+                                return 'text-yellow-600 font-semibold'   // 1일 이상: 노란색
+                              } else {
+                                return 'text-gray-400'                    // 1일 미만: 회색
+                              }
+                            })()
+                          }`}>
+                            {String(new Date(project.start_date).getDate()).padStart(2, '0')}.
+                            {project.tuition && ` ${project.tuition}`}
+                            {project.is_private && ' 🔒'}
                           </span>
                         )}
                       </div>

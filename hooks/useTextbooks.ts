@@ -15,11 +15,14 @@ export function useTextbooks() {
                 .select('*')
                 .order('created_at', { ascending: false })
 
-            if (error) throw error
+            if (error) {
+                console.error('Supabase error fetching textbooks:', error)
+                throw error
+            }
 
             setTextbooks(data || [])
         } catch (error) {
-            console.error('Error fetching textbooks:', error)
+            console.error('Error fetching textbooks:', error instanceof Error ? error.message : JSON.stringify(error))
         } finally {
             setLoading(false)
         }

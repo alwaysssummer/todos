@@ -267,7 +267,7 @@ export default function Home() {
             <PanelResizeHandle className="w-px bg-gray-200 hover:bg-gray-400 transition-colors" />
 
             {/* Right Panel */}
-            <Panel defaultSize={12} minSize={10} maxSize={20}>
+            <Panel defaultSize={18} minSize={15} maxSize={30}>
               <RightPanel
                 projects={projects}
                 createProject={createProject}

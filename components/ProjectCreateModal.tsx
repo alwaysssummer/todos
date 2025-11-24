@@ -33,6 +33,8 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
   })
   const [noEndDate, setNoEndDate] = useState(false)
   const [scheduleTemplate, setScheduleTemplate] = useState<{ day: number, time: string, duration: number }[]>([])
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [tuition, setTuition] = useState<number | ''>('')
 
   // 루틴/습관 필드
   const [repeatDays, setRepeatDays] = useState<number[]>([])
@@ -115,6 +117,8 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
         start_date: startDate,
         end_date: noEndDate ? undefined : (endDate || undefined),
         schedule_template: scheduleTemplate,
+        is_private: isPrivate,
+        tuition: tuition === '' ? undefined : Number(tuition),
       }
     } else if (selectedType === 'habit') {
       projectData = {
@@ -279,6 +283,38 @@ export default function ProjectCreateModal({ onClose, onCreateProject, onGenerat
                         </label>
                       </div>
                     </div>
+                  </div>
+
+                  {/* 수업료 입력 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      수업료 <span className="text-xs text-gray-500">(만원 단위)</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={tuition}
+                        onChange={(e) => setTuition(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="12"
+                        min="0"
+                        step="1"
+                        className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-600">만원</span>
+                    </div>
+                  </div>
+
+                  {/* 비공개 체크박스 */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isPrivate}
+                        onChange={(e) => setIsPrivate(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300"
+                      />
+                      <span className="font-medium">🔒 비공개 수업</span>
+                    </label>
                   </div>
 
                   <div>

@@ -35,10 +35,13 @@ export function useProjects() {
         .select('*')
         .order('created_at', { ascending: false })
       
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error fetching projects:', error)
+        throw error
+      }
       setProjects(data || [])
     } catch (error) {
-      console.error('Error fetching projects:', error)
+      console.error('Error fetching projects:', error instanceof Error ? error.message : JSON.stringify(error))
     } finally {
       setLoading(false)
     }
