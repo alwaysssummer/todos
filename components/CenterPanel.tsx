@@ -87,8 +87,7 @@ const DroppableSlot = memo(function DroppableSlot({ date, hour, minute, children
   return (
     <div
       ref={setNodeRef}
-      onClick={makeupMode ? onClick : undefined}
-      onDoubleClick={!makeupMode ? onClick : undefined}
+      onClick={onClick}
       className={`h-[14px] border-r border-gray-100 last:border-r-0 transition-colors cursor-pointer relative group ${isOver ? 'bg-blue-50 border-blue-200 z-10' : 'hover:bg-gray-50'
         } ${minute === 0
           ? 'border-t border-gray-300'
