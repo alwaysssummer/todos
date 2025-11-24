@@ -435,7 +435,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
                       }}
                       className={`ml-1 p-1 rounded-md flex-shrink-0 transition-colors ${isSelected
                         ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                        : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100 border border-yellow-200'
+                        : 'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200'
                         }`}
                       title={isSelected ? "보충 수업 모드 취소" : "보충 수업 추가"}
                     >

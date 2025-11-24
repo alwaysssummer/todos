@@ -55,7 +55,7 @@ const DroppableSlot = memo(function DroppableSlot({ date, hour, minute, children
       if (previewTask.is_cancelled) {
         return 'bg-gray-200/50' // 취소된 수업
       } else if (previewTask.is_makeup) {
-        return 'bg-yellow-200/50' // 보충 수업
+        return 'bg-green-200/50' // 보충 수업
       } else {
         return 'bg-sky-200/50' // 정규 수업
       }
@@ -72,7 +72,7 @@ const DroppableSlot = memo(function DroppableSlot({ date, hour, minute, children
       if (previewTask.is_cancelled) {
         return 'bg-gray-600' // 취소된 수업
       } else if (previewTask.is_makeup) {
-        return 'bg-yellow-600' // 보충 수업
+        return 'bg-green-600' // 보충 수업
       } else {
         return 'bg-sky-600' // 정규 수업
       }
@@ -155,7 +155,7 @@ const DraggableCalendarTask = memo(function DraggableCalendarTask({
       if (task.is_cancelled) {
         return 'bg-gray-100' // 취소된 수업
       } else if (task.is_makeup) {
-        return 'bg-yellow-100' // 보충 수업
+        return 'bg-green-100' // 보충 수업
       } else {
         return 'bg-sky-100' // 정규 수업 - 배경은 항상 하늘색
       }
@@ -182,7 +182,7 @@ const DraggableCalendarTask = memo(function DraggableCalendarTask({
       if (task.is_cancelled) {
         return 'text-gray-500' // 취소된 수업
       } else if (task.is_makeup) {
-        return 'text-yellow-700' // 보충 수업
+        return 'text-green-700' // 보충 수업
       } else {
         return 'text-sky-700' // 정규 수업 - 하늘색 텍스트
       }
@@ -204,7 +204,7 @@ const DraggableCalendarTask = memo(function DraggableCalendarTask({
       if (task.is_cancelled) {
         return 'border-gray-300' // 취소된 수업
       } else if (task.is_makeup) {
-        return 'border-orange-500 border-2' // 보충 수업 (특별수업 - 오렌지)
+        return 'border-green-500 border-2' // 보충 수업
       } else {
         // 정규 수업: 프로젝트 색상을 테두리에 사용
         if (projectColor) {
@@ -214,9 +214,10 @@ const DraggableCalendarTask = memo(function DraggableCalendarTask({
       }
     }
 
-    // 일반 프로젝트인 경우
-    if (!projectColor) return 'border-yellow-200'
-    return projectColor
+    // 일반 태스크인 경우 (프로젝트가 없는 경우)
+    if (!projectColor) return 'border-red-300 border-2'
+    // 일반 프로젝트가 있는 경우
+    return 'border-2'
   }
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -695,22 +696,22 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
 
       {/* 보충 수업 추가 모드 배너 */}
       {makeupProject && (
-        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b-2 border-yellow-300 px-6 py-3">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-300 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">✨</span>
               <div>
-                <div className="text-sm font-semibold text-yellow-900">
+                <div className="text-sm font-semibold text-green-900">
                   보충 수업 추가: {makeupProject.name}
                 </div>
-                <div className="text-xs text-yellow-700 mt-0.5">
+                <div className="text-xs text-green-700 mt-0.5">
                   시간표에서 원하는 시간을 클릭하세요 ({makeupProject.schedule_template?.[0]?.duration || 40}분)
                 </div>
               </div>
             </div>
             <button
               onClick={onClearMakeupMode}
-              className="px-3 py-1.5 text-sm font-medium text-yellow-700 bg-white border border-yellow-300 rounded-lg hover:bg-yellow-50 transition-colors"
+              className="px-3 py-1.5 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
             >
               취소
             </button>
@@ -749,8 +750,8 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
       <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
         <div className="min-w-[800px]">
           <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
-            <div className="grid grid-cols-[4rem_repeat(7,1fr)] gap-0">
-              <div className="w-16 border-r border-gray-200"></div>
+            <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-0">
+              <div className="w-12 border-r border-gray-100 bg-gray-50"></div>
               {days.map((day, i) => {
                 const isToday = isSameDay(weekDates[i], now)
                 return (
@@ -771,9 +772,9 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
 
           <div className="relative">
             {hours.map((hour) => (
-              <div key={hour} className="grid grid-cols-[4rem_repeat(7,1fr)] gap-0 relative">
-                <div className="w-16 text-xs text-right border-r border-gray-200 relative">
-                  <span className={`absolute top-0 right-2 -translate-y-1/2 bg-white px-1 ${hour >= 12 ? 'text-gray-900 font-bold' : 'text-gray-500'}`}>
+              <div key={hour} className="grid grid-cols-[3rem_repeat(7,1fr)] gap-0 relative">
+                <div className="w-12 text-base text-right border-r border-gray-100 bg-gray-50 relative">
+                  <span className={`absolute top-0 right-1.5 -translate-y-1/2 bg-gray-50 px-0.5 ${hour >= 12 ? 'text-gray-900 font-bold' : 'text-gray-500'}`}>
                     {(hour % 12 || 12).toString().padStart(2, '0')}
                   </span>
                 </div>
