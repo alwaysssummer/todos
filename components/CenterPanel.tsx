@@ -761,6 +761,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
               {days.map((day, i) => {
                 const isToday = isSameDay(weekDates[i], now)
                 const dailyNote = getNoteByDate(weekDates[i])
+                const isWeekend = i >= 5 // 토(5), 일(6)
                 return (
                   <div
                     key={day}
@@ -769,11 +770,11 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                       setShowDailyNoteModal(true)
                       onDateHeaderClick?.(weekDates[i])
                     }}
-                    className={`py-1 text-center text-sm font-medium border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors
-                      ${isToday ? 'bg-blue-50/20 border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 text-blue-900' : 'text-gray-900'}`}
+                    className={`py-1 text-center text-sm font-bold border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors
+                      ${isToday ? 'bg-blue-50/20 border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 text-blue-900' : isWeekend ? 'text-red-600' : 'text-gray-900'}`}
                   >
                     {day}
-                    <div className={`text-xs font-normal ${isToday ? 'text-blue-700' : 'text-gray-400'}`}>
+                    <div className={`text-xs font-normal ${isToday ? 'text-blue-700' : isWeekend ? 'text-red-400' : 'text-gray-400'}`}>
                       {format(weekDates[i], 'd')}
                     </div>
                     {dailyNote && (
