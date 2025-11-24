@@ -605,11 +605,47 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
       {/* Bottom: Quick Capture Input (Sticky) */}
       <div className="p-4 border-t border-gray-200 bg-white">
+        {/* 빠른 입력 버튼 */}
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => {
+              if (newTaskTitle.startsWith('*')) {
+                setNewTaskTitle(newTaskTitle.substring(1).trim())
+              } else {
+                setNewTaskTitle('*' + newTaskTitle.replace(/^\/\s*/, ''))
+              }
+            }}
+            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors border ${
+              newTaskTitle.startsWith('*')
+                ? 'text-white bg-red-500 border-red-600'
+                : 'text-red-600 bg-red-50 border-red-200 hover:bg-red-100 active:bg-red-200'
+            }`}
+          >
+            ⭐ Focus
+          </button>
+          <button
+            onClick={() => {
+              if (newTaskTitle.startsWith('/')) {
+                setNewTaskTitle(newTaskTitle.substring(1).trim())
+              } else {
+                setNewTaskTitle('/' + newTaskTitle.replace(/^\*\s*/, ''))
+              }
+            }}
+            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors border ${
+              newTaskTitle.startsWith('/')
+                ? 'text-white bg-green-500 border-green-600'
+                : 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100 active:bg-green-200'
+            }`}
+          >
+            📅 Today
+          </button>
+        </div>
+        
         <textarea
           value={newTaskTitle}
           onChange={(e) => setNewTaskTitle(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="빠른 입력... (Enter로 추가, *제목: Focus, /제목: Today)"
+          placeholder="빠른 입력... (Enter로 추가)"
           className="w-full p-3 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
           rows={2}
         />
