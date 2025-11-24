@@ -154,38 +154,6 @@ export function DailyNoteModal({
         
         {/* 내용 */}
         <div className="px-6 py-4 space-y-4">
-          {/* 이모지 + 카테고리 */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{emoji}</span>
-              <select
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                className="text-sm border border-gray-300 rounded px-2 py-1"
-              >
-                {EMOJI_PRESETS.map(e => (
-                  <option key={e} value={e}>{e}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex gap-1">
-              {CATEGORY_OPTIONS.map(cat => (
-                <button
-                  key={cat.value}
-                  onClick={() => setCategory(cat.value)}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
-                    category === cat.value
-                      ? 'bg-blue-100 text-blue-700 font-medium'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {cat.emoji} {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          
           {/* 제목 */}
           <input
             type="text"
@@ -204,44 +172,6 @@ export function DailyNoteModal({
             rows={6}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           />
-          
-          {/* 날씨 + 기분 */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4 text-gray-400" />
-              <div className="flex gap-1">
-                {WEATHER_OPTIONS.map(w => (
-                  <button
-                    key={w.value}
-                    onClick={() => setWeather(weather === w.value ? undefined : w.value)}
-                    className={`text-xl px-2 py-1 rounded transition-all ${
-                      weather === w.value ? 'bg-blue-100 scale-110' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    {w.emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Smile className="w-4 h-4 text-gray-400" />
-              <div className="flex gap-1">
-                {MOOD_OPTIONS.map(m => (
-                  <button
-                    key={m.value}
-                    onClick={() => setMood(mood === m.value ? undefined : m.value)}
-                    title={m.label}
-                    className={`text-xl px-2 py-1 rounded transition-all ${
-                      mood === m.value ? 'bg-blue-100 scale-110' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    {m.emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
           
           {/* 태그 */}
           <div className="space-y-2">
@@ -275,18 +205,6 @@ export function DailyNoteModal({
               </div>
             )}
           </div>
-          
-          {/* 비공개 */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <Lock className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-700">비공개 기록</span>
-          </label>
         </div>
         
         {/* 푸터 */}
