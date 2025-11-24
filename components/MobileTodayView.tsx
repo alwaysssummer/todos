@@ -171,14 +171,48 @@ export default function MobileTodayView({
 
       {/* 빠른 입력창 - 하단 고정 */}
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40">
-        <textarea
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="* Focus, / 오늘, [[태그]]"
-          className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          rows={2}
-        />
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => {
+              if (newTaskTitle.startsWith('*')) {
+                setNewTaskTitle(newTaskTitle.substring(1).trim())
+              } else {
+                setNewTaskTitle('*' + newTaskTitle.replace(/^\/\s*/, ''))
+              }
+            }}
+            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+              newTaskTitle.startsWith('*')
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+            }`}
+          >
+            *
+          </button>
+          <button
+            onClick={() => {
+              if (newTaskTitle.startsWith('/')) {
+                setNewTaskTitle(newTaskTitle.substring(1).trim())
+              } else {
+                setNewTaskTitle('/' + newTaskTitle.replace(/^\*\s*/, ''))
+              }
+            }}
+            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+              newTaskTitle.startsWith('/')
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+            }`}
+          >
+            /
+          </button>
+          <textarea
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="빠른 입력 (Enter)"
+            className="flex-1 px-3 py-2 text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={2}
+          />
+        </div>
       </div>
     </div>
   )
