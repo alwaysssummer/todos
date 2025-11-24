@@ -171,39 +171,42 @@ export default function MobileTodayView({
 
       {/* 빠른 입력창 - 하단 고정 */}
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40">
-        <div className="flex gap-2 mb-2">
-          <button
-            onClick={() => {
-              if (newTaskTitle.startsWith('*')) {
-                setNewTaskTitle(newTaskTitle.substring(1).trim())
-              } else {
-                setNewTaskTitle('*' + newTaskTitle.replace(/^\/\s*/, ''))
-              }
-            }}
-            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
-              newTaskTitle.startsWith('*')
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-100 text-gray-700 active:bg-gray-200'
-            }`}
-          >
-            *
-          </button>
-          <button
-            onClick={() => {
-              if (newTaskTitle.startsWith('/')) {
-                setNewTaskTitle(newTaskTitle.substring(1).trim())
-              } else {
-                setNewTaskTitle('/' + newTaskTitle.replace(/^\*\s*/, ''))
-              }
-            }}
-            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
-              newTaskTitle.startsWith('/')
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 active:bg-gray-200'
-            }`}
-          >
-            /
-          </button>
+        <div className="flex gap-2">
+          {/* 모바일에서만 표시되는 버튼 (세로 배치) */}
+          <div className="md:hidden flex flex-col gap-2">
+            <button
+              onClick={() => {
+                if (newTaskTitle.startsWith('*')) {
+                  setNewTaskTitle(newTaskTitle.substring(1).trim())
+                } else {
+                  setNewTaskTitle('*' + newTaskTitle.replace(/^\/\s*/, ''))
+                }
+              }}
+              className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
+                newTaskTitle.startsWith('*')
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+              }`}
+            >
+              *
+            </button>
+            <button
+              onClick={() => {
+                if (newTaskTitle.startsWith('/')) {
+                  setNewTaskTitle(newTaskTitle.substring(1).trim())
+                } else {
+                  setNewTaskTitle('/' + newTaskTitle.replace(/^\*\s*/, ''))
+                }
+              }}
+              className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
+                newTaskTitle.startsWith('/')
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+              }`}
+            >
+              /
+            </button>
+          </div>
           <textarea
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
