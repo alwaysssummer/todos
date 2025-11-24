@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -151,6 +151,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
+  const inboxScrollRef = useRef<HTMLDivElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -206,6 +207,9 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   }
 
   const handleToggleComplete = (task: Task) => {
+    // 현재 스크롤 위치 저장
+    const scrollTop = inboxScrollRef.current?.scrollTop || 0
+    
     if (task.status !== 'completed') {
       // 완료로 전환하는 경우 - 애니메이션 후 상태 변경
       setCompletingIds(prev => new Set(prev).add(task.id))
@@ -218,10 +222,24 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           next.delete(task.id)
           return next
         })
+        
+        // 스크롤 위치 복원
+        requestAnimationFrame(() => {
+          if (inboxScrollRef.current) {
+            inboxScrollRef.current.scrollTop = scrollTop
+          }
+        })
       }, 300)
     } else {
       // 완료 취소는 즉시
       toggleTaskStatus(task.id, task.status)
+      
+      // 스크롤 위치 복원
+      requestAnimationFrame(() => {
+        if (inboxScrollRef.current) {
+          inboxScrollRef.current.scrollTop = scrollTop
+        }
+      })
     }
   }
 
@@ -392,7 +410,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   }
 
   // Droppable Container Component
-  function DroppableContainer({ id, title, count, children, className }: { id: string, title: string, count?: number, children: React.ReactNode, className?: string }) {
+  function DroppableContainer({ id, title, count, children, className, scrollRef }: { id: string, title: string, count?: number, children: React.ReactNode, className?: string, scrollRef?: React.RefObject<HTMLDivElement> }) {
     const { setNodeRef, isOver } = useDroppable({ id })
 
     return (
@@ -400,7 +418,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
         <h2 className={`text-sm mb-3 px-4 pt-4 ${title === "Today's Focus" ? 'text-red-600 font-extrabold' : 'font-semibold text-gray-900'}`}>
           {title} {count !== undefined && <span className="text-gray-400 font-normal">({count})</span>}
         </h2>
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-4">
           {children}
         </div>
       </div>
@@ -491,6 +509,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
             id="inbox-container"
             title={selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name || 'INBOX' : 'INBOX'}
             className="h-full"
+            scrollRef={inboxScrollRef}
           >
             <SortableContext items={inboxTasks.map(t => `${t.id}-inbox`)} strategy={verticalListSortingStrategy}>
               <div className="space-y-0">
