@@ -772,11 +772,12 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                       setShowDailyNoteModal(true)
                       onDateHeaderClick?.(weekDates[i])
                     }}
-                    className={`py-1 text-center text-sm font-bold border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors
-                      ${isToday ? 'bg-blue-50/20 border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 text-blue-900' : isWeekend ? 'text-red-600' : 'text-gray-900'}`}
+                    className={`py-1 text-center text-sm font-bold border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-100 transition-colors
+                      ${isToday ? 'bg-gray-200 border-l-2 border-r-2 border-l-gray-300 border-r-gray-300' : 'bg-gray-50'}
+                      ${isWeekend ? 'text-red-600' : 'text-gray-900'}`}
                   >
                     {day}
-                    <div className={`text-xs font-normal ${isToday ? 'text-blue-700' : isWeekend ? 'text-red-400' : 'text-gray-400'}`}>
+                    <div className={`text-xs font-normal ${isToday ? 'text-gray-700' : isWeekend ? 'text-red-400' : 'text-gray-400'}`}>
                       {format(weekDates[i], 'd')}
                     </div>
                     {dailyNote && (
