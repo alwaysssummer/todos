@@ -162,6 +162,23 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
     opacity: isDragging ? 0.5 : 1,
   }
 
+  const handleLinkClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // 화면 중앙에 팝업 창 열기
+    const width = 1200
+    const height = 800
+    const left = (window.screen.width - width) / 2
+    const top = (window.screen.height - height) / 2
+    
+    window.open(
+      link.url,
+      '_blank',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    )
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -172,10 +189,8 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
     >
       <a
         href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
         className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate"
-        onClick={(e) => e.stopPropagation()}
+        onClick={handleLinkClick}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <ExternalLink size={12} className="flex-shrink-0" />
@@ -361,17 +376,17 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const inboxTasks = useMemo(() => {
     let filtered = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
-    // 프로젝트 필터 적용
-    if (selectedProjectId) {
+  // 프로젝트 필터 적용
+  if (selectedProjectId) {
       filtered = filtered.filter(t => t.project_id === selectedProjectId)
-    }
+  }
 
-    // Inbox 정렬
+  // Inbox 정렬
     return filtered.sort((a, b) => {
-      const getScore = (task: Task) => {
-        const isRed = task.is_top5
+    const getScore = (task: Task) => {
+      const isRed = task.is_top5
         const isGreen = task.due_date?.split('T')[0] === todayStr
-        const isYellow = task.status === 'scheduled'
+      const isYellow = task.status === 'scheduled'
 
         if (isRed && isYellow) return 5               // 1. 빨간색 + 노란색
         if (isRed) return 4                           // 2. 빨간색
@@ -379,17 +394,17 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
         if (isGreen) return 2                         // 4. 초록색
         if (isYellow) return 1                        // 5. 노란색
         return 0                                      // 6. 나머지
-      }
+    }
 
-      const scoreA = getScore(a)
-      const scoreB = getScore(b)
+    const scoreA = getScore(a)
+    const scoreB = getScore(b)
 
-      if (scoreA !== scoreB) {
-        return scoreB - scoreA
-      }
+    if (scoreA !== scoreB) {
+      return scoreB - scoreA
+    }
 
-      return (a.order_index || 0) - (b.order_index || 0)
-    })
+    return (a.order_index || 0) - (b.order_index || 0)
+  })
   }, [tasks, selectedProjectId, todayStr])
 
   const handleDragEnd = async (event: DragEndEvent) => {
