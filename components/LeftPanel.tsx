@@ -145,7 +145,11 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
 }
 
 // Sortable Notion Link 컴포넌트
-function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (id: string) => void }) {
+function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, onUpdate: (id: string, updates: Partial<NotionLink>) => void, onDelete: (id: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(link.title)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const {
     attributes,
     listeners,
@@ -162,6 +166,14 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
     opacity: isDragging ? 0.6 : 1,
   }
 
+  // 편집 모드 진입
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
   const handleLinkClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -177,6 +189,36 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
       '_blank',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     )
+  }
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsEditing(true)
+    setEditTitle(link.title)
+  }
+
+  const handleSave = async () => {
+    const trimmedTitle = editTitle.trim()
+    if (trimmedTitle && trimmedTitle !== link.title) {
+      await onUpdate(link.id, { title: trimmedTitle })
+    }
+    setIsEditing(false)
+  }
+
+  const handleCancel = () => {
+    setEditTitle(link.title)
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSave()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      handleCancel()
+    }
   }
 
   return (
@@ -198,26 +240,64 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
         <GripVertical size={14} />
       </div>
 
-      {/* 링크 */}
-      <a
-        href={link.url}
-        className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate cursor-pointer"
-        onClick={handleLinkClick}
-      >
-        <ExternalLink size={12} className="flex-shrink-0" />
-        <span className="truncate">{link.title}</span>
-      </a>
+      {isEditing ? (
+        // 편집 모드
+        <>
+          <ExternalLink size={12} className="flex-shrink-0 text-gray-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleSave}
+            className="flex-1 px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleSave()
+            }}
+            className="flex-shrink-0 text-green-600 hover:text-green-700 p-0.5"
+          >
+            <Check size={12} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleCancel()
+            }}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-0.5"
+          >
+            <X size={12} />
+          </button>
+        </>
+      ) : (
+        // 일반 모드
+        <>
+          {/* 링크 */}
+          <a
+            href={link.url}
+            className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate cursor-pointer"
+            onClick={handleLinkClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            <ExternalLink size={12} className="flex-shrink-0" />
+            <span className="truncate">{link.title}</span>
+          </a>
 
-      {/* 삭제 버튼 */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          onDelete(link.id)
-        }}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0 p-0.5"
-      >
-        <X size={12} />
-      </button>
+          {/* 삭제 버튼 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(link.id)
+            }}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0 p-0.5"
+          >
+            <X size={12} />
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -236,7 +316,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const shouldRestoreScrollRef = useRef<boolean>(false)
 
   // Notion Links 상태
-  const { links: notionLinks, createLink, deleteLink, reorderLinks } = useNotionLinks()
+  const { links: notionLinks, createLink, updateLink, deleteLink, reorderLinks } = useNotionLinks()
   const [showNotionLinkModal, setShowNotionLinkModal] = useState(false)
   const [newLinkTitle, setNewLinkTitle] = useState('')
   const [newLinkUrl, setNewLinkUrl] = useState('')
@@ -663,6 +743,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                   <SortableNotionLink
                     key={link.id}
                     link={link}
+                    onUpdate={updateLink}
                     onDelete={handleDeleteNotionLink}
                   />
                 ))}

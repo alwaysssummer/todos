@@ -51,6 +51,24 @@ export function useNotionLinks() {
     }
   }
 
+  const updateLink = async (id: string, updates: Partial<NotionLink>) => {
+    const { data, error } = await supabase
+      .from('notion_links')
+      .update(updates)
+      .eq('id', id)
+      .select()
+    
+    if (error) {
+      console.error('❌ Notion Link 수정 에러:', error)
+      alert('링크 수정 실패: ' + error.message)
+      return
+    }
+    
+    if (data) {
+      setLinks(links.map(l => l.id === id ? data[0] : l))
+    }
+  }
+
   const deleteLink = async (id: string) => {
     const { error } = await supabase
       .from('notion_links')
@@ -88,6 +106,6 @@ export function useNotionLinks() {
     }
   }
 
-  return { links, loading, createLink, deleteLink, reorderLinks }
+  return { links, loading, createLink, updateLink, deleteLink, reorderLinks }
 }
 
