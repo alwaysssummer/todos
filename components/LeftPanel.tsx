@@ -225,7 +225,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-2 p-2 text-xs bg-white border rounded-md transition-all shadow-sm ${
+      className={`group flex items-center gap-2 p-2 text-sm font-semibold bg-white border rounded-md transition-all shadow-sm ${
         isDragging 
           ? 'border-blue-400 shadow-xl' 
           : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-md'
@@ -251,7 +251,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             onChange={(e) => setEditTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSave}
-            className="flex-1 px-2 py-0.5 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 px-2 py-0.5 text-sm font-semibold border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <button
             onClick={(e) => {
@@ -278,11 +278,11 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
           {/* 링크 */}
           <a
             href={link.url}
-            className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate cursor-pointer"
+            className="flex-1 flex items-center gap-1.5 text-gray-800 hover:text-blue-600 truncate cursor-pointer"
             onClick={handleLinkClick}
           >
             <ExternalLink size={14} className="flex-shrink-0" />
-            <span className="truncate">{link.title}</span>
+            <span className="truncate font-semibold">{link.title}</span>
           </a>
 
           {/* 편집 버튼 */}
