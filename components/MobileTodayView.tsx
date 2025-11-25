@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Task, Project } from '@/types/database'
 import { extractTags } from '@/utils/textParser'
+import { useRoutines } from '@/hooks/useRoutines'
 
 interface MobileTodayViewProps {
   tasks: Task[]
@@ -20,7 +21,27 @@ export default function MobileTodayView({
   projects
 }: MobileTodayViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const todayStr = new Date().toISOString().split('T')[0]
+
+  // 모바일에서 오늘 화면 진입 시 자동으로 입력창 포커스
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // 모바일/태블릿 좁은 화면에서만 자동 포커스
+    if (window.innerWidth < 768) {
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 150)
+    }
+  }, [])
+
+  // ===== 루틴 (모바일 전용 간단 뷰) =====
+  const {
+    todayRoutines,
+    loading: routinesLoading,
+    getRoutineCompleted,
+    toggleComplete: toggleRoutineComplete,
+  } = useRoutines()
 
   // Focus Tasks (빨간색)
   const focusTasks = tasks.filter(t => 
@@ -79,6 +100,61 @@ export default function MobileTodayView({
     <div className="h-full flex flex-col bg-gray-50">
       {/* 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto pb-32">
+        {/* ROUTINES - Today's Focus 위에 노출 (모바일 전용) */}
+        <div className="bg-white mb-2">
+          <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-orange-500">ROUTINES</h2>
+            {!routinesLoading && todayRoutines.length > 0 && (
+              <span className="text-[11px] text-gray-400">
+                오늘 {todayRoutines.length}개
+              </span>
+            )}
+          </div>
+
+          {routinesLoading ? (
+            <div className="px-3 py-3 text-xs text-gray-400">루틴 불러오는 중...</div>
+          ) : todayRoutines.length === 0 ? (
+            <div className="px-3 py-3 text-xs text-gray-400">
+              좌측 패널에서 루틴을 추가하면 이곳에 표시됩니다.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {todayRoutines.map(routine => {
+                const completed = getRoutineCompleted(routine.id)
+                return (
+                  <button
+                    key={routine.id}
+                    type="button"
+                    className="w-full flex items-center gap-2 px-3 py-2 active:bg-gray-50"
+                    onClick={() => toggleRoutineComplete(routine.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={completed}
+                      readOnly
+                      className="w-4 h-4 rounded border-orange-300 text-orange-500 focus:ring-orange-500 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className={`text-sm truncate ${
+                          completed ? 'line-through text-gray-400' : 'text-gray-900 font-medium'
+                        }`}
+                      >
+                        {routine.title}
+                      </div>
+                    </div>
+                    {routine.target_time && (
+                      <span className="text-[11px] text-gray-400 flex-shrink-0">
+                        {routine.target_time}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Today's Focus */}
         {focusTasks.length > 0 && (
           <div className="bg-white mb-2">
@@ -175,12 +251,16 @@ export default function MobileTodayView({
           {/* 모바일에서만 표시되는 버튼 (세로 배치) */}
           <div className="md:hidden flex flex-col gap-2">
             <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()} // 버튼이 포커스를 가져가지 않도록
               onClick={() => {
                 if (newTaskTitle.startsWith('*')) {
                   setNewTaskTitle(newTaskTitle.substring(1).trim())
                 } else {
                   setNewTaskTitle('*' + newTaskTitle.replace(/^\/\s*/, ''))
                 }
+                // 누른 후에도 입력창 포커스 유지
+                inputRef.current?.focus()
               }}
               className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
                 newTaskTitle.startsWith('*')
@@ -191,12 +271,15 @@ export default function MobileTodayView({
               *
             </button>
             <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 if (newTaskTitle.startsWith('/')) {
                   setNewTaskTitle(newTaskTitle.substring(1).trim())
                 } else {
                   setNewTaskTitle('/' + newTaskTitle.replace(/^\*\s*/, ''))
                 }
+                inputRef.current?.focus()
               }}
               className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
                 newTaskTitle.startsWith('/')
@@ -208,6 +291,7 @@ export default function MobileTodayView({
             </button>
           </div>
           <textarea
+            ref={inputRef}
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={handleKeyDown}
