@@ -18,11 +18,12 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2 } from 'lucide-react'
-import type { Task, Project } from '@/types/database'
+import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink } from 'lucide-react'
+import type { Task, Project, NotionLink } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 import ProjectCreateModal from './ProjectCreateModal'
 import { extractTags } from '@/utils/textParser'
+import { useNotionLinks } from '@/hooks/useNotionLinks'
 
 interface LeftPanelProps {
   tasks: Task[]
@@ -143,6 +144,57 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
   )
 }
 
+// Sortable Notion Link 컴포넌트
+function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (id: string) => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: `notion-link-${link.id}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="group flex items-center justify-between gap-2 p-1.5 text-xs bg-white border border-gray-200 rounded hover:border-blue-300 hover:bg-blue-50/30 transition-colors cursor-grab active:cursor-grabbing"
+    >
+      <a
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <ExternalLink size={12} className="flex-shrink-0" />
+        <span className="truncate">{link.title}</span>
+      </a>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete(link.id)
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  )
+}
+
 export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, reorderTasks, toggleTaskStatus, projects, createProject, updateProject, deleteProject }: LeftPanelProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -155,6 +207,12 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const inboxScrollRef = useRef<HTMLDivElement>(null)
   const savedScrollPositionRef = useRef<number>(0)
   const shouldRestoreScrollRef = useRef<boolean>(false)
+
+  // Notion Links 상태
+  const { links: notionLinks, createLink, deleteLink, reorderLinks } = useNotionLinks()
+  const [showNotionLinkModal, setShowNotionLinkModal] = useState(false)
+  const [newLinkTitle, setNewLinkTitle] = useState('')
+  const [newLinkUrl, setNewLinkUrl] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -225,6 +283,30 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
     const rect = (e.target as HTMLElement).getBoundingClientRect()
     setPopoverPosition({ x: rect.right + 10, y: rect.top })
     setSelectedTask(task)
+  }
+
+  // Notion Link 관련 핸들러
+  const handleCreateNotionLink = async () => {
+    if (!newLinkTitle.trim() || !newLinkUrl.trim()) {
+      alert('제목과 링크를 모두 입력해주세요.')
+      return
+    }
+
+    await createLink({
+      title: newLinkTitle,
+      url: newLinkUrl,
+      order_index: notionLinks.length
+    })
+
+    setNewLinkTitle('')
+    setNewLinkUrl('')
+    setShowNotionLinkModal(false)
+  }
+
+  const handleDeleteNotionLink = async (id: string) => {
+    if (confirm('이 프로젝트 링크를 삭제하시겠습니까?')) {
+      await deleteLink(id)
+    }
   }
 
   const handleToggleComplete = (task: Task) => {
@@ -316,6 +398,16 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
     const activeId = active.id as string
     const overId = over.id as string
+
+    // Notion Link 드래그 처리
+    if (activeId.startsWith('notion-link-') && overId.startsWith('notion-link-')) {
+      const realActiveId = activeId.replace('notion-link-', '')
+      const realOverId = overId.replace('notion-link-', '')
+      if (realActiveId !== realOverId) {
+        await reorderLinks(realActiveId, realOverId)
+      }
+      return
+    }
 
     // ID에서 접미사 제거
     const realActiveId = activeId.replace(/-inbox$/, '').replace(/-waiting$/, '')
@@ -517,6 +609,39 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
               </div>
             </SortableContext>
           </DroppableContainer>
+        </div>
+
+        {/* PROJECT 섹션 */}
+        <div className="border-b border-gray-200 flex-shrink-0">
+          <h2 className="text-sm mb-2 px-4 pt-4 font-semibold text-gray-900 flex items-center justify-between">
+            PROJECT
+            <button
+              onClick={() => setShowNotionLinkModal(true)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="프로젝트 링크 추가"
+            >
+              <Plus size={16} />
+            </button>
+          </h2>
+          
+          <div className="px-4 pb-3">
+            <SortableContext items={notionLinks.map(l => `notion-link-${l.id}`)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1">
+                {notionLinks.length === 0 && (
+                  <div className="text-xs text-gray-400 text-center py-2">
+                    + 버튼을 눌러 프로젝트를 추가하세요
+                  </div>
+                )}
+                {notionLinks.map((link) => (
+                  <SortableNotionLink
+                    key={link.id}
+                    link={link}
+                    onDelete={handleDeleteNotionLink}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </div>
         </div>
 
         {/* Bottom: Inbox (Master List) */}
@@ -725,6 +850,73 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notion Link 추가 모달 */}
+      {showNotionLinkModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setShowNotionLinkModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-96 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">프로젝트 링크 추가</h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  제목
+                </label>
+                <input
+                  type="text"
+                  value={newLinkTitle}
+                  onChange={e => setNewLinkTitle(e.target.value)}
+                  placeholder="논문 작성"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newLinkTitle.trim() && newLinkUrl.trim()) {
+                      handleCreateNotionLink()
+                    }
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  링크
+                </label>
+                <input
+                  type="url"
+                  value={newLinkUrl}
+                  onChange={e => setNewLinkUrl(e.target.value)}
+                  placeholder="https://notion.so/..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newLinkTitle.trim() && newLinkUrl.trim()) {
+                      handleCreateNotionLink()
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => {
+                  setShowNotionLinkModal(false)
+                  setNewLinkTitle('')
+                  setNewLinkUrl('')
+                }}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCreateNotionLink}
+                className="flex-1 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              >
+                추가
+              </button>
             </div>
           </div>
         </div>

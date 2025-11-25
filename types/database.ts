@@ -79,6 +79,18 @@ export interface Memo {
 }
 
 // =====================================================
+// Notion Links (프로젝트 링크)
+// =====================================================
+
+export interface NotionLink {
+    id: string
+    title: string
+    url: string
+    order_index: number
+    created_at: string
+}
+
+// =====================================================
 // Daily Notes (일일 기록)
 // =====================================================
 
