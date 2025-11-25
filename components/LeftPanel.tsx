@@ -471,41 +471,34 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   // 3. Waiting: status === 'waiting'
   const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup)
 
-  // 4. Inbox: ALL active tasks EXCEPT waiting (One Source of Truth)
-  // Inbox에는 Waiting이 아닌 모든 활성 태스크가 포함됨 (Focus, Today 포함)
+  // 4. Inbox: Focus와 Today's Task에 표시된 것은 제외 (중복 방지)
   // 보충수업(is_makeup)과 정규수업(is_auto_generated)은 INBOX에서 제외
   const inboxTasks = useMemo(() => {
-    let filtered = tasks.filter(t => t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
+    let filtered = tasks.filter(t => 
+      t.status !== 'completed' && 
+      t.status !== 'waiting' && 
+      !t.is_auto_generated && 
+      !t.is_makeup &&
+      !t.is_top5 &&  // Today's Focus에 있는 것 제외
+      t.due_date?.split('T')[0] !== todayStr  // Today's Task에 있는 것 제외
+    )
 
-  // 프로젝트 필터 적용
-  if (selectedProjectId) {
+    // 프로젝트 필터 적용
+    if (selectedProjectId) {
       filtered = filtered.filter(t => t.project_id === selectedProjectId)
-  }
+    }
 
-  // Inbox 정렬
+    // Inbox 정렬 (order_index 기준)
     return filtered.sort((a, b) => {
-    const getScore = (task: Task) => {
-      const isRed = task.is_top5
-        const isGreen = task.due_date?.split('T')[0] === todayStr
-      const isYellow = task.status === 'scheduled'
+      const isYellowA = a.status === 'scheduled'
+      const isYellowB = b.status === 'scheduled'
 
-        if (isRed && isYellow) return 5               // 1. 빨간색 + 노란색
-        if (isRed) return 4                           // 2. 빨간색
-        if (isGreen && isYellow) return 3             // 3. 초록색 + 노란색
-        if (isGreen) return 2                         // 4. 초록색
-        if (isYellow) return 1                        // 5. 노란색
-        return 0                                      // 6. 나머지
-    }
+      // 노란색(scheduled)이 위로
+      if (isYellowA && !isYellowB) return -1
+      if (!isYellowA && isYellowB) return 1
 
-    const scoreA = getScore(a)
-    const scoreB = getScore(b)
-
-    if (scoreA !== scoreB) {
-      return scoreB - scoreA
-    }
-
-    return (a.order_index || 0) - (b.order_index || 0)
-  })
+      return (a.order_index || 0) - (b.order_index || 0)
+    })
   }, [tasks, selectedProjectId, todayStr])
 
   const handleDragEnd = async (event: DragEndEvent) => {
