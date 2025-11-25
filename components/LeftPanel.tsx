@@ -22,6 +22,7 @@ import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, 
 import type { Task, Project, NotionLink } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 import ProjectCreateModal from './ProjectCreateModal'
+import RoutineSection from './RoutineSection'
 import { extractTags } from '@/utils/textParser'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
 
@@ -666,6 +667,9 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           }}
         />
       )}
+
+      {/* ROUTINES 섹션 - Today's Focus 위에 독립적으로 배치 */}
+      <RoutineSection />
 
       <DndContext
         sensors={sensors}

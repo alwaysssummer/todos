@@ -79,6 +79,62 @@ export interface Memo {
 }
 
 // =====================================================
+// 루틴 (Routine) - 독립적인 일일 반복 체크 시스템
+// =====================================================
+
+export interface Routine {
+    id: string
+    title: string
+    repeat_days: number[]        // [0,1,2,3,4,5,6] = 일~토, 기본값 매일
+    target_time?: string         // "07:00" 형식 (선택)
+    is_active: boolean           // 활성화 여부
+    order_index: number          // 정렬 순서
+    created_at: string
+}
+
+export interface RoutineLog {
+    id: string
+    routine_id: string           // 루틴 ID
+    date: string                 // "2025-11-25" (날짜)
+    is_completed: boolean        // 체크 여부
+    completed_at?: string        // 완료 시간
+    note?: string                // 메모 (선택)
+    created_at: string
+}
+
+// 루틴 통계 타입
+export interface RoutineStats {
+    routine_id: string
+    total_count: number          // 총 달성 횟수
+    week_count: number           // 이번 주 달성
+    week_total: number           // 이번 주 총 일수
+    month_count: number          // 이번 달 달성
+    month_total: number          // 이번 달 총 일수
+    streak: number               // 연속 달성일
+    last_completed?: string      // 마지막 완료일
+    
+    // 확장 통계
+    best_streak: number          // 최장 연속 기록
+    total_rate: number           // 전체 달성률 (%)
+    avg_completion_time?: string // 평균 완료 시간 (HH:mm)
+    first_completed?: string     // 최초 완료일
+}
+
+// 달력용 로그 데이터
+export interface RoutineCalendarLog {
+    date: string                 // "YYYY-MM-DD"
+    is_completed: boolean
+    note?: string
+    completed_at?: string
+}
+
+// 최근 메모 타입
+export interface RoutineRecentNote {
+    date: string
+    note: string
+}
+
+// =====================================================
 // Notion Links (프로젝트 링크)
 // =====================================================
 
