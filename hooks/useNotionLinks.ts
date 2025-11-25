@@ -19,8 +19,15 @@ export function useNotionLinks() {
       .order('order_index', { ascending: true })
     
     if (error) {
-      console.error('❌ Notion Links 조회 에러:', error)
+      console.error('❌ Notion Links 조회 에러 (전체):', JSON.stringify(error, null, 2))
+      console.error('❌ 에러 상세:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       console.error('💡 Supabase에서 notion_links 테이블을 생성했는지 확인하세요!')
+      console.error('💡 테이블 생성 SQL: https://github.com/alwaysssummer/todos/blob/project/supabase_notion_links.sql')
     }
     
     if (data) {
