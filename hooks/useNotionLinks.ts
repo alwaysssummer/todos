@@ -1,98 +1,61 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { NotionLink } from '@/types/database'
+
+export interface NotionLink {
+  id: string
+  title: string
+  url: string
+  order_index: number
+  created_at: string
+}
+
+const STORAGE_KEY = 'notion_links'
 
 export function useNotionLinks() {
   const [links, setLinks] = useState<NotionLink[]>([])
   const [loading, setLoading] = useState(true)
 
+  // 로컬 스토리지에서 로드
   useEffect(() => {
-    fetchLinks()
-  }, [])
-
-  const fetchLinks = async () => {
-    const { data, error } = await supabase
-      .from('notion_links')
-      .select('*')
-      .order('order_index', { ascending: true })
-    
-    if (error) {
-      console.error('❌ Notion Links 조회 에러 (전체):', JSON.stringify(error, null, 2))
-      console.error('❌ 에러 상세:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      })
-      console.error('💡 Supabase에서 notion_links 테이블을 생성했는지 확인하세요!')
-      console.error('💡 테이블 생성 SQL: https://github.com/alwaysssummer/todos/blob/project/supabase_notion_links.sql')
-    }
-    
-    if (data) {
-      console.log('✅ Notion Links 로드:', data)
-      setLinks(data)
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        setLinks(parsed)
+      } catch (e) {
+        console.error('로컬 스토리지 파싱 에러:', e)
+      }
     }
     setLoading(false)
+  }, [])
+
+  // 링크 변경시마다 로컬 스토리지에 저장
+  const saveToStorage = (newLinks: NotionLink[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newLinks))
+    setLinks(newLinks)
   }
 
-  const createLink = async (link: Partial<NotionLink>) => {
-    console.log('📝 Notion Link 생성 시도:', link)
-    
-    const { data, error } = await supabase
-      .from('notion_links')
-      .insert([link])
-      .select()
-    
-    if (error) {
-      console.error('❌ Notion Link 생성 에러 (전체):', JSON.stringify(error, null, 2))
-      console.error('❌ 에러 상세:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      })
-      alert(`링크 생성 실패:\n${error.message || '알 수 없는 에러'}\n\n상세: ${error.details || error.hint || '없음'}`)
-      return
+  const createLink = (link: Partial<NotionLink>) => {
+    const newLink: NotionLink = {
+      id: Date.now().toString(),
+      title: link.title || '',
+      url: link.url || '',
+      order_index: links.length,
+      created_at: new Date().toISOString()
     }
     
-    if (data) {
-      console.log('✅ Notion Link 생성 성공:', data[0])
-      setLinks([...links, data[0]])
-      return data[0]
-    }
+    const newLinks = [...links, newLink]
+    saveToStorage(newLinks)
+    return newLink
   }
 
-  const updateLink = async (id: string, updates: Partial<NotionLink>) => {
-    const { data, error } = await supabase
-      .from('notion_links')
-      .update(updates)
-      .eq('id', id)
-      .select()
-    
-    if (data) {
-      setLinks(links.map(l => l.id === id ? data[0] : l))
-    }
+  const deleteLink = (id: string) => {
+    const newLinks = links.filter(l => l.id !== id)
+    saveToStorage(newLinks)
   }
 
-  const deleteLink = async (id: string) => {
-    const { error } = await supabase
-      .from('notion_links')
-      .delete()
-      .eq('id', id)
-    
-    if (error) {
-      console.error('❌ Notion Link 삭제 에러:', error)
-      alert(`링크 삭제 실패: ${error.message}`)
-      return
-    }
-    
-    console.log('✅ Notion Link 삭제 성공:', id)
-    setLinks(links.filter(l => l.id !== id))
-  }
-
-  const reorderLinks = async (activeId: string, overId: string) => {
+  const reorderLinks = (activeId: string, overId: string) => {
     const oldIndex = links.findIndex(l => l.id === activeId)
     const newIndex = links.findIndex(l => l.id === overId)
 
@@ -102,23 +65,14 @@ export function useNotionLinks() {
     const [movedLink] = newLinks.splice(oldIndex, 1)
     newLinks.splice(newIndex, 0, movedLink)
 
-    // 로컬 상태 즉시 업데이트
-    setLinks(newLinks)
+    // order_index 재설정
+    newLinks.forEach((link, index) => {
+      link.order_index = index
+    })
 
-    // DB 업데이트 (order_index 재설정)
-    const updates = newLinks.map((link, index) => ({
-      id: link.id,
-      order_index: index
-    }))
-
-    for (const update of updates) {
-      await supabase
-        .from('notion_links')
-        .update({ order_index: update.order_index })
-        .eq('id', update.id)
-    }
+    saveToStorage(newLinks)
   }
 
-  return { links, loading, createLink, updateLink, deleteLink, reorderLinks, refetchLinks: fetchLinks }
+  return { links, loading, createLink, deleteLink, reorderLinks }
 }
 
