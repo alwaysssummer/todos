@@ -225,10 +225,10 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-2 p-1.5 text-xs bg-white border rounded transition-all ${
+      className={`group flex items-center gap-2 p-2 text-xs bg-white border rounded-md transition-all shadow-sm ${
         isDragging 
-          ? 'border-blue-400 shadow-lg' 
-          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+          ? 'border-blue-400 shadow-xl' 
+          : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-md'
       }`}
     >
       {/* 드래그 핸들 */}
@@ -237,13 +237,13 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
         {...listeners}
         className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors p-0.5"
       >
-        <GripVertical size={14} />
+        <GripVertical size={16} />
       </div>
 
       {isEditing ? (
         // 편집 모드
         <>
-          <ExternalLink size={12} className="flex-shrink-0 text-gray-400" />
+          <ExternalLink size={14} className="flex-shrink-0 text-gray-400" />
           <input
             ref={inputRef}
             type="text"
@@ -260,7 +260,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             }}
             className="flex-shrink-0 text-green-600 hover:text-green-700 p-0.5"
           >
-            <Check size={12} />
+            <Check size={14} />
           </button>
           <button
             onClick={(e) => {
@@ -269,7 +269,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             }}
             className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-0.5"
           >
-            <X size={12} />
+            <X size={14} />
           </button>
         </>
       ) : (
@@ -281,7 +281,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate cursor-pointer"
             onClick={handleLinkClick}
           >
-            <ExternalLink size={12} className="flex-shrink-0" />
+            <ExternalLink size={14} className="flex-shrink-0" />
             <span className="truncate">{link.title}</span>
           </a>
 
@@ -291,7 +291,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity flex-shrink-0 p-0.5"
             title="이름 수정"
           >
-            <Pencil size={12} />
+            <Pencil size={14} />
           </button>
 
           {/* 삭제 버튼 */}
@@ -303,7 +303,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0 p-0.5"
             title="삭제"
           >
-            <X size={12} />
+            <X size={14} />
           </button>
         </>
       )}
