@@ -18,17 +18,34 @@ export function useNotionLinks() {
       .select('*')
       .order('order_index', { ascending: true })
     
-    if (data) setLinks(data)
+    if (error) {
+      console.error('❌ Notion Links 조회 에러:', error)
+      console.error('💡 Supabase에서 notion_links 테이블을 생성했는지 확인하세요!')
+    }
+    
+    if (data) {
+      console.log('✅ Notion Links 로드:', data)
+      setLinks(data)
+    }
     setLoading(false)
   }
 
   const createLink = async (link: Partial<NotionLink>) => {
+    console.log('📝 Notion Link 생성 시도:', link)
+    
     const { data, error } = await supabase
       .from('notion_links')
       .insert([link])
       .select()
     
+    if (error) {
+      console.error('❌ Notion Link 생성 에러:', error)
+      alert(`링크 생성 실패: ${error.message}`)
+      return
+    }
+    
     if (data) {
+      console.log('✅ Notion Link 생성 성공:', data[0])
       setLinks([...links, data[0]])
       return data[0]
     }
@@ -52,9 +69,14 @@ export function useNotionLinks() {
       .delete()
       .eq('id', id)
     
-    if (!error) {
-      setLinks(links.filter(l => l.id !== id))
+    if (error) {
+      console.error('❌ Notion Link 삭제 에러:', error)
+      alert(`링크 삭제 실패: ${error.message}`)
+      return
     }
+    
+    console.log('✅ Notion Link 삭제 성공:', id)
+    setLinks(links.filter(l => l.id !== id))
   }
 
   const reorderLinks = async (activeId: string, overId: string) => {
