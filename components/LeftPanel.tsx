@@ -18,7 +18,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink, GripVertical } from 'lucide-react'
+import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink, GripVertical, Pencil } from 'lucide-react'
 import type { Task, Project, NotionLink } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 import ProjectCreateModal from './ProjectCreateModal'
@@ -191,7 +191,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
     )
   }
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsEditing(true)
@@ -280,11 +280,19 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
             href={link.url}
             className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate cursor-pointer"
             onClick={handleLinkClick}
-            onDoubleClick={handleDoubleClick}
           >
             <ExternalLink size={12} className="flex-shrink-0" />
             <span className="truncate">{link.title}</span>
           </a>
+
+          {/* 편집 버튼 */}
+          <button
+            onClick={handleEditClick}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity flex-shrink-0 p-0.5"
+            title="이름 수정"
+          >
+            <Pencil size={12} />
+          </button>
 
           {/* 삭제 버튼 */}
           <button
@@ -293,6 +301,7 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
               onDelete(link.id)
             }}
             className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0 p-0.5"
+            title="삭제"
           >
             <X size={12} />
           </button>
