@@ -18,7 +18,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink } from 'lucide-react'
+import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink, GripVertical } from 'lucide-react'
 import type { Task, Project, NotionLink } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 import ProjectCreateModal from './ProjectCreateModal'
@@ -157,9 +157,9 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.5 : 1,
+    transition: transition || 'transform 200ms ease',
+    zIndex: isDragging ? 999 : 1,
+    opacity: isDragging ? 0.6 : 1,
   }
 
   const handleLinkClick = (e: React.MouseEvent) => {
@@ -183,26 +183,38 @@ function SortableNotionLink({ link, onDelete }: { link: NotionLink, onDelete: (i
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="group flex items-center justify-between gap-2 p-1.5 text-xs bg-white border border-gray-200 rounded hover:border-blue-300 hover:bg-blue-50/30 transition-colors cursor-grab active:cursor-grabbing"
+      className={`group flex items-center gap-2 p-1.5 text-xs bg-white border rounded transition-all ${
+        isDragging 
+          ? 'border-blue-400 shadow-lg' 
+          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+      }`}
     >
+      {/* 드래그 핸들 */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+      >
+        <GripVertical size={14} />
+      </div>
+
+      {/* 링크 */}
       <a
         href={link.url}
-        className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate"
+        className="flex-1 flex items-center gap-1.5 text-gray-700 hover:text-blue-600 truncate cursor-pointer"
         onClick={handleLinkClick}
-        onPointerDown={(e) => e.stopPropagation()}
       >
         <ExternalLink size={12} className="flex-shrink-0" />
         <span className="truncate">{link.title}</span>
       </a>
+
+      {/* 삭제 버튼 */}
       <button
         onClick={(e) => {
           e.stopPropagation()
           onDelete(link.id)
         }}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0"
+        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0 p-0.5"
       >
         <X size={12} />
       </button>
