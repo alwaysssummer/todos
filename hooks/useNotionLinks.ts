@@ -39,8 +39,14 @@ export function useNotionLinks() {
       .select()
     
     if (error) {
-      console.error('❌ Notion Link 생성 에러:', error)
-      alert(`링크 생성 실패: ${error.message}`)
+      console.error('❌ Notion Link 생성 에러 (전체):', JSON.stringify(error, null, 2))
+      console.error('❌ 에러 상세:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      alert(`링크 생성 실패:\n${error.message || '알 수 없는 에러'}\n\n상세: ${error.details || error.hint || '없음'}`)
       return
     }
     

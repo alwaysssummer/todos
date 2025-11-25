@@ -15,15 +15,22 @@ export default function TestNotionLinks() {
     // 1. 테이블 존재 확인
     const { data, error } = await supabase
       .from('notion_links')
-      .select('count')
+      .select('*')
       .limit(1)
     
     if (error) {
       console.error('❌ 테이블이 존재하지 않거나 접근 불가:', error)
-      alert(`❌ 에러: ${error.message}\n\n💡 Supabase에서 supabase_notion_links.sql을 실행했는지 확인하세요!`)
+      console.error('❌ 에러 상세:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      alert(`❌ 에러 발견!\n\n메시지: ${error.message}\n코드: ${error.code}\n\n💡 Supabase SQL Editor에서\nsupabase_notion_links.sql을 실행하세요!`)
     } else {
       console.log('✅ notion_links 테이블 접근 성공!')
-      alert('✅ 테이블이 정상적으로 존재합니다!')
+      console.log('현재 데이터:', data)
+      alert(`✅ 테이블이 정상적으로 존재합니다!\n현재 ${data.length}개의 링크가 있습니다.`)
     }
   }
 
