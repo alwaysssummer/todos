@@ -19,7 +19,10 @@ export function useNotionLinks() {
       .order('order_index', { ascending: true })
     
     if (error) {
-      console.error('❌ Notion Links 조회 에러:', error)
+      console.error('❌ Notion Links 조회 에러:', error.message || '알 수 없는 에러')
+      if (error.message) {
+        alert('링크 조회 실패: ' + error.message)
+      }
     } else if (data) {
       setLinks(data)
     }
