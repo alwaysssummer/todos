@@ -9,6 +9,7 @@ interface ChecklistMemoProps {
   onSave: (value: string) => void
   placeholder?: string
   className?: string
+  autoFocus?: boolean  // 자동으로 편집 모드 진입
 }
 
 /**
@@ -22,9 +23,10 @@ export default function ChecklistMemo({
   onChange,
   onSave,
   placeholder = '메모 입력... ([] 로 체크리스트 생성)',
-  className = ''
+  className = '',
+  autoFocus = false
 }: ChecklistMemoProps) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(autoFocus)
   const [isUploading, setIsUploading] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 

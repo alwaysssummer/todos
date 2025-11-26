@@ -106,6 +106,7 @@ interface MobileTodayViewProps {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
+  onSelectTask?: (task: Task) => void
 }
 
 export default function MobileTodayView({
@@ -113,7 +114,8 @@ export default function MobileTodayView({
   createTask,
   updateTask,
   toggleTaskStatus,
-  projects
+  projects,
+  onSelectTask
 }: MobileTodayViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -158,6 +160,48 @@ export default function MobileTodayView({
   )
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Shift+Enter: 노트 모달 열기
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      if (!newTaskTitle.trim()) return
+
+      let title = newTaskTitle.trim()
+      let isTop5 = false
+      let dueDate: string | undefined = undefined
+
+      if (title.startsWith('*')) {
+        isTop5 = true
+        title = title.substring(1).trim()
+      } else if (title.startsWith('/')) {
+        dueDate = new Date().toISOString()
+        title = title.substring(1).trim()
+      }
+
+      // 긴 입력 자동 분리 (제목/메모)
+      const { title: splitTitle, description } = splitTitleAndDescription(title)
+      const { cleanTitle, tags } = extractTags(splitTitle)
+
+      // 노트 타입으로 생성하고 바로 모달 열기
+      const newTask = await createTask({
+        title: cleanTitle,
+        description: description,
+        status: 'inbox',
+        is_top5: isTop5,
+        due_date: dueDate,
+        tags: tags.length > 0 ? tags : undefined,
+        type: 'note'  // 노트 타입으로 생성
+      })
+      
+      setNewTaskTitle('')
+      
+      // 생성된 노트의 상세 모달 열기
+      if (newTask && onSelectTask) {
+        onSelectTask(newTask)
+      }
+      return
+    }
+
+    // Enter: 일반 테스크 저장
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (!newTaskTitle.trim()) return
@@ -384,7 +428,7 @@ export default function MobileTodayView({
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="빠른 입력 (Enter)"
+            placeholder="빠른 입력 (Enter: 테스크 | Shift+Enter: 노트)"
             className="flex-1 px-3 py-2 text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={2}
           />

@@ -767,6 +767,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                             onSave={(val) => updateTask(task.id, { description: val })}
                             placeholder="메모 입력... ([] 로 체크리스트 생성)"
                             className="flex-1"
+                            autoFocus={task.type === 'note'}
                         />
                     </div>
                 )}

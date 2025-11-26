@@ -467,6 +467,59 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   // 태그 추출 함수는 utils/textParser.ts로 이동 (공통 사용)
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Shift+Enter: 노트 모달 열기
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      if (!newTaskTitle.trim()) return
+
+      let title = newTaskTitle.trim()
+      let isTop5 = false
+      let dueDate: string | undefined = undefined
+
+      // 별표(*)로 시작하면 Today's Focus (Top 5)
+      if (title.startsWith('*')) {
+        isTop5 = true
+        title = title.substring(1).trim()
+      }
+      // 슬래시(/)로 시작하면 Today's Task (오늘 할 일)
+      else if (title.startsWith('/')) {
+        dueDate = new Date().toISOString()
+        title = title.substring(1).trim()
+      }
+
+      // 긴 입력 자동 분리 (제목/메모)
+      const { title: splitTitle, description } = splitTitleAndDescription(title)
+      const { cleanTitle, tags } = extractTags(splitTitle)
+
+      // 노트 타입으로 생성하고 바로 모달 열기
+      try {
+        const newTask = await createTask({
+          title: cleanTitle,
+          description: description,
+          status: 'inbox',
+          is_top5: isTop5,
+          due_date: dueDate,
+          tags: tags.length > 0 ? tags : undefined,
+          type: 'note'  // 노트 타입으로 생성
+        })
+        
+        setNewTaskTitle('')
+        
+        // 생성된 노트의 상세 모달 열기
+        if (newTask) {
+          console.log('📝 노트 생성 완료:', newTask)
+          setSelectedTask(newTask)
+          setPopoverPosition({ x: window.innerWidth / 2 - 450, y: 100 })
+        } else {
+          console.log('❌ newTask가 null입니다')
+        }
+      } catch (err) {
+        console.error('❌ 노트 생성 에러:', err)
+      }
+      return
+    }
+
+    // Enter: 일반 테스크 저장
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (!newTaskTitle.trim()) return
@@ -1053,7 +1106,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
           value={newTaskTitle}
           onChange={(e) => setNewTaskTitle(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="빠른 입력... (Enter로 추가)"
+          placeholder="빠른 입력... (Enter: 테스크 | Shift+Enter: 노트)"
           className="w-full p-3 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
           rows={2}
         />

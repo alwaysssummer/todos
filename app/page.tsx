@@ -14,6 +14,7 @@ import MobileTagsView from '@/components/MobileTagsView'
 import MobileMoreView from '@/components/MobileMoreView'
 import TagModal from '@/components/TagModal'
 import TagArchiveDashboard from '@/components/TagArchiveDashboard'
+import TaskDetailPopover from '@/components/TaskDetailPopover'
 import { useTasks } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
@@ -39,6 +40,9 @@ export default function Home() {
 
   // Archive Dashboard state
   const [isArchiveOpen, setIsArchiveOpen] = useState(false)
+
+  // Mobile Note Modal state
+  const [mobileSelectedTask, setMobileSelectedTask] = useState<Task | null>(null)
 
   // 보충 수업 추가 모드
   const [makeupProject, setMakeupProject] = useState<any>(null)
@@ -301,6 +305,7 @@ export default function Home() {
                 updateTask={updateTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
+                onSelectTask={setMobileSelectedTask}
               />
             )}
             {activePanel === 'inbox' && (
@@ -380,6 +385,20 @@ export default function Home() {
           deleteTask={deleteTask}
           onTagClick={handleOpenTagModal}
         />
+
+        {/* Mobile Note Modal */}
+        {mobileSelectedTask && (
+          <TaskDetailPopover
+            task={mobileSelectedTask}
+            updateTask={updateTask}
+            deleteTask={deleteTask}
+            onClose={() => setMobileSelectedTask(null)}
+            projects={projects}
+            tasks={tasks}
+            createTask={createTask}
+            toggleTaskStatus={toggleTaskStatus}
+          />
+        )}
       </div>
     </DndContext>
   )
