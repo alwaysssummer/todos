@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { uploadImage, getImageFromClipboard } from '@/utils/imageUpload'
 
 interface ChecklistMemoProps {
   value: string
@@ -24,6 +25,7 @@ export default function ChecklistMemo({
   className = ''
 }: ChecklistMemoProps) {
   const [isEditing, setIsEditing] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 편집 모드 진입 시 포커스
@@ -35,6 +37,52 @@ export default function ChecklistMemo({
       textareaRef.current.setSelectionRange(len, len)
     }
   }, [isEditing])
+
+  // 이미지 붙여넣기 핸들러
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const imageFile = getImageFromClipboard(e.nativeEvent)
+    
+    if (imageFile) {
+      e.preventDefault() // 기본 붙여넣기 방지
+      setIsUploading(true)
+      
+      try {
+        const imageUrl = await uploadImage(imageFile)
+        
+        if (imageUrl) {
+          // 현재 커서 위치에 마크다운 이미지 삽입
+          const textarea = textareaRef.current
+          if (textarea) {
+            const start = textarea.selectionStart
+            const end = textarea.selectionEnd
+            const before = value.substring(0, start)
+            const after = value.substring(end)
+            const imageMarkdown = `\n![image](${imageUrl})\n`
+            const newValue = before + imageMarkdown + after
+            onChange(newValue)
+            
+            // 커서 위치 조정
+            setTimeout(() => {
+              const newPos = start + imageMarkdown.length
+              textarea.setSelectionRange(newPos, newPos)
+              textarea.focus()
+            }, 0)
+          } else {
+            // textarea가 없으면 끝에 추가
+            const imageMarkdown = `\n![image](${imageUrl})\n`
+            onChange(value + imageMarkdown)
+          }
+        } else {
+          alert('이미지 업로드에 실패했습니다.')
+        }
+      } catch (err) {
+        console.error('이미지 붙여넣기 에러:', err)
+        alert('이미지 업로드 중 오류가 발생했습니다.')
+      } finally {
+        setIsUploading(false)
+      }
+    }
+  }
 
   // 체크박스 토글 핸들러
   const handleCheckboxToggle = (lineIndex: number) => {
@@ -126,6 +174,30 @@ export default function ChecklistMemo({
             )
           }
           
+          // 이미지 라인: ![...](url) 형식
+          const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
+          if (imageMatch) {
+            const [, alt, src] = imageMatch
+            return (
+              <div key={index} className="my-2">
+                <img 
+                  src={src} 
+                  alt={alt || 'image'} 
+                  className="max-w-full h-auto rounded-lg shadow-sm border border-gray-200 max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // 이미지 클릭 시 새 창에서 원본 열기
+                    const width = 800
+                    const height = 600
+                    const left = (window.screen.width - width) / 2
+                    const top = (window.screen.height - height) / 2
+                    window.open(src, '_blank', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`)
+                  }}
+                />
+              </div>
+            )
+          }
+          
           // 일반 텍스트 라인
           if (trimmedLine) {
             return (
@@ -149,24 +221,38 @@ export default function ChecklistMemo({
   // 편집 모드
   if (isEditing) {
     return (
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => {
-          setIsEditing(false)
-          onSave(value)
-        }}
-        onKeyDown={(e) => {
-          // Escape로 편집 모드 종료
-          if (e.key === 'Escape') {
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => {
             setIsEditing(false)
             onSave(value)
-          }
-        }}
-        placeholder={placeholder}
-        className={`w-full p-3 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[250px] placeholder-gray-400 text-gray-900 font-mono ${className}`}
-      />
+          }}
+          onKeyDown={(e) => {
+            // Escape로 편집 모드 종료
+            if (e.key === 'Escape') {
+              setIsEditing(false)
+              onSave(value)
+            }
+          }}
+          onPaste={handlePaste}
+          placeholder={placeholder}
+          className={`w-full p-3 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[250px] placeholder-gray-400 text-gray-900 font-mono ${className}`}
+        />
+        {isUploading && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              이미지 업로드 중...
+            </div>
+          </div>
+        )}
+      </div>
     )
   }
 
