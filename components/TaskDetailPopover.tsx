@@ -9,6 +9,7 @@ import { useTextbooks } from '@/hooks/useTextbooks'
 import { supabase } from '@/lib/supabase'
 import { extractTags } from '@/utils/textParser'
 import ChapterGrid from './ChapterGrid'
+import ChecklistMemo from './ChecklistMemo'
 
 interface TaskDetailPopoverProps {
     task: Task
@@ -40,6 +41,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
+    
+    // 시간 설정 드롭다운 상태
+    const [showTimeDropdown, setShowTimeDropdown] = useState(false)
 
 
     // 과제 관리 state (Phase 6)
@@ -753,141 +757,15 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                     </div>
                 )}
 
-                {/* Date Picker Section - 일반 태스크용 */}
+
+                {/* Memo - 체크리스트 지원 메모 */}
                 {!isStudentLesson && (
-                    <div className="space-y-1">
-                        {/* Week Navigator */}
-                        <div className="flex items-center justify-between mb-1">
-                            <button
-                                onClick={() => moveWeek('prev')}
-                                className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <span className="text-sm font-medium text-gray-600">
-                                {format(weekDays[0], 'M월 d일', { locale: ko })} - {format(weekDays[6], 'M월 d일', { locale: ko })}
-                            </span>
-                            <button
-                                onClick={() => moveWeek('next')}
-                                className="p-1 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                        </div>
-
-                        {/* Days Grid */}
-                        <div className="grid grid-cols-7 gap-1">
-                            {weekDays.map((date, index) => {
-                                const isSelected = startTime && new Date(startTime).toDateString() === date.toDateString()
-                                const isToday = new Date().toDateString() === date.toDateString()
-
-                                return (
-                                    <button
-                                        key={date.toISOString()}
-                                        onClick={() => handleDateSelect(date)}
-                                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${isSelected
-                                            ? 'bg-blue-600 text-white shadow-md scale-105'
-                                            : isToday
-                                                ? 'bg-blue-50 text-blue-600 border border-blue-100 font-medium'
-                                                : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'
-                                            }`}
-                                    >
-                                        <span className="text-xs font-semibold mb-0.5">{format(date, 'E', { locale: ko })}</span>
-                                        <span className="text-[11px]">{format(date, 'd')}</span>
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Time & Options Row - 학생 수업에서는 숨김 */}
-                {!isStudentLesson && (
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Time Selector (Hour : Minute) */}
-                        <div className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-                            <Clock size={16} className="text-gray-400 mr-1" />
-
-                            {/* Hour */}
-                            <select
-                                value={currentHour}
-                                onChange={(e) => updateTime(Number(e.target.value), roundedMinute)}
-                                className="bg-transparent font-medium focus:outline-none cursor-pointer text-right"
-                            >
-                                {Array.from({ length: 24 }, (_, i) => (
-                                    <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
-                                ))}
-                            </select>
-                            <span className="text-gray-400">:</span>
-                            {/* Minute (10 min step) */}
-                            <select
-                                value={roundedMinute}
-                                onChange={(e) => updateTime(currentHour, Number(e.target.value))}
-                                className="bg-transparent font-medium focus:outline-none cursor-pointer"
-                            >
-                                {[0, 10, 20, 30, 40, 50].map((m) => (
-                                    <option key={m} value={m}>{m.toString().padStart(2, '00')}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Duration Selector */}
-                        <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-                            <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
-                            <select
-                                value={duration}
-                                onChange={(e) => {
-                                    const val = Number(e.target.value)
-                                    setDuration(val)
-                                    updateTask(task.id, { duration: val })
-                                }}
-                                className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium text-right pr-1"
-                            >
-                                {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120].map(min => (
-                                    <option key={min} value={min}>
-                                        {min}분 {min >= 60 ? `(${Math.floor(min / 60)}시간${min % 60 ? ' ' + min % 60 + '분' : ''})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                )}
-
-                {/* Project Selector - 학생 수업에서는 숨김 */}
-                {!isStudentLesson && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-                        <Folder size={16} className="text-gray-400" />
-                        <select
-                            value={selectedProjectId || ''}
-                            onChange={(e) => {
-                                const val = e.target.value || undefined
-                                setSelectedProjectId(val)
-                                updateTask(task.id, { project_id: val })
-                            }}
-                            className="flex-1 bg-transparent focus:outline-none cursor-pointer text-gray-900 font-medium"
-                        >
-                            <option value="">프로젝트 없음</option>
-                            {projects.map((project) => (
-                                <option key={project.id} value={project.id}>
-                                    {project.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                {/* Memo - 학생 수업에서는 숨김 (수업 메모 별도 있음) */}
-                {!isStudentLesson && (
-                    <div className="flex gap-3 text-sm text-gray-600 items-start bg-gray-50 p-3 rounded-lg">
-                        <FileText size={16} className="text-gray-400 mt-0.5" />
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            onBlur={() => updateTask(task.id, { description })}
-                            placeholder="메모 추가..."
-                            className="flex-1 bg-transparent resize-none focus:outline-none text-sm min-h-[60px] placeholder-gray-400 text-gray-900"
-                        />
-                    </div>
+                    <ChecklistMemo
+                        value={description}
+                        onChange={setDescription}
+                        onSave={(val) => updateTask(task.id, { description: val })}
+                        placeholder="메모 입력... ([] 로 체크리스트 생성)"
+                    />
                 )}
 
 
@@ -1105,7 +983,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-gray-50 flex justify-between items-center border-t border-gray-100">
+            <div className="p-3 bg-gray-50 flex justify-between items-center border-t border-gray-100">
                 {/* 왼쪽: 삭제 버튼 */}
                 <button
                     onClick={() => {
@@ -1114,24 +992,152 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                             onClose()
                         }
                     }}
-                    className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
                 >
                     🗑️ 삭제
                 </button>
+
+                {/* 중앙: 수정 시간 + 시계 아이콘 (일반 태스크용) */}
+                {!isStudentLesson && (
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                        {/* 최종 수정 시간 */}
+                        <span>
+                            수정: {format(new Date(task.updated_at), 'M/d HH:mm', { locale: ko })}
+                        </span>
+                        
+                        {/* 시계 아이콘 + 드롭다운 */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowTimeDropdown(!showTimeDropdown)}
+                                className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 ${
+                                    startTime 
+                                        ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                                title={startTime ? '시간표 설정됨' : '시간표에 추가'}
+                            >
+                                <Clock size={14} />
+                                {startTime && (
+                                    <span className="text-[10px] font-medium">
+                                        {format(new Date(startTime), 'HH:mm')}
+                                    </span>
+                                )}
+                            </button>
+                            
+                            {/* 시간 설정 드롭다운 */}
+                            {showTimeDropdown && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 p-3 min-w-[180px] z-50">
+                                    <div className="space-y-3">
+                                        {/* 날짜 선택 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500">📅 날짜</span>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => moveWeek('prev')}
+                                                    className="p-0.5 hover:bg-gray-100 rounded text-gray-400"
+                                                >
+                                                    <ChevronLeft size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const today = new Date()
+                                                        handleDateSelect(today)
+                                                    }}
+                                                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded text-xs font-medium text-gray-700"
+                                                >
+                                                    {startTime 
+                                                        ? format(new Date(startTime), 'M/d (E)', { locale: ko })
+                                                        : '오늘'}
+                                                </button>
+                                                <button
+                                                    onClick={() => moveWeek('next')}
+                                                    className="p-0.5 hover:bg-gray-100 rounded text-gray-400"
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* 시작 시간 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500">⏰ 시작</span>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={currentHour}
+                                                    onChange={(e) => updateTime(Number(e.target.value), roundedMinute)}
+                                                    className="px-1 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 focus:outline-none"
+                                                >
+                                                    {Array.from({ length: 24 }, (_, i) => (
+                                                        <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400">:</span>
+                                                <select
+                                                    value={roundedMinute}
+                                                    onChange={(e) => updateTime(currentHour, Number(e.target.value))}
+                                                    className="px-1 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 focus:outline-none"
+                                                >
+                                                    {[0, 10, 20, 30, 40, 50].map((m) => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* 지속 시간 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500">⏱️ 기간</span>
+                                            <select
+                                                value={duration}
+                                                onChange={(e) => {
+                                                    const val = Number(e.target.value)
+                                                    setDuration(val)
+                                                    updateTask(task.id, { duration: val })
+                                                }}
+                                                className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 focus:outline-none"
+                                            >
+                                                {[10, 20, 30, 40, 50, 60, 90, 120].map(min => (
+                                                    <option key={min} value={min}>{min}분</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        
+                                        {/* 시간 제거 버튼 */}
+                                        {startTime && (
+                                            <button
+                                                onClick={() => {
+                                                    setStartTime('')
+                                                    updateTask(task.id, { start_time: null, status: 'inbox' })
+                                                    setShowTimeDropdown(false)
+                                                }}
+                                                className="w-full text-xs text-red-500 hover:text-red-600 py-1"
+                                            >
+                                                시간표에서 제거
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {/* 화살표 */}
+                                    <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-gray-200 rotate-45" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* 오른쪽: 버튼 그룹 */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                        className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
                     >
-                        취소
+                        닫기
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
                     >
-                        수정
+                        저장
                     </button>
                 </div>
             </div>

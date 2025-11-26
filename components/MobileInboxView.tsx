@@ -3,6 +3,108 @@
 import { useState, useRef, useEffect } from 'react'
 import type { Task, Project } from '@/types/database'
 
+// 애니메이션 체크박스 컴포넌트
+interface AnimatedCheckboxProps {
+  checked: boolean
+  onChange: () => void
+  color: 'blue' | 'red' | 'green'
+  size?: 'sm' | 'md'
+}
+
+function AnimatedCheckbox({ checked, onChange, color, size = 'sm' }: AnimatedCheckboxProps) {
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [visualChecked, setVisualChecked] = useState(checked)
+  
+  // 외부 checked 상태와 동기화
+  useEffect(() => {
+    setVisualChecked(checked)
+  }, [checked])
+  
+  const colorClasses = {
+    blue: {
+      border: 'border-blue-400',
+      bg: 'bg-blue-500',
+      ring: 'ring-blue-200'
+    },
+    red: {
+      border: 'border-red-400',
+      bg: 'bg-red-500',
+      ring: 'ring-red-200'
+    },
+    green: {
+      border: 'border-green-400',
+      bg: 'bg-green-500',
+      ring: 'ring-green-200'
+    }
+  }
+  
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5'
+  }
+  
+  const colors = colorClasses[color]
+  
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isAnimating) return // 중복 클릭 방지
+    
+    setIsAnimating(true)
+    // 먼저 시각적으로 체크 표시
+    setVisualChecked(true)
+    
+    // 애니메이션 후 실제 상태 변경
+    setTimeout(() => {
+      onChange()
+      setIsAnimating(false)
+    }, 300)
+  }
+  
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isAnimating}
+      className={`
+        relative ${sizeClasses[size]} rounded-md border-2 flex-shrink-0
+        transition-all duration-200 ease-out
+        ${visualChecked ? `${colors.bg} border-transparent` : `bg-white ${colors.border}`}
+        ${isAnimating ? `scale-110 ${colors.ring} ring-4` : 'scale-100'}
+        active:scale-95
+      `}
+    >
+      {/* 체크 아이콘 */}
+      <svg
+        className={`
+          absolute inset-0 w-full h-full p-0.5 text-white
+          transition-all duration-200 ease-out
+          ${visualChecked ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}
+        `}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={3}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M5 13l4 4L19 7"
+        />
+      </svg>
+      
+      {/* 체크 시 퍼지는 효과 */}
+      {isAnimating && (
+        <span 
+          className={`
+            absolute inset-0 rounded-md ${colors.bg} opacity-40
+            animate-ping
+          `}
+        />
+      )}
+    </button>
+  )
+}
+
 interface MobileInboxViewProps {
   tasks: Task[]
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
@@ -131,14 +233,11 @@ export default function MobileInboxView({
                   key={task.id}
                   className="flex items-center gap-2 px-3 py-1.5 active:bg-gray-50"
                 >
-                  <input
-                    type="checkbox"
+                  <AnimatedCheckbox
                     checked={task.status === 'completed'}
-                    onChange={(e) => {
-                      e.stopPropagation()
-                      handleToggleComplete(task)
-                    }}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                    onChange={() => handleToggleComplete(task)}
+                    color={isRed ? 'red' : isGreen ? 'green' : 'blue'}
+                    size="sm"
                   />
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     {editingTaskId === task.id ? (

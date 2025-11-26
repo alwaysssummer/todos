@@ -2,8 +2,103 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { Task, Project } from '@/types/database'
-import { extractTags } from '@/utils/textParser'
+import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { useRoutines } from '@/hooks/useRoutines'
+
+// 애니메이션 체크박스 컴포넌트
+interface AnimatedCheckboxProps {
+  checked: boolean
+  onChange: () => void
+  color: 'orange' | 'red' | 'green'
+}
+
+function AnimatedCheckbox({ checked, onChange, color }: AnimatedCheckboxProps) {
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [visualChecked, setVisualChecked] = useState(checked)
+  
+  // 외부 checked 상태와 동기화
+  useEffect(() => {
+    setVisualChecked(checked)
+  }, [checked])
+  
+  const colorClasses = {
+    orange: {
+      border: 'border-orange-400',
+      bg: 'bg-orange-500',
+      ring: 'ring-orange-200'
+    },
+    red: {
+      border: 'border-red-400',
+      bg: 'bg-red-500',
+      ring: 'ring-red-200'
+    },
+    green: {
+      border: 'border-green-400',
+      bg: 'bg-green-500',
+      ring: 'ring-green-200'
+    }
+  }
+  
+  const colors = colorClasses[color]
+  
+  const handleClick = () => {
+    if (isAnimating) return // 중복 클릭 방지
+    
+    setIsAnimating(true)
+    // 먼저 시각적으로 체크 표시
+    setVisualChecked(true)
+    
+    // 애니메이션 후 실제 상태 변경
+    setTimeout(() => {
+      onChange()
+      setIsAnimating(false)
+    }, 300)
+  }
+  
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isAnimating}
+      className={`
+        relative w-5 h-5 rounded-md border-2 flex-shrink-0
+        transition-all duration-200 ease-out
+        ${visualChecked ? `${colors.bg} border-transparent` : `bg-white ${colors.border}`}
+        ${isAnimating ? `scale-110 ${colors.ring} ring-4` : 'scale-100'}
+        active:scale-95
+      `}
+    >
+      {/* 체크 아이콘 */}
+      <svg
+        className={`
+          absolute inset-0 w-full h-full p-0.5 text-white
+          transition-all duration-200 ease-out
+          ${visualChecked ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}
+        `}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={3}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M5 13l4 4L19 7"
+        />
+      </svg>
+      
+      {/* 체크 시 퍼지는 효과 */}
+      {isAnimating && (
+        <span 
+          className={`
+            absolute inset-0 rounded-md ${colors.bg} opacity-40
+            animate-ping
+          `}
+        />
+      )}
+    </button>
+  )
+}
 
 interface MobileTodayViewProps {
   tasks: Task[]
@@ -79,10 +174,13 @@ export default function MobileTodayView({
         title = title.substring(1).trim()
       }
 
-      const { cleanTitle, tags } = extractTags(title)
+      // 긴 입력 자동 분리 (제목/메모)
+      const { title: splitTitle, description } = splitTitleAndDescription(title)
+      const { cleanTitle, tags } = extractTags(splitTitle)
 
       await createTask({
         title: cleanTitle,
+        description: description,
         status: 'inbox',
         is_top5: isTop5,
         due_date: dueDate,
@@ -122,24 +220,17 @@ export default function MobileTodayView({
               {todayRoutines.map(routine => {
                 const completed = getRoutineCompleted(routine.id)
                 return (
-                  <button
+                  <div
                     key={routine.id}
-                    type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2 active:bg-gray-50"
-                    onClick={() => toggleRoutineComplete(routine.id)}
+                    className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
                   >
-                    <input
-                      type="checkbox"
+                    <AnimatedCheckbox
                       checked={completed}
-                      readOnly
-                      className="w-4 h-4 rounded border-orange-300 text-orange-500 focus:ring-orange-500 flex-shrink-0"
+                      onChange={() => toggleRoutineComplete(routine.id)}
+                      color="orange"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className={`text-sm truncate ${
-                          completed ? 'line-through text-gray-400' : 'text-gray-900 font-medium'
-                        }`}
-                      >
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <div className={`text-sm truncate ${completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                         {routine.title}
                       </div>
                     </div>
@@ -148,7 +239,7 @@ export default function MobileTodayView({
                         {routine.target_time}
                       </span>
                     )}
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -167,11 +258,10 @@ export default function MobileTodayView({
                   key={task.id}
                   className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
                 >
-                  <input
-                    type="checkbox"
+                  <AnimatedCheckbox
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleComplete(task)}
-                    className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 flex-shrink-0"
+                    color="red"
                   />
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     <div className={`text-sm font-semibold truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
@@ -208,11 +298,10 @@ export default function MobileTodayView({
                   key={task.id}
                   className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
                 >
-                  <input
-                    type="checkbox"
+                  <AnimatedCheckbox
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleComplete(task)}
-                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 flex-shrink-0"
+                    color="green"
                   />
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     <div className={`text-sm truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>

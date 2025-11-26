@@ -23,7 +23,7 @@ import type { Task, Project, NotionLink } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 import ProjectCreateModal from './ProjectCreateModal'
 import RoutineSection from './RoutineSection'
-import { extractTags } from '@/utils/textParser'
+import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
 
 interface LeftPanelProps {
@@ -39,7 +39,42 @@ interface LeftPanelProps {
   deleteProject: (id: string) => Promise<void>
 }
 
-function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false, isCompleting = false }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void, isInbox?: boolean, isCompleting?: boolean }) {
+// 메모에서 체크리스트 항목 파싱
+interface ChecklistItem {
+  text: string
+  isCompleted: boolean
+  lineIndex: number
+}
+
+function parseChecklistFromMemo(memo: string | undefined): ChecklistItem[] {
+  if (!memo) return []
+  
+  const items: ChecklistItem[] = []
+  const lines = memo.split('\n')
+  
+  lines.forEach((line, index) => {
+    const trimmed = line.trim()
+    
+    if (trimmed.startsWith('[] ')) {
+      items.push({
+        text: trimmed.substring(3),
+        isCompleted: false,
+        lineIndex: index
+      })
+    } else if (trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
+      items.push({
+        text: trimmed.substring(4),
+        isCompleted: true,
+        lineIndex: index
+      })
+    }
+  })
+  
+  return items
+}
+
+function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false, isCompleting = false, subtasks = [], onSubtaskToggle, onChecklistToggle, isExpanded = false, onToggleExpand }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void, isInbox?: boolean, isCompleting?: boolean, subtasks?: Task[], onSubtaskToggle?: (subtask: Task) => void, onChecklistToggle?: (task: Task, lineIndex: number, newCompleted: boolean) => void, isExpanded?: boolean, onToggleExpand?: (taskId: string) => void }) {
+  
   const {
     attributes,
     listeners,
@@ -62,6 +97,11 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
   // 오늘 날짜인지 확인 (todayTasks 필터링과 동일한 방식 사용)
   const todayStr = new Date().toISOString().split('T')[0]
   const isToday = task.due_date?.split('T')[0] === todayStr
+  
+  // 메모에서 체크리스트 파싱
+  const checklistItems = parseChecklistFromMemo(task.description)
+  const hasChecklist = checklistItems.length > 0
+  const completedCount = checklistItems.filter(item => item.isCompleted).length
 
   // 제목에서 #태그 부분을 연하게 표시
   const renderTitle = (title: string) => {
@@ -75,72 +115,135 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onClick={onClick}
-      className={`group flex items-start gap-2 transition-all duration-150 ease-in-out cursor-grab active:cursor-grabbing border-b
-        ${isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
-        ${isCompleting ? 'opacity-0 scale-98 -translate-x-2' : 'opacity-100 scale-100 translate-x-0'}
-        ${isCompleting
-          ? 'text-gray-400 border-gray-100 bg-gray-50/50'
-          : isCompleted
-            ? 'text-gray-400 border-gray-100 bg-gray-50'
-            : task.is_top5
-              ? 'bg-red-50/40 border-gray-100'
-              : isToday
-                ? 'bg-green-50/40 border-gray-100'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
-        }`}
-    >
-      {/* Checkbox */}
-      <button
-        onClick={(e) => {
-          e.preventDefault() // 기본 동작 방지
-          e.stopPropagation() // 드래그나 클릭 방지
-          onToggleComplete(e)
-        }}
-        onPointerDown={(e) => e.stopPropagation()} // 드래그 시작 방지
-        className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center transition-all duration-200
-            ${isCompleting || isCompleted
-            ? 'bg-blue-500 border-blue-500 text-white'
-            : task.is_top5
-              ? 'border-red-300 hover:border-red-400 bg-white text-transparent hover:bg-red-50'
-              : isToday
-                ? 'border-green-400 hover:border-green-500 bg-white text-transparent hover:bg-green-50'
-                : 'border-gray-300 hover:border-blue-400 text-transparent hover:bg-blue-50'
+    <div className="flex flex-col">
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        onClick={onClick}
+        className={`group flex items-start gap-2 transition-all duration-150 ease-in-out cursor-grab active:cursor-grabbing border-b
+          ${isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
+          ${isCompleting ? 'opacity-0 scale-98 -translate-x-2' : 'opacity-100 scale-100 translate-x-0'}
+          ${isCompleting
+            ? 'text-gray-400 border-gray-100 bg-gray-50/50'
+            : isCompleted
+              ? 'text-gray-400 border-gray-100 bg-gray-50'
+              : task.is_top5
+                ? 'bg-red-50/40 border-gray-100'
+                : isToday
+                  ? 'bg-green-50/40 border-gray-100'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
           }`}
       >
-        <Check size={10} strokeWidth={4} />
-      </button>
+        {/* Checkbox */}
+        <button
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onToggleComplete(e)
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center transition-all duration-200
+              ${isCompleting || isCompleted
+              ? 'bg-blue-500 border-blue-500 text-white'
+              : task.is_top5
+                ? 'border-red-300 hover:border-red-400 bg-white text-transparent hover:bg-red-50'
+                : isToday
+                  ? 'border-green-400 hover:border-green-500 bg-white text-transparent hover:bg-green-50'
+                  : 'border-gray-300 hover:border-blue-400 text-transparent hover:bg-blue-50'
+            }`}
+        >
+          <Check size={10} strokeWidth={4} />
+        </button>
+        
+        {/* 토글 버튼 (체크박스와 제목 사이) */}
+        {hasChecklist && (
+          <button
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onToggleExpand?.(task.id)
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex-shrink-0 w-4 h-4 mt-0.5 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg 
+              className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
 
-      {/* Content - 1줄 레이아웃 */}
-      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-        {/* 제목 */}
-        <div className={`truncate ${isInbox ? 'text-xs' : 'text-sm'} ${isCompleting || isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
-          {renderTitle(task.title)}
-        </div>
+        {/* Content - 1줄 레이아웃 */}
+        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+          {/* 제목 + 체크리스트 진행률 */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`truncate ${isInbox ? 'text-xs' : 'text-sm'} ${isCompleting || isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
+              {renderTitle(task.title)}
+            </span>
+            {/* 체크리스트 진행률 - 제목 바로 우측 */}
+            {hasChecklist && (
+              <span className="flex-shrink-0 text-[10px] text-gray-400">
+                {completedCount}/{checklistItems.length}
+              </span>
+            )}
+          </div>
 
-        {/* 우측 인디케이터들 */}
-        <div className="flex items-center gap-1.5">
-          {/* Today's Task - 초록색 동그라미 */}
-          {isToday && !isCompleting && !isCompleted && !task.is_top5 && (
-            <div className="w-2 h-2 rounded-full bg-green-500" title="오늘 할 일" />
-          )}
+          {/* 우측 인디케이터들 */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Today's Task - 초록색 동그라미 */}
+            {isToday && !isCompleting && !isCompleted && !task.is_top5 && (
+              <div className="w-2 h-2 rounded-full bg-green-500" title="오늘 할 일" />
+            )}
 
-          {/* Scheduled - 노란색 동그라미 */}
-          {isScheduled && !isCompleting && !isCompleted && (
-            <div className="w-2 h-2 rounded-full bg-yellow-400" title="예정된 일정" />
-          )}
+            {/* Scheduled - 노란색 동그라미 */}
+            {isScheduled && !isCompleting && !isCompleted && (
+              <div className="w-2 h-2 rounded-full bg-yellow-400" title="예정된 일정" />
+            )}
 
-          {/* Top 5 - 빨간색 동그라미 */}
-          {task.is_top5 && !isCompleting && !isCompleted && (
-            <div className="w-2 h-2 rounded-full bg-red-500" title="중요" />
-          )}
+            {/* Top 5 - 빨간색 동그라미 */}
+            {task.is_top5 && !isCompleting && !isCompleted && (
+              <div className="w-2 h-2 rounded-full bg-red-500" title="중요" />
+            )}
+          </div>
         </div>
       </div>
+      
+      {/* 체크리스트 항목 (펼쳐졌을 때) */}
+      {hasChecklist && isExpanded && (
+        <div className="ml-8 py-1 space-y-0.5 bg-gray-50/50 border-b border-gray-100">
+          {checklistItems.map((item, idx) => (
+            <div 
+              key={idx}
+              className="flex items-center gap-1.5 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onChecklistToggle?.(task, item.lineIndex, !item.isCompleted)
+                }}
+                className={`flex-shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition-all
+                  ${item.isCompleted
+                    ? 'bg-blue-500 border-blue-500 text-white'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                  }`}
+              >
+                {item.isCompleted && (
+                  <Check size={8} strokeWidth={3} />
+                )}
+              </button>
+              <span className={item.isCompleted ? 'line-through text-gray-400' : 'text-gray-700'}>
+                {item.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -321,6 +424,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
   const inboxScrollRef = useRef<HTMLDivElement>(null)
   const savedScrollPositionRef = useRef<number>(0)
   const shouldRestoreScrollRef = useRef<boolean>(false)
@@ -382,11 +486,13 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
         title = title.substring(1).trim()
       }
 
-      // 태그 추출
-      const { cleanTitle, tags } = extractTags(title)
+      // 긴 입력 자동 분리 (제목/메모)
+      const { title: splitTitle, description } = splitTitleAndDescription(title)
+      const { cleanTitle, tags } = extractTags(splitTitle)
 
       await createTask({
         title: cleanTitle,
+        description: description,
         status: 'inbox',
         is_top5: isTop5,
         due_date: dueDate,
@@ -464,16 +570,18 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
 
   // 필터링 로직
   // 1. Today's Focus: is_top5 (가장 높은 우선순위)
-  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
+  // 하위 테스크(parent_id가 있는 것)는 각 섹션에서 제외 - 부모 테스크 아래에 표시됨
+  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id)
 
   // 2. Today's Task: !is_top5 && due_date === today
-  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup)
+  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id)
 
   // 3. Waiting: status === 'waiting'
-  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup)
+  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id)
 
   // 4. Inbox: Focus와 Today's Task에 표시된 것은 제외 (중복 방지)
   // 보충수업(is_makeup)과 정규수업(is_auto_generated)은 INBOX에서 제외
+  // 하위 테스크(parent_id가 있는 것)도 제외 - 부모 테스크 아래에 표시됨
   const inboxTasks = useMemo(() => {
     let filtered = tasks.filter(t => 
       t.status !== 'completed' && 
@@ -481,7 +589,8 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       !t.is_auto_generated && 
       !t.is_makeup &&
       !t.is_top5 &&  // Today's Focus에 있는 것 제외
-      t.due_date?.split('T')[0] !== todayStr  // Today's Task에 있는 것 제외
+      t.due_date?.split('T')[0] !== todayStr &&  // Today's Task에 있는 것 제외
+      !t.parent_id  // 하위 테스크 제외
     )
 
     // 프로젝트 필터 적용
@@ -501,6 +610,46 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       return (a.order_index || 0) - (b.order_index || 0)
     })
   }, [tasks, selectedProjectId, todayStr])
+  
+  // 특정 부모 테스크의 하위 테스크 가져오기
+  const getSubtasks = (parentId: string) => {
+    return tasks
+      .filter(t => t.parent_id === parentId)
+      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+  }
+  
+  // 체크리스트 펼침/접힘 토글
+  const handleToggleExpand = (taskId: string) => {
+    setExpandedTaskIds(prev => {
+      const next = new Set(prev)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+      } else {
+        next.add(taskId)
+      }
+      return next
+    })
+  }
+  
+  // 메모 내 체크리스트 토글 핸들러
+  const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
+    if (!task.description) return
+    
+    const lines = task.description.split('\n')
+    const line = lines[lineIndex]
+    
+    if (!line) return
+    
+    // [] → [x] 또는 [x] → []
+    if (newCompleted && line.trim().startsWith('[] ')) {
+      lines[lineIndex] = line.replace('[] ', '[x] ')
+    } else if (!newCompleted && (line.trim().startsWith('[x] ') || line.trim().startsWith('[X] '))) {
+      lines[lineIndex] = line.replace(/\[[xX]\] /, '[] ')
+    }
+    
+    const newDescription = lines.join('\n')
+    await updateTask(task.id, { description: newDescription })
+  }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -693,6 +842,11 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     onClick={(e) => handleTaskClick(e, task)}
                     onToggleComplete={() => handleToggleComplete(task)}
                     isCompleting={completingIds.has(task.id)}
+                    subtasks={getSubtasks(task.id)}
+                    onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                    onChecklistToggle={handleChecklistToggle}
+                    isExpanded={expandedTaskIds.has(task.id)}
+                    onToggleExpand={handleToggleExpand}
                   />
                 ))}
               </div>
@@ -717,6 +871,11 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     onClick={(e) => handleTaskClick(e, task)}
                     onToggleComplete={() => handleToggleComplete(task)}
                     isCompleting={completingIds.has(task.id)}
+                    subtasks={getSubtasks(task.id)}
+                    onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                    onChecklistToggle={handleChecklistToggle}
+                    isExpanded={expandedTaskIds.has(task.id)}
+                    onToggleExpand={handleToggleExpand}
                   />
                 ))}
               </div>
@@ -777,6 +936,11 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     onToggleComplete={() => handleToggleComplete(task)}
                     isInbox={true}
                     isCompleting={completingIds.has(task.id)}
+                    subtasks={getSubtasks(task.id)}
+                    onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                    onChecklistToggle={handleChecklistToggle}
+                    isExpanded={expandedTaskIds.has(task.id)}
+                    onToggleExpand={handleToggleExpand}
                   />
                 ))}
               </div>
@@ -801,6 +965,11 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                         onToggleComplete={() => handleToggleComplete(task)}
                         isInbox={true}
                         isCompleting={completingIds.has(task.id)}
+                        subtasks={getSubtasks(task.id)}
+                        onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                        onChecklistToggle={handleChecklistToggle}
+                        isExpanded={expandedTaskIds.has(task.id)}
+                        onToggleExpand={handleToggleExpand}
                       />
                     ))}
                   </div>
