@@ -84,6 +84,36 @@ export default function ChecklistMemo({
     }
   }
 
+  // 텍스트에서 #태그, [[링크]] 처리
+  const renderText = (text: string) => {
+    // #태그와 [[링크]] 패턴을 모두 매칭
+    const parts = text.split(/(#[\w가-힣]+|\[\[[^\]]+\]\])/g)
+    return parts.map((part, i) => {
+      // #태그 - 회색으로 표시
+      if (part.startsWith('#')) {
+        return <span key={i} className="text-gray-400">{part}</span>
+      }
+      // [[링크]] - 파란색 링크 스타일
+      if (part.startsWith('[[') && part.endsWith(']]')) {
+        const linkText = part.slice(2, -2)
+        return (
+          <span 
+            key={i} 
+            className="text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation()
+              // 링크 클릭 시 검색하거나 해당 노트로 이동하는 로직 추가 가능
+              console.log('Link clicked:', linkText)
+            }}
+          >
+            {linkText}
+          </span>
+        )
+      }
+      return part
+    })
+  }
+
   // 체크박스 토글 핸들러
   const handleCheckboxToggle = (lineIndex: number) => {
     const lines = value.split('\n')
@@ -206,7 +236,7 @@ export default function ChecklistMemo({
                 className="text-sm text-gray-700 cursor-text"
                 onClick={() => setIsEditing(true)}
               >
-                {line}
+                {renderText(line)}
               </p>
             )
           }
@@ -221,7 +251,7 @@ export default function ChecklistMemo({
   // 편집 모드
   if (isEditing) {
     return (
-      <div className="relative">
+      <div className={`relative flex flex-col ${className}`}>
         <textarea
           ref={textareaRef}
           value={value}
@@ -239,7 +269,7 @@ export default function ChecklistMemo({
           }}
           onPaste={handlePaste}
           placeholder={placeholder}
-          className={`w-full p-3 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[250px] placeholder-gray-400 text-gray-900 font-mono ${className}`}
+          className="w-full h-full p-3 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[400px] placeholder-gray-400 text-gray-900 font-mono flex-1"
         />
         {isUploading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
@@ -259,7 +289,7 @@ export default function ChecklistMemo({
   // 미리보기 모드 (체크박스 렌더링)
   return (
     <div 
-      className={`w-full p-3 bg-gray-50 rounded-lg min-h-[250px] cursor-text hover:bg-gray-100 transition-colors ${className}`}
+      className={`w-full p-3 bg-gray-50 rounded-lg min-h-[400px] cursor-text hover:bg-gray-100 transition-colors overflow-auto ${className}`}
       onClick={() => setIsEditing(true)}
     >
       {renderContent()}

@@ -584,7 +584,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             <div
                 ref={popoverRef}
                 style={style}
-                className="z-50 w-[900px] bg-white rounded-xl shadow-2xl border-2 border-gray-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                className="z-50 w-[900px] h-[700px] bg-white rounded-xl shadow-2xl border-2 border-gray-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
             >
             {/* Header */}
             <div className="p-2 flex items-start gap-2 border-b border-gray-50">
@@ -641,7 +641,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             </div>
 
             {/* Body */}
-            <div className="p-4 space-y-5">
+            <div className="p-4 space-y-5 flex-1 flex flex-col overflow-auto">
                 {/* 학생 수업 네비게이터 (이번 주 수업 표시) */}
                 {isStudentLesson && (
                     <div className="space-y-1">
@@ -760,12 +760,15 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
                 {/* Memo - 체크리스트 지원 메모 */}
                 {!isStudentLesson && (
-                    <ChecklistMemo
-                        value={description}
-                        onChange={setDescription}
-                        onSave={(val) => updateTask(task.id, { description: val })}
-                        placeholder="메모 입력... ([] 로 체크리스트 생성)"
-                    />
+                    <div className="flex-1 flex flex-col min-h-0">
+                        <ChecklistMemo
+                            value={description}
+                            onChange={setDescription}
+                            onSave={(val) => updateTask(task.id, { description: val })}
+                            placeholder="메모 입력... ([] 로 체크리스트 생성)"
+                            className="flex-1"
+                        />
+                    </div>
                 )}
 
 
