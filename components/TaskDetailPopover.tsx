@@ -41,7 +41,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
-    
+
     // 시간 설정 드롭다운 상태
     const [showTimeDropdown, setShowTimeDropdown] = useState(false)
 
@@ -53,7 +53,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
     // 현재 태스크의 프로젝트 (먼저 정의!)
     const project = projects.find(p => p.id === task.project_id)
-    
+
     // 학생 시간표 태스크인지 확인
     const isStudentLesson = task.is_auto_generated || task.is_makeup
 
@@ -494,8 +494,8 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             '보충이 추가되면 자동으로 과제가 배정되고 이 수업이 취소됩니다.'
         )
 
-        onClose()
-    }
+            onClose()
+        }
 
     // 바로 다음 수업으로 이전
     const handleCancelWithoutMakeup = async () => {
@@ -560,7 +560,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             handleCancelWithMakeup()
         } else {
             handleCancelWithoutMakeup()
-        }
+    }
     }
 
 
@@ -581,11 +581,11 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             />
             
             {/* 모달 */}
-            <div
-                ref={popoverRef}
-                style={style}
+        <div
+            ref={popoverRef}
+            style={style}
                 className="z-50 w-[900px] h-[700px] bg-white rounded-xl shadow-2xl border-2 border-gray-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-            >
+        >
             {/* Header */}
             <div className="p-2 flex items-start gap-2 border-b border-gray-50">
                 <button
@@ -645,24 +645,24 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 {/* 학생 수업 네비게이터 (이번 주 수업 표시) */}
                 {isStudentLesson && (
                     <div className="space-y-1">
-                        {/* Week Navigator */}
+                    {/* Week Navigator */}
                         <div className="flex items-center justify-between">
-                            <button
-                                onClick={() => moveWeek('prev')}
+                        <button
+                            onClick={() => moveWeek('prev')}
                                 className="p-0.5 hover:bg-gray-100 rounded text-gray-500 transition-colors"
-                            >
+                        >
                                 <ChevronLeft size={16} />
-                            </button>
+                        </button>
                             <span className="text-xs font-medium text-gray-600">
                                 {format(weekDays[0], 'M.d', { locale: ko })} - {format(weekDays[6], 'M.d', { locale: ko })}
-                            </span>
-                            <button
-                                onClick={() => moveWeek('next')}
+                        </span>
+                        <button
+                            onClick={() => moveWeek('next')}
                                 className="p-0.5 hover:bg-gray-100 rounded text-gray-500 transition-colors"
-                            >
+                        >
                                 <ChevronRight size={16} />
-                            </button>
-                        </div>
+                        </button>
+                    </div>
 
                         {/* Days Grid - 수업이 있는 날 표시 */}
                         <div className="grid grid-cols-7 gap-0.5">
@@ -673,9 +673,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 const isCurrentLesson = lessonOnThisDay?.id === task.id
                                 const isToday = isSameDay(new Date(), date)
 
-                                return (
-                                    <button
-                                        key={date.toISOString()}
+                            return (
+                                <button
+                                    key={date.toISOString()}
                                         onClick={() => {
                                             if (lessonOnThisDay && lessonOnThisDay.id !== task.id) {
                                                 // 해당 수업으로 전환
@@ -691,19 +691,19 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                 ? 'bg-blue-600 text-white font-bold'
                                                 : lessonOnThisDay
                                                     ? 'bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200'
-                                                    : isToday
+                                        : isToday
                                                         ? 'bg-gray-100 text-gray-600'
                                                         : 'bg-gray-50 text-gray-400'
                                         }`}
                                         disabled={!lessonOnThisDay && isStudentLesson}
-                                    >
+                                >
                                         <div className="leading-tight">{format(date, 'E', { locale: ko })}</div>
                                         <div className="leading-tight font-bold">{format(date, 'd')}</div>
                                         {lessonOnThisDay && <div className="text-blue-600 leading-tight">●</div>}
-                                    </button>
-                                )
-                            })}
-                        </div>
+                                </button>
+                            )
+                        })}
+                </div>
 
                         {/* 시간 수정 UI - 즉시 편집 */}
                         {startTime && (
@@ -716,43 +716,43 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 <Clock size={12} className="text-gray-500 ml-1" />
                                 
                                 {/* 시간 선택 - 즉시 편집 모드 */}
-                                <select 
+                        <select
                                     value={new Date(startTime).getHours()}
-                                    onChange={(e) => {
+                            onChange={(e) => {
                                         const newHour = Number(e.target.value)
                                         const newDate = new Date(startTime)
                                         newDate.setHours(newHour)
                                         const newIso = newDate.toISOString()
                                         setStartTime(newIso)  // 즉시 UI 업데이트!
                                         updateTask(task.id, { start_time: newIso })  // 백그라운드 저장
-                                    }}
+                            }}
                                     className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white font-medium hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                >
+                        >
                                     {Array.from({length: 24}, (_, i) => (
                                         <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
-                                    ))}
-                                </select>
+                            ))}
+                        </select>
                                 
                                 <span className="text-xs text-gray-500">:</span>
                                 
                                 {/* 분 선택 - 10분 단위, 즉시 편집 모드 */}
-                                <select 
+                    <select
                                     value={Math.floor(new Date(startTime).getMinutes() / 10) * 10}
-                                    onChange={(e) => {
+                        onChange={(e) => {
                                         const newMinute = Number(e.target.value)
                                         const newDate = new Date(startTime)
                                         newDate.setMinutes(newMinute)
                                         const newIso = newDate.toISOString()
                                         setStartTime(newIso)  // 즉시 UI 업데이트!
                                         updateTask(task.id, { start_time: newIso })  // 백그라운드 저장
-                                    }}
+                        }}
                                     className="text-xs px-1 py-0.5 border border-gray-300 rounded bg-white font-medium hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
                                     {[0, 10, 20, 30, 40, 50].map(m => (
                                         <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        ))}
+                    </select>
+                </div>
                         )}
                     </div>
                 )}
@@ -762,14 +762,14 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 {!isStudentLesson && (
                     <div className="flex-1 flex flex-col min-h-0">
                         <ChecklistMemo
-                            value={description}
+                        value={description}
                             onChange={setDescription}
                             onSave={(val) => updateTask(task.id, { description: val })}
                             placeholder="메모 입력... ([] 로 체크리스트 생성)"
                             className="flex-1"
                             autoFocus={task.type === 'note'}
-                        />
-                    </div>
+                    />
+                </div>
                 )}
 
 
@@ -798,7 +798,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                 {/* 교재명 */}
                                                 <div className="text-xs font-semibold text-gray-900 mb-1 truncate" title={textbook.name}>
                                                     {textbook.name}
-                                                </div>
+                    </div>
 
                                                 {checksForTextbook.length === 0 ? (
                                                     <div className="text-xs text-gray-400">
@@ -810,7 +810,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                             const globalIdx = homeworkChecks.indexOf(check)
                                                             return (
                                                                 <div key={idx} className="flex items-center gap-1">
-                                                                    <input
+                        <input
                                                                         type="checkbox"
                                                                         checked={check.is_completed}
                                                                         onChange={() => toggleHomeworkCheck(globalIdx)}
@@ -822,14 +822,14 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                                             ? textbook.custom_chapter_unit 
                                                                             : textbook.chapter_unit}
                                                                     </span>
-                                                                    <button
+                        <button
                                                                         onClick={() => removeHomeworkCheck(globalIdx)}
                                                                         className="text-red-400 hover:text-red-600 p-0.5"
                                                                         title="삭제"
-                                                                    >
+                        >
                                                                         <X size={10} />
-                                                                    </button>
-                                                                </div>
+                        </button>
+                    </div>
                                                             )
                                                         })}
                                                     </div>
@@ -843,7 +843,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                     배정된 교재가 없습니다
                                 </div>
                             )}
-                        </div>
+                </div>
 
                         {/* ===== 다음 과제 배정 (Phase 7) - 가로 4열 레이아웃 ===== */}
                         <div className="space-y-1">
@@ -889,14 +889,14 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 출결 상태
                             </label>
                             ...
-                        </div>
+                            </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <BookCheck size={16} />
                                 과제 상태
                             </label>
                             ...
-                        </div>
+                            </div>
                         */}
 
                         {/* 빠른 입력 (INBOX Task 생성) */}
@@ -916,7 +916,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                 rows={2}
                             />
-                            
+
                             {/* 이 수업의 메모 목록 (INBOX에서 가져옴) */}
                             {lessonMemos.length > 0 && (
                                 <div className="space-y-0.5 max-h-24 overflow-y-auto">
@@ -925,7 +925,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                             key={memo.id}
                                             className="flex items-start gap-1 text-xs bg-gray-50 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
                                         >
-                                            <button
+                                <button
                                                 onClick={async () => {
                                                     // toggleTaskStatus가 있으면 사용, 없으면 updateTask 직접 사용
                                                     if (toggleTaskStatus) {
@@ -989,7 +989,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             {/* Footer */}
             <div className="p-3 bg-gray-50 flex justify-between items-center border-t border-gray-100">
                 {/* 왼쪽: 삭제 버튼 */}
-                <button
+                    <button
                     onClick={() => {
                         if (confirm('이 태스크를 삭제하시겠습니까?')) {
                             deleteTask(task.id)
@@ -997,9 +997,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         }
                     }}
                     className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
-                >
+                    >
                     🗑️ 삭제
-                </button>
+                    </button>
 
                 {/* 중앙: 수정 시간 + 시계 아이콘 (일반 태스크용) */}
                 {!isStudentLesson && (
@@ -1011,7 +1011,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         
                         {/* 시계 아이콘 + 드롭다운 */}
                         <div className="relative">
-                            <button
+                    <button
                                 onClick={() => setShowTimeDropdown(!showTimeDropdown)}
                                 className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 ${
                                     startTime 
@@ -1026,7 +1026,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                         {format(new Date(startTime), 'HH:mm')}
                                     </span>
                                 )}
-                            </button>
+                    </button>
                             
                             {/* 시간 설정 드롭다운 */}
                             {showTimeDropdown && (
@@ -1042,11 +1042,11 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                 >
                                                     <ChevronLeft size={12} />
                                                 </button>
-                                                <button
-                                                    onClick={() => {
+                    <button
+                        onClick={() => {
                                                         const today = new Date()
                                                         handleDateSelect(today)
-                                                    }}
+                        }}
                                                     className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded text-xs font-medium text-gray-700"
                                                 >
                                                     {startTime 
@@ -1056,11 +1056,11 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                 <button
                                                     onClick={() => moveWeek('next')}
                                                     className="p-0.5 hover:bg-gray-100 rounded text-gray-400"
-                                                >
+                    >
                                                     <ChevronRight size={12} />
-                                                </button>
-                                            </div>
-                                        </div>
+                    </button>
+                </div>
+                </div>
                                         
                                         {/* 시작 시간 */}
                                         <div className="flex items-center justify-between">
@@ -1085,8 +1085,8 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                                                         <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                                                     ))}
                                                 </select>
-                                            </div>
-                                        </div>
+            </div>
+        </div>
                                         
                                         {/* 지속 시간 */}
                                         <div className="flex items-center justify-between">
@@ -1131,6 +1131,31 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
                 {/* 오른쪽: 버튼 그룹 */}
                 <div className="flex items-center gap-2">
+                    {/* 테스크/노트 전환 버튼 */}
+                    <button
+                        onClick={async () => {
+                            const newType = task.type === 'note' ? 'task' : 'note'
+                            await updateTask(task.id, { type: newType })
+                        }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                            task.type === 'note'
+                                ? 'text-blue-600 hover:bg-blue-50 border border-blue-200'
+                                : 'text-amber-600 hover:bg-amber-50 border border-amber-200'
+                        }`}
+                        title={task.type === 'note' ? '테스크로 전환' : '노트로 전환'}
+                    >
+                        {task.type === 'note' ? (
+                            <>
+                                <CheckSquare size={12} />
+                                테스크로
+                            </>
+                        ) : (
+                            <>
+                                <FileText size={12} />
+                                노트로
+                            </>
+                        )}
+                    </button>
                     <button
                         onClick={onClose}
                         className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"

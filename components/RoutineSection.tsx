@@ -66,84 +66,76 @@ function SortableRoutineItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-2 p-2 text-sm bg-white border rounded-md transition-all shadow-sm ${
-        isDragging
-          ? 'border-blue-400 shadow-xl'
-          : isCompleted
-            ? 'border-gray-200 bg-gray-50'
-            : 'border-orange-300 hover:border-orange-400 hover:shadow-md'
+      className={`group flex items-center gap-1.5 py-0.5 text-sm transition-all ${
+        isDragging ? 'opacity-60' : ''
       }`}
     >
       {/* 드래그 핸들 */}
       <div
         {...attributes}
         {...listeners}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors"
       >
-        <GripVertical size={16} />
+        <GripVertical size={12} />
       </div>
 
       {/* 체크박스 */}
       <button
         onClick={onToggle}
-        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+        className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${
           isCompleted
             ? 'bg-green-500 border-green-500 text-white'
-            : 'border-orange-400 hover:border-orange-500 bg-white hover:bg-orange-50'
+            : 'border-orange-400 hover:border-orange-500 bg-white'
         }`}
       >
-        {isCompleted && <Check size={12} strokeWidth={3} />}
+        {isCompleted && <Check size={10} strokeWidth={3} />}
       </button>
 
       {/* 제목 */}
-      <span className={`flex-1 font-medium truncate ${
-        isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'
+      <span className={`flex-1 text-xs truncate ${
+        isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'
       }`}>
         {routine.title}
       </span>
 
       {/* 메모 표시 (있으면) */}
       {note && (
-        <span className="text-xs text-gray-400 truncate max-w-[80px]" title={note}>
-          📝 {note.slice(0, 10)}...
+        <span className="text-[10px] text-gray-400 truncate max-w-[60px]" title={note}>
+          📝
         </span>
       )}
 
-      {/* 통계 버튼 */}
-      <button
-        onClick={onStats}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-green-600 transition-opacity flex-shrink-0 p-0.5"
-        title="통계 보기"
-      >
-        <BarChart3 size={14} />
-      </button>
-
-      {/* 메모 버튼 */}
-      <button
-        onClick={onNoteClick}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity flex-shrink-0 p-0.5"
-        title="메모 추가"
-      >
-        <FileText size={14} />
-      </button>
-
-      {/* 편집 버튼 */}
-      <button
-        onClick={onEdit}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity flex-shrink-0 p-0.5"
-        title="수정"
-      >
-        <Pencil size={14} />
-      </button>
-
-      {/* 삭제 버튼 */}
-      <button
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0 p-0.5"
-        title="삭제"
-      >
-        <X size={14} />
-      </button>
+      {/* 호버 시 버튼들 */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onStats}
+          className="text-gray-400 hover:text-green-600 p-0.5"
+          title="통계 보기"
+        >
+          <BarChart3 size={12} />
+        </button>
+        <button
+          onClick={onNoteClick}
+          className="text-gray-400 hover:text-blue-600 p-0.5"
+          title="메모 추가"
+        >
+          <FileText size={12} />
+        </button>
+        <button
+          onClick={onEdit}
+          className="text-gray-400 hover:text-blue-600 p-0.5"
+          title="수정"
+        >
+          <Pencil size={12} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="text-gray-400 hover:text-red-500 p-0.5"
+          title="삭제"
+        >
+          <X size={12} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -836,7 +828,7 @@ export default function RoutineSection() {
                 items={todayRoutines.map(r => r.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-1">
+                <div className="space-y-0">
                   {todayRoutines.map(routine => (
                     <SortableRoutineItem
                       key={routine.id}

@@ -18,7 +18,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink, GripVertical, Pencil } from 'lucide-react'
+import { Check, FolderPlus, Folder, ChevronDown, ChevronRight, X, Trash2, Plus, ExternalLink, GripVertical, Pencil, FileText } from 'lucide-react'
 import type { Task, Project, NotionLink } from '@/types/database'
 import TaskDetailPopover from './TaskDetailPopover'
 import ProjectCreateModal from './ProjectCreateModal'
@@ -73,8 +73,26 @@ function parseChecklistFromMemo(memo: string | undefined): ChecklistItem[] {
   return items
 }
 
-function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false, isCompleting = false, subtasks = [], onSubtaskToggle, onChecklistToggle, isExpanded = false, onToggleExpand }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void, isInbox?: boolean, isCompleting?: boolean, subtasks?: Task[], onSubtaskToggle?: (subtask: Task) => void, onChecklistToggle?: (task: Task, lineIndex: number, newCompleted: boolean) => void, isExpanded?: boolean, onToggleExpand?: (taskId: string) => void }) {
+function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false, isCompleting = false, subtasks = [], onSubtaskToggle, onChecklistToggle, isExpanded = false, onToggleExpand, onConvertType }: { id?: string, task: Task, onClick: (e: React.MouseEvent) => void, onToggleComplete: (e: React.MouseEvent) => void, isInbox?: boolean, isCompleting?: boolean, subtasks?: Task[], onSubtaskToggle?: (subtask: Task) => void, onChecklistToggle?: (task: Task, lineIndex: number, newCompleted: boolean) => void, isExpanded?: boolean, onToggleExpand?: (taskId: string) => void, onConvertType?: (task: Task, newType: 'task' | 'note') => void }) {
   
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null)
+  
+  // 우클릭 컨텍스트 메뉴
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  // 컨텍스트 메뉴 닫기
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null)
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [contextMenu])
+
   const {
     attributes,
     listeners,
@@ -114,14 +132,17 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
     })
   }
 
+  const isNote = task.type === 'note'
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
       <div
         ref={setNodeRef}
         style={style}
         {...attributes}
         {...listeners}
         onClick={onClick}
+        onContextMenu={handleContextMenu}
         className={`group flex items-start gap-2 transition-all duration-150 ease-in-out cursor-grab active:cursor-grabbing border-b
           ${isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
           ${isCompleting ? 'opacity-0 scale-98 -translate-x-2' : 'opacity-100 scale-100 translate-x-0'}
@@ -133,7 +154,9 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
                 ? 'bg-red-50/40 border-gray-100'
                 : isToday
                   ? 'bg-green-50/40 border-gray-100'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                  : isNote
+                    ? 'bg-amber-50/40 border-amber-200 hover:border-amber-300'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
           }`}
       >
         {/* Checkbox */}
@@ -242,6 +265,59 @@ function SortableTaskItem({ id, task, onClick, onToggleComplete, isInbox = false
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 컨텍스트 메뉴 */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onClick(e)
+              setContextMenu(null)
+            }}
+            className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Pencil size={14} />
+            수정
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onConvertType?.(task, isNote ? 'task' : 'note')
+              setContextMenu(null)
+            }}
+            className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            {isNote ? (
+              <>
+                <Check size={14} />
+                테스크로 전환
+              </>
+            ) : (
+              <>
+                <FileText size={14} />
+                노트로 전환
+              </>
+            )}
+          </button>
+          <div className="border-t border-gray-100 my-1" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleComplete(e)
+              setContextMenu(null)
+            }}
+            className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Check size={14} />
+            {isCompleted ? '미완료로 변경' : '완료 처리'}
+          </button>
         </div>
       )}
     </div>
@@ -415,6 +491,9 @@ function SortableNotionLink({ link, onUpdate, onDelete }: { link: NotionLink, on
   )
 }
 
+// 탭 타입 정의 (3탭 구조: Main/Tasks/Notes)
+type PanelTab = 'main' | 'tasks' | 'notes'
+
 export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, reorderTasks, toggleTaskStatus, projects, createProject, updateProject, deleteProject }: LeftPanelProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -425,6 +504,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false)
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set())
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [activeTab, setActiveTab] = useState<PanelTab>('main')  // 탭 상태 (기본: Main)
   const inboxScrollRef = useRef<HTMLDivElement>(null)
   const savedScrollPositionRef = useRef<number>(0)
   const shouldRestoreScrollRef = useRef<boolean>(false)
@@ -618,23 +698,29 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
     return newProject
   }
 
+  // 테스크 ↔ 노트 전환
+  const handleConvertType = async (task: Task, newType: 'task' | 'note') => {
+    await updateTask(task.id, { type: newType })
+  }
+
   // 날짜 포맷팅을 위한 import 필요 (상단에 추가해야 함, 여기서는 로직만 수정)
   const todayStr = new Date().toISOString().split('T')[0]
 
-  // 필터링 로직
+  // 필터링 로직 (방법 C: 노트는 모든 테스크 섹션에서 제외)
   // 1. Today's Focus: is_top5 (가장 높은 우선순위)
   // 하위 테스크(parent_id가 있는 것)는 각 섹션에서 제외 - 부모 테스크 아래에 표시됨
-  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id)
+  const focusTasks = tasks.filter(t => t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note')
 
   // 2. Today's Task: !is_top5 && due_date === today
-  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id)
+  const todayTasks = tasks.filter(t => !t.is_top5 && t.due_date?.split('T')[0] === todayStr && t.status !== 'completed' && t.status !== 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note')
 
   // 3. Waiting: status === 'waiting'
-  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id)
+  const waitingTasks = tasks.filter(t => t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note')
 
   // 4. Inbox: Focus와 Today's Task에 표시된 것은 제외 (중복 방지)
   // 보충수업(is_makeup)과 정규수업(is_auto_generated)은 INBOX에서 제외
   // 하위 테스크(parent_id가 있는 것)도 제외 - 부모 테스크 아래에 표시됨
+  // 노트(type === 'note')도 제외 - Notes 섹션에서 별도 표시 (방법 C)
   const inboxTasks = useMemo(() => {
     let filtered = tasks.filter(t => 
       t.status !== 'completed' && 
@@ -643,7 +729,8 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
       !t.is_makeup &&
       !t.is_top5 &&  // Today's Focus에 있는 것 제외
       t.due_date?.split('T')[0] !== todayStr &&  // Today's Task에 있는 것 제외
-      !t.parent_id  // 하위 테스크 제외
+      !t.parent_id &&  // 하위 테스크 제외
+      t.type !== 'note'  // 노트는 Notes 섹션에서 표시
     )
 
     // 프로젝트 필터 적용
@@ -845,10 +932,20 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
     )
   }
 
-  // Completed tasks filtering (remains the same)
-  const completedTasks = tasks.filter(t => t.status === 'completed' && !t.is_auto_generated)
+  // Completed tasks filtering (노트 제외 - 방법 C)
+  const completedTasks = tasks.filter(t => 
+    t.status === 'completed' && 
+    !t.is_auto_generated && 
+    t.type !== 'note'  // 노트는 Completed에서 제외
+  )
   const recentCompletedTasks = completedTasks.slice(0, 10)
   const hasMoreCompleted = completedTasks.length > 10
+
+  // Notes 필터링 (type === 'note'인 모든 항목, status 무관)
+  const noteTasks = tasks.filter(t => t.type === 'note' && !t.is_auto_generated)
+  const activeNotes = noteTasks.filter(t => t.status !== 'completed')
+  const completedNotes = noteTasks.filter(t => t.status === 'completed')
+  
 
   return (
     <div className="h-full flex flex-col bg-white border-r border-gray-200 relative">
@@ -870,14 +967,66 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
         />
       )}
 
-      {/* ROUTINES 섹션 - Today's Focus 위에 독립적으로 배치 */}
-      <RoutineSection />
+      {/* 상단 탭 헤더 (3탭: Main/Tasks/Notes) */}
+      <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <button
+          onClick={() => setActiveTab('main')}
+          className={`flex-1 py-2.5 px-3 text-sm font-medium transition-colors relative
+            ${activeTab === 'main' 
+              ? 'text-gray-900 bg-white' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+        >
+          🏠 Main
+          {activeTab === 'main' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('tasks')}
+          className={`flex-1 py-2.5 px-3 text-sm font-medium transition-colors relative
+            ${activeTab === 'tasks' 
+              ? 'text-blue-600 bg-white' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+        >
+          📋 Tasks
+          <span className="ml-1 text-xs text-gray-400">
+            ({inboxTasks.length + waitingTasks.length})
+          </span>
+          {activeTab === 'tasks' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('notes')}
+          className={`flex-1 py-2.5 px-3 text-sm font-medium transition-colors relative
+            ${activeTab === 'notes' 
+              ? 'text-amber-600 bg-white' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+        >
+          📝 Notes
+          <span className="ml-1 text-xs text-gray-400">
+            ({noteTasks.length})
+          </span>
+          {activeTab === 'notes' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />
+          )}
+        </button>
+      </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
+      {/* 탭 내용 영역 */}
+      <div className="flex-1 overflow-y-auto">
+        {/* ===== Main 탭 ===== */}
+        {activeTab === 'main' && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            {/* ROUTINES 섹션 */}
+            <RoutineSection />
         {/* Top: Today's Focus */}
         <div className="border-b border-gray-200">
           <DroppableContainer id="focus-container" title="Today's Focus">
@@ -900,6 +1049,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     onChecklistToggle={handleChecklistToggle}
                     isExpanded={expandedTaskIds.has(task.id)}
                     onToggleExpand={handleToggleExpand}
+                    onConvertType={handleConvertType}
                   />
                 ))}
               </div>
@@ -929,6 +1079,7 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
                     onChecklistToggle={handleChecklistToggle}
                     isExpanded={expandedTaskIds.has(task.id)}
                     onToggleExpand={handleToggleExpand}
+                    onConvertType={handleConvertType}
                   />
                 ))}
               </div>
@@ -969,136 +1120,235 @@ export default function LeftPanel({ tasks, createTask, updateTask, deleteTask, r
             </SortableContext>
           </div>
         </div>
+          </DndContext>
+        )}
 
-        {/* Bottom: Inbox (Master List) */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <DroppableContainer
-            id="inbox-container"
-            title={selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name || 'INBOX' : 'INBOX'}
-            className="h-full"
-            scrollRef={inboxScrollRef}
+        {/* ===== Tasks 탭 ===== */}
+        {activeTab === 'tasks' && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            <SortableContext items={inboxTasks.map(t => `${t.id}-inbox`)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-0">
-                {inboxTasks.map((task) => (
-                  <SortableTaskItem
-                    key={`${task.id}-inbox`}
-                    id={`${task.id}-inbox`}
-                    task={task}
-                    onClick={(e) => handleTaskClick(e, task)}
-                    onToggleComplete={() => handleToggleComplete(task)}
-                    isInbox={true}
-                    isCompleting={completingIds.has(task.id)}
-                    subtasks={getSubtasks(task.id)}
-                    onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
-                    onChecklistToggle={handleChecklistToggle}
-                    isExpanded={expandedTaskIds.has(task.id)}
-                    onToggleExpand={handleToggleExpand}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-
-            {/* Waiting Section */}
-            <div className="mt-8 border-t border-gray-100 pt-4">
-              <DroppableContainer id="waiting-container" title="Waiting" count={waitingTasks.length} className="min-h-[100px]">
-                <SortableContext items={waitingTasks.map(t => `${t.id}-waiting`)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-0">
-                    {waitingTasks.length === 0 && (
-                      <div className="text-xs text-gray-400 text-center py-2">
-                        나중에 할 일을 이곳으로 보관하세요
-                      </div>
-                    )}
-                    {waitingTasks.map((task) => (
-                      <SortableTaskItem
-                        key={`${task.id}-waiting`}
-                        id={`${task.id}-waiting`}
-                        task={task}
-                        onClick={(e) => handleTaskClick(e, task)}
-                        onToggleComplete={() => handleToggleComplete(task)}
-                        isInbox={true}
-                        isCompleting={completingIds.has(task.id)}
-                        subtasks={getSubtasks(task.id)}
-                        onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
-                        onChecklistToggle={handleChecklistToggle}
-                        isExpanded={expandedTaskIds.has(task.id)}
-                        onToggleExpand={handleToggleExpand}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DroppableContainer>
-            </div>
-
-            {/* Completed Tasks Section */}
-            {completedTasks.length > 0 && (
-              <div className="mt-8 border-t border-gray-100 pt-4">
-                {/* ... Completed tasks UI ... */}
-                <div className="flex items-center justify-between mb-3">
-                  <button
-                    onClick={() => setIsCompletedExpanded(!isCompletedExpanded)}
-                    className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {isCompletedExpanded ? (
-                      <ChevronDown size={16} className="flex-shrink-0" />
-                    ) : (
-                      <ChevronRight size={16} className="flex-shrink-0" />
-                    )}
-                    <span>Completed ({completedTasks.length})</span>
-                  </button>
-
-                  <button
-                    onClick={async () => {
-                      if (confirm(`완료된 할일 ${completedTasks.length}개를 모두 삭제하시겠습니까?`)) {
-                        for (const task of completedTasks) {
-                          await deleteTask(task.id)
-                        }
-                      }
-                    }}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                    title="완료된 할일 비우기"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-
-                {isCompletedExpanded && (
-                  <>
-                    <div className="space-y-0 opacity-75">
-                      {recentCompletedTasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex items-center gap-2 p-1 text-xs text-gray-400 bg-white border-b border-gray-100 line-through"
-                        >
-                          <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
-                            <Check size={10} className="text-blue-400" />
-                          </div>
-                          <span className="flex-1 truncate">{task.title}</span>
-                          <button
-                            onClick={() => handleToggleComplete(task)}
-                            className="text-xs text-blue-400 hover:underline px-1"
-                          >
-                            복구
-                          </button>
+            <div className="p-4" ref={inboxScrollRef}>
+                {/* INBOX */}
+                <DroppableContainer
+                  id="inbox-container"
+                  title={selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name || 'INBOX' : 'INBOX'}
+                  className=""
+                >
+                  <SortableContext items={inboxTasks.map(t => `${t.id}-inbox`)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-0">
+                      {inboxTasks.length === 0 && (
+                        <div className="text-xs text-gray-400 text-center py-4">
+                          할 일이 없습니다
                         </div>
+                      )}
+                      {inboxTasks.map((task) => (
+                        <SortableTaskItem
+                          key={`${task.id}-inbox`}
+                          id={`${task.id}-inbox`}
+                          task={task}
+                          onClick={(e) => handleTaskClick(e, task)}
+                          onToggleComplete={() => handleToggleComplete(task)}
+                          isInbox={true}
+                          isCompleting={completingIds.has(task.id)}
+                          subtasks={getSubtasks(task.id)}
+                          onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                          onChecklistToggle={handleChecklistToggle}
+                          isExpanded={expandedTaskIds.has(task.id)}
+                          onToggleExpand={handleToggleExpand}
+                          onConvertType={handleConvertType}
+                        />
                       ))}
                     </div>
-                    {/* More 버튼 */}
-                    {hasMoreCompleted && (
+                  </SortableContext>
+                </DroppableContainer>
+
+                {/* Waiting Section */}
+                <div className="mt-6 border-t border-gray-100 pt-4">
+                  <DroppableContainer id="waiting-container" title="Waiting" count={waitingTasks.length} className="min-h-[60px]">
+                    <SortableContext items={waitingTasks.map(t => `${t.id}-waiting`)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-0">
+                        {waitingTasks.length === 0 && (
+                          <div className="text-xs text-gray-400 text-center py-2">
+                            나중에 할 일을 이곳으로 보관하세요
+                          </div>
+                        )}
+                        {waitingTasks.map((task) => (
+                          <SortableTaskItem
+                            key={`${task.id}-waiting`}
+                            id={`${task.id}-waiting`}
+                            task={task}
+                            onClick={(e) => handleTaskClick(e, task)}
+                            onToggleComplete={() => handleToggleComplete(task)}
+                            isInbox={true}
+                            isCompleting={completingIds.has(task.id)}
+                            subtasks={getSubtasks(task.id)}
+                            onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                            onChecklistToggle={handleChecklistToggle}
+                            isExpanded={expandedTaskIds.has(task.id)}
+                            onToggleExpand={handleToggleExpand}
+                            onConvertType={handleConvertType}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DroppableContainer>
+                </div>
+
+                {/* Completed Tasks Section (Done) */}
+                {completedTasks.length > 0 && (
+                  <div className="mt-6 border-t border-gray-100 pt-4">
+                    <div className="flex items-center justify-between mb-3">
                       <button
-                        onClick={() => setShowAllCompletedModal(true)}
-                        className="mt-2 w-full text-center text-xs text-gray-500 hover:text-blue-500 py-2 hover:bg-blue-50 rounded transition-colors"
+                        onClick={() => setIsCompletedExpanded(!isCompletedExpanded)}
+                        className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors"
                       >
-                        More ({completedTasks.length - 10} more)
+                        {isCompletedExpanded ? (
+                          <ChevronDown size={16} className="flex-shrink-0" />
+                        ) : (
+                          <ChevronRight size={16} className="flex-shrink-0" />
+                        )}
+                        <span>Done ({completedTasks.length})</span>
                       </button>
+
+                      <button
+                        onClick={async () => {
+                          if (confirm(`완료된 할일 ${completedTasks.length}개를 모두 삭제하시겠습니까?`)) {
+                            for (const task of completedTasks) {
+                              await deleteTask(task.id)
+                            }
+                          }
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                        title="완료된 할일 비우기"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    {isCompletedExpanded && (
+                      <>
+                        <div className="space-y-0 opacity-75">
+                          {completedTasks.slice(0, 10).map((task) => (
+                            <div
+                              key={task.id}
+                              className="flex items-center gap-2 p-1 text-xs text-gray-400 bg-white border-b border-gray-100 line-through"
+                            >
+                              <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+                                <Check size={10} className="text-blue-400" />
+                              </div>
+                              <span className="flex-1 truncate">{task.title}</span>
+                              <button
+                                onClick={() => handleToggleComplete(task)}
+                                className="text-xs text-blue-400 hover:underline px-1"
+                              >
+                                복구
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        {completedTasks.length > 10 && (
+                          <button
+                            onClick={() => setShowAllCompletedModal(true)}
+                            className="mt-2 w-full text-center text-xs text-gray-500 hover:text-blue-500 py-2 hover:bg-blue-50 rounded transition-colors"
+                          >
+                            More ({completedTasks.length - 10} more)
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+            </div>
+          </DndContext>
+        )}
+
+        {/* ===== Notes 탭 ===== */}
+        {activeTab === 'notes' && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+              <div className="p-4">
+                {noteTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText size={32} className="mx-auto text-gray-300 mb-2" />
+                    <p className="text-sm text-gray-400">노트가 없습니다</p>
+                    <p className="text-xs text-gray-300 mt-1">Shift+Enter로 노트를 생성하세요</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 진행 중인 노트 */}
+                    {activeNotes.length > 0 && (
+                      <div className="mb-4">
+                        <h3 className="text-xs font-semibold text-amber-600 mb-2 flex items-center gap-1">
+                          <FileText size={12} />
+                          진행 중 ({activeNotes.length})
+                        </h3>
+                        <div className="space-y-0">
+                          {activeNotes.map((task) => (
+                            <SortableTaskItem
+                              key={`${task.id}-note`}
+                              id={`${task.id}-note`}
+                              task={task}
+                              onClick={(e) => handleTaskClick(e, task)}
+                              onToggleComplete={() => handleToggleComplete(task)}
+                              isInbox={true}
+                              isCompleting={completingIds.has(task.id)}
+                              subtasks={getSubtasks(task.id)}
+                              onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                              onChecklistToggle={handleChecklistToggle}
+                              isExpanded={expandedTaskIds.has(task.id)}
+                              onToggleExpand={handleToggleExpand}
+                              onConvertType={handleConvertType}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* 완료된 노트 */}
+                    {completedNotes.length > 0 && (
+                      <div className="border-t border-amber-100 pt-4">
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-1">
+                          <Check size={12} />
+                          완료된 노트 ({completedNotes.length})
+                        </h3>
+                        <div className="space-y-0 opacity-75">
+                          {completedNotes.map((task) => (
+                            <div
+                              key={task.id}
+                              onClick={(e) => handleTaskClick(e, task)}
+                              className="flex items-center gap-2 p-1.5 text-xs text-gray-400 bg-amber-50/30 border-b border-amber-100 cursor-pointer hover:bg-amber-50 rounded"
+                            >
+                              <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+                                <FileText size={10} className="text-amber-400" />
+                              </div>
+                              <span className="flex-1 truncate line-through">{task.title}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleComplete(task)
+                                }}
+                                className="text-[10px] text-amber-500 hover:underline px-1"
+                              >
+                                복구
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </>
                 )}
               </div>
-            )}
-          </DroppableContainer>
-        </div>
-      </DndContext>
+          </DndContext>
+        )}
+      </div>
+      {/* 탭 내용 영역 끝 */}
 
       {/* Bottom: Quick Capture Input (Sticky) */}
       <div className="p-4 border-t border-gray-200 bg-white">
