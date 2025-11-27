@@ -7,7 +7,7 @@ import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizont
 import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 import { supabase } from '@/lib/supabase'
-import { extractTags } from '@/utils/textParser'
+import { extractAllTags } from '@/utils/textParser'
 import ChapterGrid from './ChapterGrid'
 import ChecklistMemo from './ChecklistMemo'
 
@@ -607,7 +607,14 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onBlur={() => updateTask(task.id, { title })}
+                        onBlur={() => {
+                            // 제목 저장 시 제목 + 메모에서 태그 재추출
+                            const allTags = extractAllTags(title, description)
+                            updateTask(task.id, { 
+                                title,
+                                tags: allTags.length > 0 ? allTags : undefined
+                            })
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 e.preventDefault()
@@ -768,7 +775,14 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         <ChecklistMemo
                         value={description}
                             onChange={setDescription}
-                            onSave={(val) => updateTask(task.id, { description: val })}
+                            onSave={(val) => {
+                                // 메모 저장 시 제목 + 메모에서 태그 재추출
+                                const allTags = extractAllTags(title, val)
+                                updateTask(task.id, { 
+                                    description: val,
+                                    tags: allTags.length > 0 ? allTags : undefined
+                                })
+                            }}
                             placeholder="메모 입력... ([] 로 체크리스트 생성)"
                             className="flex-1"
                             autoFocus={task.type === 'note'}

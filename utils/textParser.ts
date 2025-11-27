@@ -71,3 +71,37 @@ export function extractTags(text: string): { cleanTitle: string; tags: string[] 
   return { cleanTitle: cleanTitle.trim(), tags: [...new Set(tags)] }  // 중복 제거
 }
 
+/**
+ * 텍스트에서 태그만 추출 (제목 정리 없이)
+ * description 등에서 태그만 추출할 때 사용
+ */
+export function extractTagsOnly(text: string): string[] {
+  if (!text) return []
+  
+  const tags: string[] = []
+
+  // 1. [[inline tag]] 추출
+  const inlineTagRegex = /\[\[([^\]]+)\]\]/g
+  let match
+  while ((match = inlineTagRegex.exec(text)) !== null) {
+    tags.push(match[1].trim())
+  }
+
+  // 2. #hashtag 추출
+  const hashtagRegex = /#([\w가-힣]+)/g
+  while ((match = hashtagRegex.exec(text)) !== null) {
+    tags.push(match[1])
+  }
+
+  return [...new Set(tags)]  // 중복 제거
+}
+
+/**
+ * 제목과 메모에서 모든 태그를 추출하여 병합
+ */
+export function extractAllTags(title: string, description?: string): string[] {
+  const { tags: titleTags } = extractTags(title)
+  const descTags = extractTagsOnly(description || '')
+  return [...new Set([...titleTags, ...descTags])]
+}
+
