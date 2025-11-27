@@ -75,7 +75,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         setAttendance(task.attendance || undefined)
         setHomeworkStatus(task.homework_status || undefined)
         setIsTop5(task.is_top5 || false)
-        setTaskType(task.type || 'task')
+        setTaskType(task.type === 'note' ? 'note' : 'task')
         setHomeworkChecks(task.homework_checks || [])
         setHomeworkAssignments(task.homework_assignments || [])
         
