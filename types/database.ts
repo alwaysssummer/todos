@@ -36,6 +36,9 @@ export interface Task {
     actual_duration?: number  // 실제 소요 시간 (분)
     streak_count?: number     // 연속 달성일
 
+    // 보관 여부
+    is_archived?: boolean     // true면 보관된 노트/테스크
+
     // ===== 블록 기반 확장 필드 (Phase 3) =====
     parent_id?: string | null  // 계층 구조 지원 (부모 Task ID)
     type?: TaskType            // Task 타입 (동적 확장 가능)

@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Check, FileText } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Check, FileText, Archive, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Task } from '@/types/database'
 import SortableTaskItem from './SortableTaskItem'
 
@@ -9,6 +9,7 @@ interface NotesTabProps {
   noteTasks: Task[]
   activeNotes: Task[]
   completedNotes: Task[]
+  archivedNotes: Task[]
   completingIds: Set<string>
   expandedTaskIds: Set<string>
   onTaskClick: (e: React.MouseEvent, task: Task) => void
@@ -18,12 +19,14 @@ interface NotesTabProps {
   onConvertType: (task: Task, newType: 'task' | 'note') => void
   getSubtasks: (parentId: string) => Task[]
   toggleTaskStatus: (id: string, status: string) => void
+  onUnarchive?: (task: Task) => void
 }
 
 export default function NotesTab({
   noteTasks,
   activeNotes,
   completedNotes,
+  archivedNotes,
   completingIds,
   expandedTaskIds,
   onTaskClick,
@@ -32,9 +35,11 @@ export default function NotesTab({
   onToggleExpand,
   onConvertType,
   getSubtasks,
-  toggleTaskStatus
+  toggleTaskStatus,
+  onUnarchive
 }: NotesTabProps) {
   const todayStr = new Date().toISOString().split('T')[0]
+  const [showArchived, setShowArchived] = useState(false)
 
   // 정렬: Focus(★) → Today's Task → 일반 노트
   const sortedActiveNotes = useMemo(() => {
@@ -120,6 +125,44 @@ export default function NotesTab({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Archived Notes */}
+          {archivedNotes.length > 0 && (
+            <div className="border-t border-purple-100 pt-4 mt-4">
+              <button
+                onClick={() => setShowArchived(!showArchived)}
+                className="w-full text-xs font-semibold text-purple-500 mb-2 flex items-center gap-1 hover:text-purple-600"
+              >
+                {showArchived ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                <Archive size={12} />
+                보관된 노트 ({archivedNotes.length})
+              </button>
+              {showArchived && (
+                <div className="space-y-0 opacity-75">
+                  {archivedNotes.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={(e) => onTaskClick(e, task)}
+                      className="flex items-center gap-2 p-1.5 text-xs text-purple-400 bg-purple-50/30 border-b border-purple-100 cursor-pointer hover:bg-purple-50 rounded"
+                    >
+                      <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+                        <Archive size={10} className="text-purple-400" />
+                      </div>
+                      <span className="flex-1 truncate">{task.title}</span>
+                      {onUnarchive && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onUnarchive(task) }}
+                          className="text-[10px] text-purple-500 hover:underline px-1"
+                        >
+                          복원
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>

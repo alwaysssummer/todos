@@ -133,9 +133,10 @@ export default function LeftPanel({
     t.status === 'completed' && !t.is_auto_generated && t.type !== 'note'
   )
 
-  const noteTasks = tasks.filter(t => t.type === 'note' && !t.is_auto_generated)
+  const noteTasks = tasks.filter(t => t.type === 'note' && !t.is_auto_generated && !t.is_archived)
   const activeNotes = noteTasks.filter(t => t.status !== 'completed')
   const completedNotes = noteTasks.filter(t => t.status === 'completed')
+  const archivedNotes = tasks.filter(t => t.type === 'note' && !t.is_auto_generated && t.is_archived)
 
   // 태그 개수 계산
   const tagCount = useMemo(() => {
@@ -367,10 +368,12 @@ export default function LeftPanel({
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <NotesTab
               noteTasks={noteTasks} activeNotes={activeNotes} completedNotes={completedNotes}
+              archivedNotes={archivedNotes}
               completingIds={completingIds} expandedTaskIds={expandedTaskIds}
               onTaskClick={handleTaskClick} onToggleComplete={handleToggleComplete}
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}
               onConvertType={handleConvertType} getSubtasks={getSubtasks} toggleTaskStatus={toggleTaskStatus}
+              onUnarchive={(task) => updateTask(task.id, { is_archived: false })}
             />
           </DndContext>
         )}

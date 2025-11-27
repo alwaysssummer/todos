@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { format, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen } from 'lucide-react'
+import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen, Archive } from 'lucide-react'
 import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 import { supabase } from '@/lib/supabase'
@@ -46,6 +46,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const todayStr = new Date().toISOString().split('T')[0]
     const [isTodayTask, setIsTodayTask] = useState(task.due_date?.split('T')[0] === todayStr)
 
+    // 보관 상태 (실시간 업데이트용)
+    const [isArchived, setIsArchived] = useState(task.is_archived || false)
+
     // 테스크/노트 타입 상태 (즉시 반영용)
     const [taskType, setTaskType] = useState<'task' | 'note'>(task.type === 'note' ? 'note' : 'task')
 
@@ -80,6 +83,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         setHomeworkStatus(task.homework_status || undefined)
         setIsTop5(task.is_top5 || false)
         setIsTodayTask(task.due_date?.split('T')[0] === todayStr)
+        setIsArchived(task.is_archived || false)
         setTaskType(task.type === 'note' ? 'note' : 'task')
         setHomeworkChecks(task.homework_checks || [])
         setHomeworkAssignments(task.homework_assignments || [])
@@ -296,6 +300,15 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             await updateTask(task.id, { due_date: todayStr })
         } else {
             await updateTask(task.id, { due_date: null })
+        }
+    }
+
+    const toggleArchive = async () => {
+        const newValue = !isArchived
+        setIsArchived(newValue) // 즉시 UI 업데이트
+        await updateTask(task.id, { is_archived: newValue })
+        if (newValue) {
+            onClose() // 보관 시 모달 닫기
         }
     }
 
@@ -1218,6 +1231,21 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                             노트
                         </button>
                     </div>
+
+                    {/* 보관 버튼 */}
+                    <button
+                        onClick={toggleArchive}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                            isArchived
+                                ? 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                                : 'text-gray-500 hover:bg-gray-100 hover:text-purple-600'
+                        }`}
+                        title={isArchived ? '보관 해제' : '보관하기'}
+                    >
+                        <Archive size={12} />
+                        {isArchived ? '보관됨' : '보관'}
+                    </button>
+
                     <button
                         onClick={onClose}
                         className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
