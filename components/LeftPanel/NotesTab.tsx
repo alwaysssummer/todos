@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, FileText, Archive, ChevronDown, ChevronRight } from 'lucide-react'
+import { Check, FileText, Archive, ChevronDown, ChevronRight, X, Trash2 } from 'lucide-react'
 import type { Task } from '@/types/database'
 import SortableTaskItem from './SortableTaskItem'
 
@@ -20,6 +20,8 @@ interface NotesTabProps {
   getSubtasks: (parentId: string) => Task[]
   toggleTaskStatus: (id: string, status: string) => void
   onUnarchive?: (task: Task) => void
+  onDelete?: (task: Task) => void
+  onClearCompleted?: () => void
 }
 
 export default function NotesTab({
@@ -36,9 +38,12 @@ export default function NotesTab({
   onConvertType,
   getSubtasks,
   toggleTaskStatus,
-  onUnarchive
+  onUnarchive,
+  onDelete,
+  onClearCompleted
 }: NotesTabProps) {
   const todayStr = new Date().toISOString().split('T')[0]
+  const [showCompleted, setShowCompleted] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
 
   // 정렬: Focus(★) → Today's Task → 일반 노트
@@ -98,39 +103,9 @@ export default function NotesTab({
             </div>
           )}
           
-          {/* Completed Notes */}
-          {completedNotes.length > 0 && (
-            <div className="border-t border-amber-100 pt-4">
-              <h3 className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-1">
-                <Check size={12} />
-                완료된 노트 ({completedNotes.length})
-              </h3>
-              <div className="space-y-0 opacity-75">
-                {completedNotes.map((task) => (
-                  <div
-                    key={task.id}
-                    onClick={(e) => onTaskClick(e, task)}
-                    className="flex items-center gap-2 p-1.5 text-xs text-gray-400 bg-amber-50/30 border-b border-amber-100 cursor-pointer hover:bg-amber-50 rounded"
-                  >
-                    <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
-                      <FileText size={10} className="text-amber-400" />
-                    </div>
-                    <span className="flex-1 truncate line-through">{task.title}</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onToggleComplete(task) }}
-                      className="text-[10px] text-amber-500 hover:underline px-1"
-                    >
-                      복구
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Archived Notes */}
+          {/* Archived Notes - 진행 중 바로 아래 */}
           {archivedNotes.length > 0 && (
-            <div className="border-t border-purple-100 pt-4 mt-4">
+            <div className="border-t border-purple-100 pt-4">
               <button
                 onClick={() => setShowArchived(!showArchived)}
                 className="w-full text-xs font-semibold text-purple-500 mb-2 flex items-center gap-1 hover:text-purple-600"
@@ -157,6 +132,66 @@ export default function NotesTab({
                           className="text-[10px] text-purple-500 hover:underline px-1"
                         >
                           복원
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Completed Notes - 맨 아래 */}
+          {completedNotes.length > 0 && (
+            <div className="border-t border-amber-100 pt-4 mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <button
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className="text-xs font-semibold text-gray-400 flex items-center gap-1 hover:text-gray-500"
+                >
+                  {showCompleted ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  <Check size={12} />
+                  완료된 노트 ({completedNotes.length})
+                </button>
+                {showCompleted && onClearCompleted && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`완료된 노트 ${completedNotes.length}개를 모두 삭제하시겠습니까?`)) {
+                        onClearCompleted()
+                      }
+                    }}
+                    className="text-[10px] text-red-400 hover:text-red-500 flex items-center gap-0.5 px-1.5 py-0.5 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 size={10} />
+                    비우기
+                  </button>
+                )}
+              </div>
+              {showCompleted && (
+                <div className="space-y-0 opacity-75">
+                  {completedNotes.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={(e) => onTaskClick(e, task)}
+                      className="group flex items-center gap-2 p-1.5 text-xs text-gray-400 bg-amber-50/30 border-b border-amber-100 cursor-pointer hover:bg-amber-50 rounded"
+                    >
+                      <div className="flex-shrink-0 w-3 h-3 flex items-center justify-center">
+                        <FileText size={10} className="text-amber-400" />
+                      </div>
+                      <span className="flex-1 truncate line-through">{task.title}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onToggleComplete(task) }}
+                        className="text-[10px] text-amber-500 hover:underline px-1"
+                      >
+                        복구
+                      </button>
+                      {onDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(task) }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-0.5 transition-opacity"
+                          title="삭제"
+                        >
+                          <X size={12} />
                         </button>
                       )}
                     </div>

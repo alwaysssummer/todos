@@ -374,6 +374,10 @@ export default function LeftPanel({
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}
               onConvertType={handleConvertType} getSubtasks={getSubtasks} toggleTaskStatus={toggleTaskStatus}
               onUnarchive={(task) => updateTask(task.id, { is_archived: false })}
+              onDelete={(task) => deleteTask(task.id)}
+              onClearCompleted={() => {
+                completedNotes.forEach(task => deleteTask(task.id))
+              }}
             />
           </DndContext>
         )}
