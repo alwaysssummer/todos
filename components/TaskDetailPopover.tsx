@@ -42,6 +42,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
 
+    // 테스크/노트 타입 상태 (즉시 반영용)
+    const [taskType, setTaskType] = useState<'task' | 'note'>(task.type || 'task')
+
     // 시간 설정 드롭다운 상태
     const [showTimeDropdown, setShowTimeDropdown] = useState(false)
 
@@ -72,6 +75,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         setAttendance(task.attendance || undefined)
         setHomeworkStatus(task.homework_status || undefined)
         setIsTop5(task.is_top5 || false)
+        setTaskType(task.type || 'task')
         setHomeworkChecks(task.homework_checks || [])
         setHomeworkAssignments(task.homework_assignments || [])
         
@@ -1130,32 +1134,48 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 )}
 
                 {/* 오른쪽: 버튼 그룹 */}
-                <div className="flex items-center gap-2">
-                    {/* 테스크/노트 전환 버튼 */}
-                    <button
-                        onClick={async () => {
-                            const newType = task.type === 'note' ? 'task' : 'note'
-                            await updateTask(task.id, { type: newType })
-                        }}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
-                            task.type === 'note'
-                                ? 'text-blue-600 hover:bg-blue-50 border border-blue-200'
-                                : 'text-amber-600 hover:bg-amber-50 border border-amber-200'
-                        }`}
-                        title={task.type === 'note' ? '테스크로 전환' : '노트로 전환'}
-                    >
-                        {task.type === 'note' ? (
-                            <>
-                                <CheckSquare size={12} />
-                                테스크로
-                            </>
-                        ) : (
-                            <>
-                                <FileText size={12} />
-                                노트로
-                            </>
-                        )}
-                    </button>
+                <div className="flex items-center gap-3">
+                    {/* 테스크/노트 스위치 토글 */}
+                    <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (taskType !== 'task') {
+                                    setTaskType('task')
+                                    updateTask(task.id, { type: 'task' })
+                                }
+                            }}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md duration-75 flex items-center gap-1.5 cursor-pointer ${
+                                taskType === 'task'
+                                    ? 'bg-white text-blue-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <CheckSquare size={12} />
+                            테스크
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (taskType !== 'note') {
+                                    setTaskType('note')
+                                    updateTask(task.id, { type: 'note' })
+                                }
+                            }}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md duration-75 flex items-center gap-1.5 cursor-pointer ${
+                                taskType === 'note'
+                                    ? 'bg-white text-amber-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <FileText size={12} />
+                            노트
+                        </button>
+                    </div>
                     <button
                         onClick={onClose}
                         className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"

@@ -64,6 +64,17 @@ export default function LeftPanel({
   )
 
   // ===== Effects =====
+  
+  // selectedTask를 tasks 배열과 동기화 (updateTask 후 UI 반영)
+  useEffect(() => {
+    if (selectedTask) {
+      const updatedTask = tasks.find(t => t.id === selectedTask.id)
+      if (updatedTask && updatedTask.updated_at !== selectedTask.updated_at) {
+        setSelectedTask(updatedTask)
+      }
+    }
+  }, [tasks, selectedTask])
+
   useEffect(() => {
     if (shouldRestoreScrollRef.current && inboxScrollRef.current) {
       const scrollPos = savedScrollPositionRef.current
