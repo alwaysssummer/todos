@@ -136,6 +136,21 @@ export default function LeftPanel({
   const activeNotes = noteTasks.filter(t => t.status !== 'completed')
   const completedNotes = noteTasks.filter(t => t.status === 'completed')
 
+  // 최근 생성된 태스크/노트 5개 (완료되지 않은 것, Today's Focus/Task 제외)
+  const recentTasks = useMemo(() => {
+    return [...tasks]
+      .filter(t => 
+        t.status !== 'completed' && 
+        !t.is_auto_generated && 
+        !t.is_makeup && 
+        !t.parent_id &&
+        !t.is_top5 &&  // Today's Focus 제외
+        t.due_date?.split('T')[0] !== todayStr  // Today's Task 제외
+      )
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 5)
+  }, [tasks, todayStr])
+
   // ===== Helper Functions =====
   const getSubtasks = (parentId: string) => {
     return tasks.filter(t => t.parent_id === parentId).sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
@@ -282,19 +297,19 @@ export default function LeftPanel({
         />
       )}
 
-      {/* Tab Header */}
-      <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
-        <button onClick={() => setActiveTab('main')} className={`flex-1 py-2.5 px-3 text-sm font-medium transition-colors relative ${activeTab === 'main' ? 'text-gray-900 bg-white' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
-          🏠 Main
-          {activeTab === 'main' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />}
+      {/* Tab Header - Compact */}
+      <div className="flex border-b border-gray-200 flex-shrink-0">
+        <button onClick={() => setActiveTab('main')} className={`flex-1 py-1.5 text-sm transition-colors relative ${activeTab === 'main' ? 'text-gray-900 font-semibold' : 'text-gray-400 hover:text-gray-600'}`}>
+          Main
+          {activeTab === 'main' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-gray-900 rounded-full" />}
         </button>
-        <button onClick={() => setActiveTab('tasks')} className={`flex-1 py-2.5 px-3 text-sm font-medium transition-colors relative ${activeTab === 'tasks' ? 'text-blue-600 bg-white' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
-          📋 Tasks<span className="ml-1 text-xs text-gray-400">({inboxTasks.length + waitingTasks.length})</span>
-          {activeTab === 'tasks' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
+        <button onClick={() => setActiveTab('tasks')} className={`flex-1 py-1.5 text-sm transition-colors relative ${activeTab === 'tasks' ? 'text-blue-600 font-semibold' : 'text-gray-400 hover:text-gray-600'}`}>
+          Tasks <span className={activeTab === 'tasks' ? 'text-blue-400' : 'text-gray-300'}>{inboxTasks.length + waitingTasks.length}</span>
+          {activeTab === 'tasks' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-600 rounded-full" />}
         </button>
-        <button onClick={() => setActiveTab('notes')} className={`flex-1 py-2.5 px-3 text-sm font-medium transition-colors relative ${activeTab === 'notes' ? 'text-amber-600 bg-white' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
-          📝 Notes<span className="ml-1 text-xs text-gray-400">({noteTasks.length})</span>
-          {activeTab === 'notes' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />}
+        <button onClick={() => setActiveTab('notes')} className={`flex-1 py-1.5 text-sm transition-colors relative ${activeTab === 'notes' ? 'text-amber-600 font-semibold' : 'text-gray-400 hover:text-gray-600'}`}>
+          Notes <span className={activeTab === 'notes' ? 'text-amber-400' : 'text-gray-300'}>{noteTasks.length}</span>
+          {activeTab === 'notes' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-amber-600 rounded-full" />}
         </button>
       </div>
 
@@ -303,7 +318,7 @@ export default function LeftPanel({
         {activeTab === 'main' && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <MainTab
-              focusTasks={focusTasks} todayTasks={todayTasks} notionLinks={notionLinks}
+              focusTasks={focusTasks} todayTasks={todayTasks} recentTasks={recentTasks} notionLinks={notionLinks}
               completingIds={completingIds} expandedTaskIds={expandedTaskIds}
               onTaskClick={handleTaskClick} onToggleComplete={handleToggleComplete}
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}

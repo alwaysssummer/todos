@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Check, FileText } from 'lucide-react'
 import type { Task } from '@/types/database'
 import SortableTaskItem from './SortableTaskItem'
@@ -33,6 +34,26 @@ export default function NotesTab({
   getSubtasks,
   toggleTaskStatus
 }: NotesTabProps) {
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  // 정렬: Focus(★) → Today's Task → 일반 노트
+  const sortedActiveNotes = useMemo(() => {
+    return [...activeNotes].sort((a, b) => {
+      // 1. Focus(★) 우선
+      if (a.is_top5 && !b.is_top5) return -1
+      if (!a.is_top5 && b.is_top5) return 1
+      
+      // 2. Today's Task 우선
+      const aIsToday = a.due_date?.split('T')[0] === todayStr
+      const bIsToday = b.due_date?.split('T')[0] === todayStr
+      if (aIsToday && !bIsToday) return -1
+      if (!aIsToday && bIsToday) return 1
+      
+      // 3. 나머지는 생성일 기준 (최신순)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }, [activeNotes, todayStr])
+
   return (
     <div className="p-4">
       {noteTasks.length === 0 ? (
@@ -51,7 +72,7 @@ export default function NotesTab({
                 진행 중 ({activeNotes.length})
               </h3>
               <div className="space-y-0">
-                {activeNotes.map((task) => (
+                {sortedActiveNotes.map((task) => (
                   <SortableTaskItem
                     key={`${task.id}-note`}
                     id={`${task.id}-note`}

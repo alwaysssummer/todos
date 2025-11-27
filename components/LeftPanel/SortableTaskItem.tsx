@@ -20,6 +20,7 @@ interface SortableTaskItemProps {
   isExpanded?: boolean
   onToggleExpand?: (taskId: string) => void
   onConvertType?: (task: Task, newType: 'task' | 'note') => void
+  compact?: boolean
 }
 
 export default function SortableTaskItem({ 
@@ -34,7 +35,8 @@ export default function SortableTaskItem({
   onChecklistToggle, 
   isExpanded = false, 
   onToggleExpand, 
-  onConvertType 
+  onConvertType,
+  compact = false
 }: SortableTaskItemProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null)
   
@@ -105,7 +107,7 @@ export default function SortableTaskItem({
         onClick={onClick}
         onContextMenu={handleContextMenu}
         className={`group flex items-start gap-2 transition-all duration-150 ease-in-out cursor-grab active:cursor-grabbing border-b
-          ${isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
+          ${compact ? 'p-0.5 text-[10px]' : isInbox ? 'p-1 text-xs' : 'p-1.5 text-sm'}
           ${isCompleting ? 'opacity-0 scale-98 -translate-x-2' : 'opacity-100 scale-100 translate-x-0'}
           ${isCompleting
             ? 'text-gray-400 border-gray-100 bg-gray-50/50'
