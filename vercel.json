@@ -1,0 +1,5 @@
+{
+  "buildCommand": "rm -rf .next && rm -rf node_modules/.cache && next build",
+  "installCommand": "npm install"
+}
+
