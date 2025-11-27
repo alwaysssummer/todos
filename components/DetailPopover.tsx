@@ -41,6 +41,10 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
+    
+    // Today's Task 상태 (실시간 업데이트용)
+    const todayStr = new Date().toISOString().split('T')[0]
+    const [isTodayTask, setIsTodayTask] = useState(task.due_date?.split('T')[0] === todayStr)
 
     // 테스크/노트 타입 상태 (즉시 반영용)
     const [taskType, setTaskType] = useState<'task' | 'note'>(task.type === 'note' ? 'note' : 'task')
@@ -75,6 +79,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         setAttendance(task.attendance || undefined)
         setHomeworkStatus(task.homework_status || undefined)
         setIsTop5(task.is_top5 || false)
+        setIsTodayTask(task.due_date?.split('T')[0] === todayStr)
         setTaskType(task.type === 'note' ? 'note' : 'task')
         setHomeworkChecks(task.homework_checks || [])
         setHomeworkAssignments(task.homework_assignments || [])
@@ -282,6 +287,16 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         const newValue = !isTop5
         setIsTop5(newValue) // 즉시 UI 업데이트
         await updateTask(task.id, { is_top5: newValue })
+    }
+
+    const toggleTodayTask = async () => {
+        const newValue = !isTodayTask
+        setIsTodayTask(newValue) // 즉시 UI 업데이트
+        if (newValue) {
+            await updateTask(task.id, { due_date: todayStr })
+        } else {
+            await updateTask(task.id, { due_date: null })
+        }
     }
 
     const toggleComplete = () => {
@@ -638,10 +653,23 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         />
                     )}
 
-                    {/* Top 5 - 빨간색 원 */}
+                    {/* Today's Task - 초록색 원 */}
+                    <button
+                        onClick={toggleTodayTask}
+                        className="transition-colors"
+                        title="Today's Task"
+                    >
+                        <div className={`w-5 h-5 rounded-full border-2 transition-all ${isTodayTask
+                            ? 'bg-green-500 border-green-500'
+                            : 'border-gray-300 hover:border-green-400'
+                            }`} />
+                    </button>
+
+                    {/* Top 5 - 빨간색 원 (Today's Focus) */}
                     <button
                         onClick={toggleTop5}
                         className="transition-colors"
+                        title="Today's Focus"
                     >
                         <div className={`w-5 h-5 rounded-full border-2 transition-all ${isTop5
                             ? 'bg-red-500 border-red-500'
