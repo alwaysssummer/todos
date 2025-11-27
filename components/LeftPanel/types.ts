@@ -13,5 +13,5 @@ export interface LeftPanelProps {
   deleteProject: (id: string) => Promise<void>
 }
 
-export type PanelTab = 'main' | 'tasks' | 'notes'
+export type PanelTab = 'main' | 'tasks' | 'notes' | 'tags'
 

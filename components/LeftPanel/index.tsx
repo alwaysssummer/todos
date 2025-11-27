@@ -22,6 +22,7 @@ import { useNotionLinks } from '@/hooks/useNotionLinks'
 import MainTab from './MainTab'
 import TasksTab from './TasksTab'
 import NotesTab from './NotesTab'
+import TagsTab from './TagsTab'
 import { LeftPanelProps, PanelTab } from './types'
 
 export default function LeftPanel({ 
@@ -135,6 +136,17 @@ export default function LeftPanel({
   const noteTasks = tasks.filter(t => t.type === 'note' && !t.is_auto_generated)
   const activeNotes = noteTasks.filter(t => t.status !== 'completed')
   const completedNotes = noteTasks.filter(t => t.status === 'completed')
+
+  // 태그 개수 계산
+  const tagCount = useMemo(() => {
+    const uniqueTags = new Set<string>()
+    tasks.forEach(task => {
+      if (!task.is_auto_generated) {
+        task.tags?.forEach(tag => uniqueTags.add(tag))
+      }
+    })
+    return uniqueTags.size
+  }, [tasks])
 
   // 최근 생성된 태스크/노트 5개 (완료되지 않은 것, Today's Focus/Task 제외)
   const recentTasks = useMemo(() => {
@@ -315,6 +327,10 @@ export default function LeftPanel({
           Notes <span className={activeTab === 'notes' ? 'text-amber-400' : 'text-gray-300'}>{noteTasks.length}</span>
           {activeTab === 'notes' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-amber-600 rounded-full" />}
         </button>
+        <button onClick={() => setActiveTab('tags')} className={`flex-1 py-1.5 text-sm transition-colors relative ${activeTab === 'tags' ? 'text-purple-600 font-semibold' : 'text-gray-400 hover:text-gray-600'}`}>
+          Tags <span className={activeTab === 'tags' ? 'text-purple-400' : 'text-gray-300'}>{tagCount}</span>
+          {activeTab === 'tags' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-purple-600 rounded-full" />}
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -357,6 +373,12 @@ export default function LeftPanel({
               onConvertType={handleConvertType} getSubtasks={getSubtasks} toggleTaskStatus={toggleTaskStatus}
             />
           </DndContext>
+        )}
+        {activeTab === 'tags' && (
+          <TagsTab
+            tasks={tasks}
+            onTaskClick={handleTaskClick}
+          />
         )}
       </div>
 
