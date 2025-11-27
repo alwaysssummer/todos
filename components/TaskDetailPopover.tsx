@@ -43,7 +43,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
 
     // 테스크/노트 타입 상태 (즉시 반영용)
-    const [taskType, setTaskType] = useState<'task' | 'note'>(task.type || 'task')
+    const [taskType, setTaskType] = useState<'task' | 'note'>(task.type === 'note' ? 'note' : 'task')
 
     // 시간 설정 드롭다운 상태
     const [showTimeDropdown, setShowTimeDropdown] = useState(false)
