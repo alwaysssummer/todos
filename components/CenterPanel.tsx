@@ -5,7 +5,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { format, isSameMinute, parseISO, isSameDay } from 'date-fns'
 import { Check, X } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
-import TaskDetailPopover from './TaskDetailPopover'
+import TaskDetailPopover from './DetailPopover'
 import { DailyNoteModal } from './DailyNoteModal'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
 

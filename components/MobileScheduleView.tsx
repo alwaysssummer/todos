@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { format, addDays, subDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Task, Project } from '@/types/database'
-import TaskDetailPopover from './TaskDetailPopover'
+import TaskDetailPopover from './DetailPopover'
 
 interface MobileScheduleViewProps {
   tasks: Task[]

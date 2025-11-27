@@ -13,7 +13,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { Check, X, Trash2 } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
-import TaskDetailPopover from '../TaskDetailPopover'
+import TaskDetailPopover from '../DetailPopover'
 import ProjectCreateModal from '../ProjectCreateModal'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
