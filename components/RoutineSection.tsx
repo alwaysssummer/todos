@@ -829,7 +829,14 @@ export default function RoutineSection() {
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-0">
-                  {todayRoutines.map(routine => (
+                  {/* 완료된 항목은 아래로 정렬 */}
+                  {[...todayRoutines]
+                    .sort((a, b) => {
+                      const aCompleted = getRoutineCompleted(a.id) ? 1 : 0
+                      const bCompleted = getRoutineCompleted(b.id) ? 1 : 0
+                      return aCompleted - bCompleted
+                    })
+                    .map(routine => (
                     <SortableRoutineItem
                       key={routine.id}
                       routine={routine}
