@@ -191,12 +191,36 @@ export default function ChecklistMemo({
 
   // ========== 텍스트 렌더링 (태그, 링크) ==========
 
+  // 알려진 TLD 목록 (주요 도메인 확장자)
+  const knownTLDs = ['com', 'net', 'org', 'io', 'app', 'dev', 'co', 'kr', 'jp', 'cn', 'uk', 'de', 'fr', 'ai', 'me', 'tv', 'gg', 'xyz', 'so', 'to', 'cc', 'ly', 'in', 'us', 'ca', 'au', 'ru', 'br', 'it', 'es', 'nl', 'be', 'ch', 'at', 'pl', 'se', 'no', 'fi', 'dk', 'pt', 'gr', 'cz', 'hu', 'ro', 'bg', 'sk', 'ua', 'tw', 'hk', 'sg', 'my', 'th', 'vn', 'id', 'ph', 'nz', 'za', 'mx', 'ar', 'cl', 'pe', 'co', 've', 'ec', 'edu', 'gov', 'mil', 'int', 'info', 'biz', 'name', 'pro', 'mobi', 'asia', 'tel', 'jobs', 'travel', 'museum', 'coop', 'aero', 'cat', 'post']
+  
+  // TLD 패턴 생성 (동적으로)
+  const tldPattern = knownTLDs.join('|')
+  
+  // URL 패턴: http(s)://, www., 또는 알려진 TLD로 끝나는 도메인
+  const urlRegex = new RegExp(
+    `(https?:\\/\\/[^\\s]+|www\\.[^\\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*\\.[a-zA-Z0-9-]*(\\.(${tldPattern}))[^\\s]*)`,
+    'gi'
+  )
+
   const renderText = (text: string) => {
-    const parts = text.split(/(#[\w가-힣]+|\[\[[^\]]+\]\])/g)
+    // 모든 패턴을 한번에 매칭: #태그, [[링크]], URL
+    const combinedPattern = new RegExp(
+      `(#[\\w가-힣]+|\\[\\[[^\\]]+\\]\\]|https?:\\/\\/[^\\s]+|www\\.[^\\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*(?:\\.[a-zA-Z0-9-]+)*\\.(?:${tldPattern})(?:\\/[^\\s]*)?)`,
+      'gi'
+    )
+    
+    const parts = text.split(combinedPattern)
+    
     return parts.map((part, i) => {
-      if (part.startsWith('#')) {
+      if (!part) return null
+      
+      // #태그
+      if (part.startsWith('#') && /^#[\w가-힣]+$/.test(part)) {
         return <span key={i} className="text-gray-400">{part}</span>
       }
+      
+      // [[내부 링크]]
       if (part.startsWith('[[') && part.endsWith(']]')) {
         const linkText = part.slice(2, -2)
         return (
@@ -205,13 +229,40 @@ export default function ChecklistMemo({
             className="text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
             onClick={(e) => {
               e.stopPropagation()
-              console.log('Link clicked:', linkText)
+              console.log('Internal link:', linkText)
             }}
           >
             {linkText}
           </span>
         )
       }
+      
+      // 웹 링크 (http://, https://, www., 또는 알려진 TLD 도메인)
+      const isUrl = /^https?:\/\//i.test(part) || 
+                    /^www\./i.test(part) || 
+                    new RegExp(`^[a-zA-Z0-9][a-zA-Z0-9-]*(?:\\.[a-zA-Z0-9-]+)*\\.(?:${tldPattern})(?:\\/|$)`, 'i').test(part)
+      
+      if (isUrl) {
+        // URL 정규화: www.나 도메인만 있으면 https:// 추가
+        let url = part
+        if (!url.match(/^https?:\/\//i)) {
+          url = 'https://' + url
+        }
+        
+        return (
+          <a
+            key={i}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-600 underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        )
+      }
+      
       return part
     })
   }
