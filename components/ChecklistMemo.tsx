@@ -34,6 +34,13 @@ interface ParsedBlock {
  * - ![alt](url): 이미지
  * - #태그      : 태그 (회색)
  * - [[링크]]   : 내부 링크 (파란색)
+ * 
+ * 서식 단축키:
+ * - Ctrl+B     : **굵게**
+ * - Ctrl+U     : __밑줄__
+ * - Ctrl+Shift+↑ : ##크게##
+ * - Ctrl+Shift+↓ : @@작게@@
+ * - Ctrl+Shift+R : !!빨강!!
  */
 export default function ChecklistMemo({
   value,
@@ -189,7 +196,52 @@ export default function ChecklistMemo({
     onSave(newValue)
   }
 
-  // ========== 텍스트 렌더링 (태그, 링크) ==========
+  // ========== 서식 단축키 처리 ==========
+
+  const applyFormat = (marker: string) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = value.substring(start, end)
+    
+    // 이미 마커가 있는지 확인 (토글 기능)
+    const markerLen = marker.length
+    const beforeMarker = value.substring(start - markerLen, start)
+    const afterMarker = value.substring(end, end + markerLen)
+    
+    let newValue: string
+    let newCursorStart: number
+    let newCursorEnd: number
+    
+    if (beforeMarker === marker && afterMarker === marker) {
+      // 마커 제거 (토글 OFF)
+      newValue = value.substring(0, start - markerLen) + selectedText + value.substring(end + markerLen)
+      newCursorStart = start - markerLen
+      newCursorEnd = end - markerLen
+    } else if (selectedText) {
+      // 선택된 텍스트에 마커 적용
+      newValue = value.substring(0, start) + marker + selectedText + marker + value.substring(end)
+      newCursorStart = start + markerLen
+      newCursorEnd = end + markerLen
+    } else {
+      // 선택 없으면 빈 마커 삽입 후 커서를 가운데로
+      newValue = value.substring(0, start) + marker + marker + value.substring(end)
+      newCursorStart = start + markerLen
+      newCursorEnd = start + markerLen
+    }
+    
+    onChange(newValue)
+    
+    // 커서 위치 복원
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(newCursorStart, newCursorEnd)
+    }, 0)
+  }
+
+  // ========== 텍스트 렌더링 (태그, 링크, 서식) ==========
 
   // 알려진 TLD 목록 (주요 도메인 확장자)
   const knownTLDs = ['com', 'net', 'org', 'io', 'app', 'dev', 'co', 'kr', 'jp', 'cn', 'uk', 'de', 'fr', 'ai', 'me', 'tv', 'gg', 'xyz', 'so', 'to', 'cc', 'ly', 'in', 'us', 'ca', 'au', 'ru', 'br', 'it', 'es', 'nl', 'be', 'ch', 'at', 'pl', 'se', 'no', 'fi', 'dk', 'pt', 'gr', 'cz', 'hu', 'ro', 'bg', 'sk', 'ua', 'tw', 'hk', 'sg', 'my', 'th', 'vn', 'id', 'ph', 'nz', 'za', 'mx', 'ar', 'cl', 'pe', 'co', 've', 'ec', 'edu', 'gov', 'mil', 'int', 'info', 'biz', 'name', 'pro', 'mobi', 'asia', 'tel', 'jobs', 'travel', 'museum', 'coop', 'aero', 'cat', 'post']
@@ -203,10 +255,11 @@ export default function ChecklistMemo({
     'gi'
   )
 
-  const renderText = (text: string) => {
-    // 모든 패턴을 한번에 매칭: #태그, [[링크]], URL
+  const renderText = (text: string): React.ReactNode => {
+    // 서식 마커 + 기존 패턴을 한번에 매칭
+    // 서식 마커를 먼저 매칭 (더 구체적인 패턴 우선)
     const combinedPattern = new RegExp(
-      `(#[\\w가-힣]+|\\[\\[[^\\]]+\\]\\]|https?:\\/\\/[^\\s]+|www\\.[^\\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*(?:\\.[a-zA-Z0-9-]+)*\\.(?:${tldPattern})(?:\\/[^\\s]*)?)`,
+      `(\\*\\*[^*]+\\*\\*|__[^_]+__|##[^#]+##|@@[^@]+@@|!![^!]+!!|#[\\w가-힣]+|\\[\\[[^\\]]+\\]\\]|https?:\\/\\/[^\\s]+|www\\.[^\\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*(?:\\.[a-zA-Z0-9-]+)*\\.(?:${tldPattern})(?:\\/[^\\s]*)?)`,
       'gi'
     )
     
@@ -214,6 +267,36 @@ export default function ChecklistMemo({
     
     return parts.map((part, i) => {
       if (!part) return null
+      
+      // **굵게**
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        const inner = part.slice(2, -2)
+        return <strong key={i} className="font-bold">{renderText(inner)}</strong>
+      }
+      
+      // __밑줄__
+      if (part.startsWith('__') && part.endsWith('__') && part.length > 4) {
+        const inner = part.slice(2, -2)
+        return <u key={i}>{renderText(inner)}</u>
+      }
+      
+      // ##크게##
+      if (part.startsWith('##') && part.endsWith('##') && part.length > 4) {
+        const inner = part.slice(2, -2)
+        return <span key={i} className="text-lg font-medium">{renderText(inner)}</span>
+      }
+      
+      // @@작게@@
+      if (part.startsWith('@@') && part.endsWith('@@') && part.length > 4) {
+        const inner = part.slice(2, -2)
+        return <span key={i} className="text-xs">{renderText(inner)}</span>
+      }
+      
+      // !!빨강!!
+      if (part.startsWith('!!') && part.endsWith('!!') && part.length > 4) {
+        const inner = part.slice(2, -2)
+        return <span key={i} className="text-red-500">{renderText(inner)}</span>
+      }
       
       // #태그
       if (part.startsWith('#') && /^#[\w가-힣]+$/.test(part)) {
@@ -365,9 +448,46 @@ export default function ChecklistMemo({
   // ========== 키보드 핸들러 ==========
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Escape: 저장 후 편집 종료
     if (e.key === 'Escape') {
       setIsEditing(false)
       onSave(value)
+      return
+    }
+    
+    // Ctrl+B: 굵게 **
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
+      e.preventDefault()
+      applyFormat('**')
+      return
+    }
+    
+    // Ctrl+U: 밑줄 __
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'u') {
+      e.preventDefault()
+      applyFormat('__')
+      return
+    }
+    
+    // Ctrl+Shift+↑: 크게 ##
+    if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') {
+      e.preventDefault()
+      applyFormat('##')
+      return
+    }
+    
+    // Ctrl+Shift+↓: 작게 @@
+    if (e.ctrlKey && e.shiftKey && e.key === 'ArrowDown') {
+      e.preventDefault()
+      applyFormat('@@')
+      return
+    }
+    
+    // Ctrl+Shift+R: 빨강 !!
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'r') {
+      e.preventDefault()
+      applyFormat('!!')
+      return
     }
   }
 
@@ -432,7 +552,7 @@ export default function ChecklistMemo({
           </div>
         )}
         <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-          Esc: 저장 | {'>>>'} 토글시작 | {'<<<'} 토글끝
+          Esc: 저장 | Ctrl+B: 굵게 | Ctrl+U: 밑줄 | Ctrl+Shift+↑↓: 크기 | Ctrl+Shift+R: 빨강
         </div>
       </div>
     )
