@@ -38,9 +38,6 @@ interface ParsedBlock {
  * 서식 단축키:
  * - Ctrl+B     : **굵게**
  * - Ctrl+U     : __밑줄__
- * - Ctrl+Shift+↑ : ##크게##
- * - Ctrl+Shift+↓ : @@작게@@
- * - Ctrl+Shift+R : !!빨강!!
  */
 export default function ChecklistMemo({
   value,
@@ -257,9 +254,8 @@ export default function ChecklistMemo({
 
   const renderText = (text: string): React.ReactNode => {
     // 서식 마커 + 기존 패턴을 한번에 매칭
-    // 서식 마커를 먼저 매칭 (더 구체적인 패턴 우선)
     const combinedPattern = new RegExp(
-      `(\\*\\*[^*]+\\*\\*|__[^_]+__|##[^#]+##|@@[^@]+@@|!![^!]+!!|#[\\w가-힣]+|\\[\\[[^\\]]+\\]\\]|https?:\\/\\/[^\\s]+|www\\.[^\\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*(?:\\.[a-zA-Z0-9-]+)*\\.(?:${tldPattern})(?:\\/[^\\s]*)?)`,
+      `(\\*\\*[^*]+\\*\\*|__[^_]+__|#[\\w가-힣]+|\\[\\[[^\\]]+\\]\\]|https?:\\/\\/[^\\s]+|www\\.[^\\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*(?:\\.[a-zA-Z0-9-]+)*\\.(?:${tldPattern})(?:\\/[^\\s]*)?)`,
       'gi'
     )
     
@@ -278,24 +274,6 @@ export default function ChecklistMemo({
       if (part.startsWith('__') && part.endsWith('__') && part.length > 4) {
         const inner = part.slice(2, -2)
         return <u key={i}>{renderText(inner)}</u>
-      }
-      
-      // ##크게##
-      if (part.startsWith('##') && part.endsWith('##') && part.length > 4) {
-        const inner = part.slice(2, -2)
-        return <span key={i} className="text-lg font-medium">{renderText(inner)}</span>
-      }
-      
-      // @@작게@@
-      if (part.startsWith('@@') && part.endsWith('@@') && part.length > 4) {
-        const inner = part.slice(2, -2)
-        return <span key={i} className="text-xs">{renderText(inner)}</span>
-      }
-      
-      // !!빨강!!
-      if (part.startsWith('!!') && part.endsWith('!!') && part.length > 4) {
-        const inner = part.slice(2, -2)
-        return <span key={i} className="text-red-500">{renderText(inner)}</span>
       }
       
       // #태그
@@ -468,27 +446,6 @@ export default function ChecklistMemo({
       applyFormat('__')
       return
     }
-    
-    // Ctrl+Shift+↑: 크게 ##
-    if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') {
-      e.preventDefault()
-      applyFormat('##')
-      return
-    }
-    
-    // Ctrl+Shift+↓: 작게 @@
-    if (e.ctrlKey && e.shiftKey && e.key === 'ArrowDown') {
-      e.preventDefault()
-      applyFormat('@@')
-      return
-    }
-    
-    // Ctrl+Shift+R: 빨강 !!
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'r') {
-      e.preventDefault()
-      applyFormat('!!')
-      return
-    }
   }
 
   // ========== 이미지 붙여넣기 ==========
@@ -552,7 +509,7 @@ export default function ChecklistMemo({
           </div>
         )}
         <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-          Esc: 저장 | Ctrl+B: 굵게 | Ctrl+U: 밑줄 | Ctrl+Shift+↑↓: 크기 | Ctrl+Shift+R: 빨강
+          Esc: 저장 | Ctrl+B: 굵게 | Ctrl+U: 밑줄
         </div>
       </div>
     )
