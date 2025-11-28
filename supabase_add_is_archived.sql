@@ -11,3 +11,4 @@ SELECT column_name, data_type, column_default
 FROM information_schema.columns 
 WHERE table_name = 'tasks' AND column_name = 'is_archived';
 
+

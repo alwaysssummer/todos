@@ -217,7 +217,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             }
 
             // 태그 추출 (LeftPanel과 동일)
-            const { cleanTitle, tags } = extractTags(title)
+            const { cleanTitle, tags } = extractAllTags(title, '')
 
             // 학생 이름 자동 태그 추가 (유일한 차이점!)
             const studentTag = project?.name || ''
