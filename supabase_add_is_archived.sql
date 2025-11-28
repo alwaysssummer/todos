@@ -12,3 +12,4 @@ FROM information_schema.columns
 WHERE table_name = 'tasks' AND column_name = 'is_archived';
 
 
+

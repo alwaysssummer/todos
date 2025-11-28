@@ -7,7 +7,7 @@ import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizont
 import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 import { supabase } from '@/lib/supabase'
-import { extractAllTags } from '@/utils/textParser'
+import { extractTags, extractAllTags } from '@/utils/textParser'
 import ChapterGrid from './ChapterGrid'
 import ChecklistMemo from './ChecklistMemo'
 
@@ -217,7 +217,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             }
 
             // 태그 추출 (LeftPanel과 동일)
-            const { cleanTitle, tags } = extractAllTags(title, '')
+            const { cleanTitle, tags } = extractTags(title)
 
             // 학생 이름 자동 태그 추가 (유일한 차이점!)
             const studentTag = project?.name || ''
