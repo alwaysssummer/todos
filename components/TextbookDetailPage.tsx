@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { ArrowLeft, BookOpen, Edit2, Check, X, FileText, Folder, FolderOpen } from 'lucide-react'
-import type { Textbook, TextbookGroup, TextbookChapter } from '@/types/database'
+import type { Textbook, TextbookGroup } from '@/types/database'
 import { useTextbookChapters } from '@/hooks/useTextbookChapters'
 import ChapterMemoPopup from './ChapterMemoPopup'
 
@@ -27,8 +27,8 @@ export default function TextbookDetailPage({
     
     // 로컬 경로 수정 상태
     const [isEditingPath, setIsEditingPath] = useState(false)
-    const [editingPath, setEditingPath] = useState(textbook.local_path || '')
-    const [currentLocalPath, setCurrentLocalPath] = useState(textbook.local_path || '')
+    const [editingPath, setEditingPath] = useState('')
+    const [currentLocalPath, setCurrentLocalPath] = useState('')
 
     const getChapterUnitDisplay = () => {
         return textbook.chapter_unit === '직접입력' 
@@ -109,9 +109,9 @@ export default function TextbookDetailPage({
     const handleOpenLocalFolder = () => {
         if (!currentLocalPath) return
         
-        const normalizedPath = currentLocalPath.replace(/\\/g, '/')
-        const url = `openfolder://${normalizedPath}`
-        window.open(url, '_blank')
+        const encodedPath = encodeURIComponent(currentLocalPath)
+        const url = `openfolder://open?path=${encodedPath}`
+        window.location.href = url
     }
 
     return (
@@ -156,7 +156,7 @@ export default function TextbookDetailPage({
                                                 setEditingPath(currentLocalPath)
                                             }
                                         }}
-                                        placeholder="예: D:/Dropbox/교재/어법입문"
+                                        placeholder="예: D:\Dropbox\교재\어법입문"
                                         className="flex-1 px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         autoFocus
                                     />
@@ -225,7 +225,7 @@ export default function TextbookDetailPage({
                             {chapterList.map((chapter) => (
                                 <div
                                     key={chapter.number}
-                                    className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
                                 >
                                     {/* 단원 번호 */}
                                     <div className="w-12 h-12 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-lg flex-shrink-0">
@@ -272,13 +272,6 @@ export default function TextbookDetailPage({
                                                 <span className="font-medium text-gray-900">
                                                     {chapter.customName || `${chapter.number}${getChapterUnitDisplay()}`}
                                                 </span>
-                                                <button
-                                                    onClick={() => handleEditName(chapter.number, chapter.customName)}
-                                                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="단원명 수정"
-                                                >
-                                                    <Edit2 size={14} />
-                                                </button>
                                             </div>
                                         )}
                                         
@@ -341,4 +334,3 @@ export default function TextbookDetailPage({
         </div>
     )
 }
-
