@@ -11,6 +11,8 @@ import TextbookManagementModal from './TextbookManagementModal'
 import { DailyNoteModal } from './DailyNoteModal'
 import { useScheduleManager } from '@/hooks/useScheduleManager'
 import { useTextbooks } from '@/hooks/useTextbooks'
+import { useTextbookGroups } from '@/hooks/useTextbookGroups'
+import { useTextbookSubgroups } from '@/hooks/useTextbookSubgroups'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
 
 interface RightPanelProps {
@@ -40,7 +42,30 @@ export default function RightPanel({ projects, createProject, updateProject, del
   const [showDailyNoteModal, setShowDailyNoteModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const { syncProjectSchedule } = useScheduleManager()
-  const { textbooks, createTextbook, deleteTextbook } = useTextbooks()
+  const { 
+    textbooks, 
+    createTextbook, 
+    deleteTextbook, 
+    updateTextbookGroup, 
+    updateTextbookSubgroup, 
+    updateTextbookChapters,
+    reorderTextbooks 
+  } = useTextbooks()
+  const { 
+    groups, 
+    createGroup, 
+    updateGroup, 
+    deleteGroup, 
+    reorderGroups 
+  } = useTextbookGroups()
+  const { 
+    subgroups, 
+    createSubgroup, 
+    updateSubgroup, 
+    deleteSubgroup, 
+    reorderSubgroups,
+    updateLocalPath 
+  } = useTextbookSubgroups()
   const { hasNoteOnDate, getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
 
   const handleGenerateTasks = async (newTasks: any[]) => {
@@ -563,8 +588,23 @@ export default function RightPanel({ projects, createProject, updateProject, del
         <TextbookManagementModal
           onClose={() => setShowTextbookModal(false)}
           textbooks={textbooks}
+          groups={groups}
+          subgroups={subgroups}
           onCreateTextbook={createTextbook}
           onDeleteTextbook={deleteTextbook}
+          onUpdateTextbookGroup={updateTextbookGroup}
+          onUpdateTextbookSubgroup={updateTextbookSubgroup}
+          onUpdateTextbookChapters={updateTextbookChapters}
+          onReorderTextbooks={reorderTextbooks}
+          onCreateGroup={createGroup}
+          onUpdateGroup={updateGroup}
+          onDeleteGroup={deleteGroup}
+          onReorderGroups={reorderGroups}
+          onCreateSubgroup={createSubgroup}
+          onUpdateSubgroup={updateSubgroup}
+          onDeleteSubgroup={deleteSubgroup}
+          onReorderSubgroups={reorderSubgroups}
+          onUpdateLocalPath={updateLocalPath}
         />
       )}
 

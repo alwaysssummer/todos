@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\openfolder]
+@="URL:Open Folder Protocol"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\openfolder\shell]
+
+[HKEY_CLASSES_ROOT\openfolder\shell\open]
+
+[HKEY_CLASSES_ROOT\openfolder\shell\open\command]
+@="powershell.exe -WindowStyle Hidden -Command \"$url = '%1'; $path = [System.Uri]::UnescapeDataString(($url -replace 'openfolder://open\\?path=', '')); if (Test-Path $path) { Start-Process explorer.exe $path } else { [System.Windows.Forms.MessageBox]::Show('폴더를 찾을 수 없습니다: ' + $path, '오류', 'OK', 'Error') }\""

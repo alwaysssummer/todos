@@ -186,6 +186,24 @@ export type Mood = 1 | 2 | 3 | 4 | 5
 // 과제 관리 타입 (Phase 2)
 // =====================================================
 
+// 교재 그룹 인터페이스 (그룹1: 어법, 독해, 단어 등)
+export interface TextbookGroup {
+    id: string
+    name: string
+    order_index: number
+    created_at: string
+}
+
+// 교재 서브그룹 인터페이스 (그룹2: 초급, 중급, 고급 등)
+export interface TextbookSubgroup {
+    id: string
+    group_id: string       // 상위 그룹
+    name: string           // "초급", "중급", "고급" 등
+    local_path?: string    // 로컬 폴더 경로 (예: D:\교재\어법\초급)
+    order_index: number
+    created_at: string
+}
+
 // 교재 인터페이스
 export interface Textbook {
     id: string
@@ -193,7 +211,58 @@ export interface Textbook {
     total_chapters: number
     chapter_unit: '강' | '과' | 'Unit' | 'Chapter' | '직접입력'
     custom_chapter_unit?: string
+    group_id?: string       // 그룹1 연결
+    subgroup_id?: string    // 그룹2 연결
+    order_index?: number    // 정렬 순서
     created_at: string
+}
+
+// 교재 템플릿 인터페이스
+export interface TextbookTemplate {
+    id: string
+    name: string                           // 템플릿명 (예: "수능 어법 10강")
+    total_chapters: number                 // 총 단원 수
+    chapter_unit: '강' | '과' | 'Unit' | 'Chapter' | '직접입력'
+    custom_chapter_unit?: string           // 직접입력 시 사용자 정의 단위
+    chapters?: TemplateChapter[]           // 단원 정보 배열
+    created_at: string
+    updated_at: string
+}
+
+// 템플릿 단원 정보
+export interface TemplateChapter {
+    chapter_number: number
+    custom_name?: string
+}
+
+// 단원 인터페이스 (단원명 수정 + 메모)
+export interface TextbookChapter {
+    id: string
+    textbook_id: string
+    chapter_number: number
+    custom_name?: string    // 수정된 단원명 (null이면 기본명 사용)
+    memo?: string           // 단원 메모
+    order_index?: number    // 정렬 순서
+    created_at: string
+    updated_at: string
+}
+
+// 교재 템플릿 인터페이스 (단원 구조 재사용)
+export interface TextbookTemplate {
+    id: string
+    name: string                    // 템플릿명 (예: "수능 어법 기본 10강")
+    total_chapters: number          // 총 단원 수
+    chapter_unit: '강' | '과' | 'Unit' | 'Chapter' | '직접입력'
+    custom_chapter_unit?: string    // 사용자 정의 단원 단위
+    chapters?: TemplateChapter[]    // 단원 정보 배열
+    created_at: string
+    updated_at: string
+}
+
+// 템플릿 단원 정보
+export interface TemplateChapter {
+    chapter_number: number
+    custom_name?: string
 }
 
 // 과제 체크 아이템 (이전 수업에서 배정받은 과제)
