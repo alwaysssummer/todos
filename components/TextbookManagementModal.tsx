@@ -106,6 +106,14 @@ export default function TextbookManagementModal({
     const [newGroupName, setNewGroupName] = useState('')
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
     const [editingGroupName, setEditingGroupName] = useState('')
+    
+    // 그룹 탭 변경 시 선택된 그룹 자동 반영 (교재 추가 폼용)
+    useEffect(() => {
+        if (activeTab) {
+            setSelectedGroupId(activeTab)
+            setSelectedSubgroupId(null)
+        }
+    }, [activeTab])
 
     // 서브그룹 관리 상태
     const [isAddingSubgroup, setIsAddingSubgroup] = useState(false)
@@ -1937,20 +1945,46 @@ export default function TextbookManagementModal({
                             </div>
                             <div>
                                 <label className="block text-xs text-gray-600 mb-1">그룹</label>
-                                <select
-                                    value={selectedGroupId || ''}
-                                    onChange={(e) => {
-                                        setSelectedGroupId(e.target.value || null)
-                                        setSelectedSubgroupId(null)
-                                    }}
-                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-                                >
-                                    <option value="">미분류</option>
-                                    {groups.map(g => (
-                                        <option key={g.id} value={g.id}>{g.name}</option>
-                                    ))}
-                                </select>
+                                {activeTab ? (
+                                    // 그룹 탭 선택 시 고정 표시
+                                    <div className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-700">
+                                        {groups.find(g => g.id === activeTab)?.name || '선택됨'}
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={selectedGroupId || ''}
+                                        onChange={(e) => {
+                                            setSelectedGroupId(e.target.value || null)
+                                            setSelectedSubgroupId(null)
+                                        }}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                                    >
+                                        <option value="">미분류</option>
+                                        {groups.map(g => (
+                                            <option key={g.id} value={g.id}>{g.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
+                            {/* 수준 선택 (그룹이 선택된 경우) */}
+                            {selectedGroupId && (
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">수준</label>
+                                    <select
+                                        value={selectedSubgroupId || ''}
+                                        onChange={(e) => setSelectedSubgroupId(e.target.value || null)}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                                    >
+                                        <option value="">선택안함</option>
+                                        {subgroups
+                                            .filter(s => s.group_id === selectedGroupId)
+                                            .map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <button
                                     onClick={handleCreate}
