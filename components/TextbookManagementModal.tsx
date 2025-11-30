@@ -775,6 +775,32 @@ export default function TextbookManagementModal({
                             <FolderOpen size={14} />
                         </button>
                     )}
+
+                    {/* 메모 버튼 - 폴더 링크 우측 */}
+                    {textbook.memo ? (
+                        <button
+                            onClick={e => {
+                                e.stopPropagation()
+                                openMemoModal(textbook.id, textbook.name, 'textbook', textbook.memo || '')
+                            }}
+                            className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[100px]"
+                            title={textbook.memo}
+                        >
+                            <MessageSquare size={12} />
+                            <span className="truncate">{textbook.memo}</span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={e => {
+                                e.stopPropagation()
+                                openMemoModal(textbook.id, textbook.name, 'textbook', '')
+                            }}
+                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded"
+                            title="메모 추가"
+                        >
+                            <MessageSquare size={14} />
+                        </button>
+                    )}
                     
                     <span className="flex-1" />
                     <span className="text-sm text-gray-500">
@@ -837,32 +863,6 @@ export default function TextbookManagementModal({
                         <Plus size={12} />
                     </button>
                 </div>
-
-                {/* 메모 버튼 */}
-                {textbook.memo ? (
-                    <button
-                        onClick={e => {
-                            e.stopPropagation()
-                            openMemoModal(textbook.id, textbook.name, 'textbook', textbook.memo || '')
-                        }}
-                        className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[100px]"
-                        title={textbook.memo}
-                    >
-                        <MessageSquare size={12} />
-                        <span className="truncate">{textbook.memo}</span>
-                    </button>
-                ) : (
-                    <button
-                        onClick={e => {
-                            e.stopPropagation()
-                            openMemoModal(textbook.id, textbook.name, 'textbook', '')
-                        }}
-                        className="p-1 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded"
-                        title="메모 추가"
-                    >
-                        <MessageSquare size={14} />
-                    </button>
-                )}
 
                 {/* 즐겨찾기 버튼 */}
                 <button
@@ -1675,10 +1675,8 @@ export default function TextbookManagementModal({
                                                 <FolderOpen size={14} />
                                             </button>
                                         )}
-                                        
-                                        <div className="flex-1 border-b border-gray-200 ml-1" />
-                                        
-                                        {/* 메모 버튼 */}
+
+                                        {/* 메모 버튼 - 폴더 링크 우측 */}
                                         {subgroup.memo ? (
                                             <button
                                                 onClick={e => {
@@ -1703,6 +1701,8 @@ export default function TextbookManagementModal({
                                                 <MessageSquare size={14} />
                                             </button>
                                         )}
+                                        
+                                        <div className="flex-1 border-b border-gray-200 ml-1" />
                                         
                                         {/* 인라인 교재 추가 버튼 */}
                                         {inlineAddSubgroupId === subgroup.id ? (
