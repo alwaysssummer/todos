@@ -214,6 +214,7 @@ export interface Textbook {
     group_id?: string       // 그룹1 연결
     subgroup_id?: string    // 그룹2 연결
     order_index?: number    // 정렬 순서
+    local_path?: string     // 로컬 폴더 경로
     created_at: string
 }
 
@@ -245,24 +246,6 @@ export interface TextbookChapter {
     order_index?: number    // 정렬 순서
     created_at: string
     updated_at: string
-}
-
-// 교재 템플릿 인터페이스 (단원 구조 재사용)
-export interface TextbookTemplate {
-    id: string
-    name: string                    // 템플릿명 (예: "수능 어법 기본 10강")
-    total_chapters: number          // 총 단원 수
-    chapter_unit: '강' | '과' | 'Unit' | 'Chapter' | '직접입력'
-    custom_chapter_unit?: string    // 사용자 정의 단원 단위
-    chapters?: TemplateChapter[]    // 단원 정보 배열
-    created_at: string
-    updated_at: string
-}
-
-// 템플릿 단원 정보
-export interface TemplateChapter {
-    chapter_number: number
-    custom_name?: string
 }
 
 // 과제 체크 아이템 (이전 수업에서 배정받은 과제)

@@ -34,7 +34,7 @@ export function useTextbookSubgroups() {
     }, [fetchSubgroups])
 
     // 서브그룹 생성
-    const createSubgroup = useCallback(async (groupId: string, name: string, localPath?: string): Promise<TextbookSubgroup> => {
+    const createSubgroup = useCallback(async (groupId: string, name: string): Promise<TextbookSubgroup> => {
         const groupSubgroups = subgroups.filter(s => s.group_id === groupId)
         const maxOrderIndex = groupSubgroups.length > 0
             ? Math.max(...groupSubgroups.map(s => s.order_index)) + 1
@@ -45,7 +45,6 @@ export function useTextbookSubgroups() {
             .insert({
                 group_id: groupId,
                 name,
-                local_path: localPath || null,
                 order_index: maxOrderIndex
             })
             .select()
@@ -57,8 +56,8 @@ export function useTextbookSubgroups() {
         return data
     }, [subgroups])
 
-    // 서브그룹 수정
-    const updateSubgroup = useCallback(async (id: string, updates: { name?: string; local_path?: string }): Promise<TextbookSubgroup> => {
+    // 서브그룹 수정 (name, local_path 지원)
+    const updateSubgroup = useCallback(async (id: string, updates: { name?: string; local_path?: string | null }): Promise<TextbookSubgroup> => {
         const { data, error: updateError } = await supabase
             .from('textbook_subgroups')
             .update(updates)
@@ -123,21 +122,6 @@ export function useTextbookSubgroups() {
             .sort((a, b) => a.order_index - b.order_index)
     }, [subgroups])
 
-    // 로컬 경로 업데이트
-    const updateLocalPath = useCallback(async (id: string, localPath: string | null): Promise<TextbookSubgroup> => {
-        const { data, error: updateError } = await supabase
-            .from('textbook_subgroups')
-            .update({ local_path: localPath })
-            .eq('id', id)
-            .select()
-            .single()
-
-        if (updateError) throw updateError
-
-        setSubgroups(prev => prev.map(s => s.id === id ? data : s))
-        return data
-    }, [])
-
     return {
         subgroups,
         loading,
@@ -148,6 +132,5 @@ export function useTextbookSubgroups() {
         deleteSubgroup,
         reorderSubgroups,
         getSubgroupsByGroupId,
-        updateLocalPath,
     }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowLeft, BookOpen, Edit2, Check, X, FileText, Folder, FolderOpen } from 'lucide-react'
+import { ArrowLeft, BookOpen, Edit2, Check, X, FileText } from 'lucide-react'
 import type { Textbook, TextbookGroup } from '@/types/database'
 import { useTextbookChapters } from '@/hooks/useTextbookChapters'
 import ChapterMemoPopup from './ChapterMemoPopup'
@@ -10,25 +10,18 @@ interface TextbookDetailPageProps {
     textbook: Textbook
     groups: TextbookGroup[]
     onBack: () => void
-    onUpdateLocalPath?: (id: string, localPath: string | null) => Promise<Textbook>
 }
 
 export default function TextbookDetailPage({
     textbook,
     groups,
     onBack,
-    onUpdateLocalPath
 }: TextbookDetailPageProps) {
     const { chapters, loading, updateChapterName, updateChapterMemo } = useTextbookChapters(textbook.id)
     const [editingChapter, setEditingChapter] = useState<number | null>(null)
     const [editingName, setEditingName] = useState('')
     const [showMemoPopup, setShowMemoPopup] = useState(false)
     const [selectedChapter, setSelectedChapter] = useState<{ number: number; name: string; memo: string } | null>(null)
-    
-    // 로컬 경로 수정 상태
-    const [isEditingPath, setIsEditingPath] = useState(false)
-    const [editingPath, setEditingPath] = useState('')
-    const [currentLocalPath, setCurrentLocalPath] = useState('')
 
     const getChapterUnitDisplay = () => {
         return textbook.chapter_unit === '직접입력' 
@@ -91,29 +84,6 @@ export default function TextbookDetailPage({
         }
     }
 
-    // 로컬 경로 저장
-    const handleSaveLocalPath = async () => {
-        if (!onUpdateLocalPath) return
-        
-        try {
-            await onUpdateLocalPath(textbook.id, editingPath.trim() || null)
-            setCurrentLocalPath(editingPath.trim())
-            setIsEditingPath(false)
-        } catch (error) {
-            console.error('Error updating local path:', error)
-            alert('경로 저장에 실패했습니다.')
-        }
-    }
-
-    // 로컬 폴더 열기
-    const handleOpenLocalFolder = () => {
-        if (!currentLocalPath) return
-        
-        const encodedPath = encodeURIComponent(currentLocalPath)
-        const url = `openfolder://open?path=${encodedPath}`
-        window.location.href = url
-    }
-
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -136,80 +106,6 @@ export default function TextbookDetailPage({
                                 <span>•</span>
                                 <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs">{groupName}</span>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* 로컬 폴더 경로 */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center gap-2">
-                            <Folder size={16} className="text-gray-400 flex-shrink-0" />
-                            {isEditingPath ? (
-                                <div className="flex-1 flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={editingPath}
-                                        onChange={(e) => setEditingPath(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleSaveLocalPath()
-                                            if (e.key === 'Escape') {
-                                                setIsEditingPath(false)
-                                                setEditingPath(currentLocalPath)
-                                            }
-                                        }}
-                                        placeholder="예: D:\Dropbox\교재\어법입문"
-                                        className="flex-1 px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        autoFocus
-                                    />
-                                    <button
-                                        onClick={handleSaveLocalPath}
-                                        className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                        title="저장"
-                                    >
-                                        <Check size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setIsEditingPath(false)
-                                            setEditingPath(currentLocalPath)
-                                        }}
-                                        className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                                        title="취소"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex-1 flex items-center gap-2">
-                                    {currentLocalPath ? (
-                                        <>
-                                            <span className="text-sm text-gray-600 truncate flex-1" title={currentLocalPath}>
-                                                {currentLocalPath}
-                                            </span>
-                                            <button
-                                                onClick={handleOpenLocalFolder}
-                                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                                title="폴더 열기"
-                                            >
-                                                <FolderOpen size={16} />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <span className="text-sm text-gray-400 italic">로컬 폴더 경로 없음</span>
-                                    )}
-                                    {onUpdateLocalPath && (
-                                        <button
-                                            onClick={() => {
-                                                setEditingPath(currentLocalPath)
-                                                setIsEditingPath(true)
-                                            }}
-                                            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                                            title="경로 수정"
-                                        >
-                                            <Edit2 size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

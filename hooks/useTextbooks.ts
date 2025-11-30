@@ -151,6 +151,26 @@ export function useTextbooks() {
         }
     }, [])
 
+    // 교재 로컬 경로 변경
+    const updateTextbookLocalPath = useCallback(async (id: string, localPath: string | null): Promise<Textbook> => {
+        try {
+            const { data, error } = await supabase
+                .from('textbooks')
+                .update({ local_path: localPath })
+                .eq('id', id)
+                .select()
+                .single()
+
+            if (error) throw error
+
+            setTextbooks(prev => prev.map(t => t.id === id ? data : t))
+            return data
+        } catch (error) {
+            console.error('Error updating textbook local path:', error)
+            throw error
+        }
+    }, [])
+
     // 교재 순서 변경 (같은 그룹/서브그룹 내에서)
     const reorderTextbooks = useCallback(async (reorderedTextbooks: Textbook[]): Promise<void> => {
         // 로컬 상태 먼저 업데이트 (낙관적 업데이트)
@@ -249,9 +269,9 @@ export function useTextbooks() {
         updateTextbookGroup,
         updateTextbookSubgroup,
         updateTextbookChapters,
+        updateTextbookLocalPath,
         reorderTextbooks,
         cleanTextbookDataFromTasks,
         refetch: fetchTextbooks,
     }
 }
-

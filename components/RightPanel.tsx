@@ -49,6 +49,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
     updateTextbookGroup, 
     updateTextbookSubgroup, 
     updateTextbookChapters,
+    updateTextbookLocalPath,
     reorderTextbooks 
   } = useTextbooks()
   const { 
@@ -63,8 +64,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
     createSubgroup, 
     updateSubgroup, 
     deleteSubgroup, 
-    reorderSubgroups,
-    updateLocalPath 
+    reorderSubgroups
   } = useTextbookSubgroups()
   const { hasNoteOnDate, getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
 
@@ -595,6 +595,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
           onUpdateTextbookGroup={updateTextbookGroup}
           onUpdateTextbookSubgroup={updateTextbookSubgroup}
           onUpdateTextbookChapters={updateTextbookChapters}
+          onUpdateTextbookLocalPath={updateTextbookLocalPath}
           onReorderTextbooks={reorderTextbooks}
           onCreateGroup={createGroup}
           onUpdateGroup={updateGroup}
@@ -604,7 +605,6 @@ export default function RightPanel({ projects, createProject, updateProject, del
           onUpdateSubgroup={updateSubgroup}
           onDeleteSubgroup={deleteSubgroup}
           onReorderSubgroups={reorderSubgroups}
-          onUpdateLocalPath={updateLocalPath}
         />
       )}
 

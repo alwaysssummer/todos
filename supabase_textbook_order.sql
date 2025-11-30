@@ -11,3 +11,4 @@ SET order_index = ranked.rn
 FROM ranked
 WHERE textbooks.id = ranked.id;
 
+

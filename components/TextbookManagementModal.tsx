@@ -1,10 +1,33 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { X, BookOpen, Trash2, Plus, Minus, FolderOpen, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown } from 'lucide-react'
+import { X, BookOpen, Trash2, Plus, Minus, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown, FolderOpen } from 'lucide-react'
 import type { Textbook, TextbookGroup, TextbookSubgroup, TextbookChapter, TextbookTemplate, TemplateChapter } from '@/types/database'
 import { useTextbookChapters } from '@/hooks/useTextbookChapters'
 import { useTextbookTemplates } from '@/hooks/useTextbookTemplates'
+
+// 세션 스토리지 키
+const STORAGE_KEY_COLLAPSED_GROUPS = 'textbook-collapsed-groups'
+const STORAGE_KEY_COLLAPSED_SUBGROUPS = 'textbook-collapsed-subgroups'
+const STORAGE_KEY_EXPANDED_TEXTBOOKS = 'textbook-expanded-textbooks'
+
+// 세션 스토리지에서 Set 불러오기
+const loadFromSession = (key: string): Set<string> => {
+    if (typeof window === 'undefined') return new Set()
+    const stored = sessionStorage.getItem(key)
+    if (!stored) return new Set()
+    try {
+        return new Set(JSON.parse(stored))
+    } catch {
+        return new Set()
+    }
+}
+
+// 세션 스토리지에 Set 저장
+const saveToSession = (key: string, set: Set<string>) => {
+    if (typeof window === 'undefined') return
+    sessionStorage.setItem(key, JSON.stringify([...set]))
+}
 
 interface TextbookManagementModalProps {
     onClose: () => void
@@ -16,16 +39,16 @@ interface TextbookManagementModalProps {
     onUpdateTextbookGroup: (id: string, groupId: string | null) => Promise<Textbook>
     onUpdateTextbookSubgroup: (id: string, subgroupId: string | null) => Promise<Textbook>
     onUpdateTextbookChapters: (id: string, totalChapters: number) => Promise<Textbook>
+    onUpdateTextbookLocalPath: (id: string, localPath: string | null) => Promise<Textbook>
     onReorderTextbooks: (reorderedTextbooks: Textbook[]) => Promise<void>
     onCreateGroup: (name: string) => Promise<TextbookGroup>
     onUpdateGroup: (id: string, name: string) => Promise<TextbookGroup>
     onDeleteGroup: (id: string) => Promise<void>
     onReorderGroups: (reorderedGroups: TextbookGroup[]) => Promise<void>
-    onCreateSubgroup: (groupId: string, name: string, localPath?: string) => Promise<TextbookSubgroup>
-    onUpdateSubgroup: (id: string, updates: { name?: string; local_path?: string }) => Promise<TextbookSubgroup>
+    onCreateSubgroup: (groupId: string, name: string) => Promise<TextbookSubgroup>
+    onUpdateSubgroup: (id: string, updates: { name?: string; local_path?: string | null }) => Promise<TextbookSubgroup>
     onDeleteSubgroup: (id: string) => Promise<void>
     onReorderSubgroups: (reorderedSubgroups: TextbookSubgroup[]) => Promise<void>
-    onUpdateLocalPath: (id: string, localPath: string | null) => Promise<TextbookSubgroup>
 }
 
 export default function TextbookManagementModal({
@@ -38,6 +61,7 @@ export default function TextbookManagementModal({
     onUpdateTextbookGroup,
     onUpdateTextbookSubgroup,
     onUpdateTextbookChapters,
+    onUpdateTextbookLocalPath,
     onReorderTextbooks,
     onCreateGroup,
     onUpdateGroup,
@@ -47,7 +71,6 @@ export default function TextbookManagementModal({
     onUpdateSubgroup,
     onDeleteSubgroup,
     onReorderSubgroups,
-    onUpdateLocalPath,
 }: TextbookManagementModalProps) {
     // 템플릿 훅
     const { 
@@ -85,15 +108,30 @@ export default function TextbookManagementModal({
     // 서브그룹 관리 상태
     const [isAddingSubgroup, setIsAddingSubgroup] = useState(false)
     const [newSubgroupName, setNewSubgroupName] = useState('')
-    const [newSubgroupLocalPath, setNewSubgroupLocalPath] = useState('')
     const [editingSubgroupId, setEditingSubgroupId] = useState<string | null>(null)
     const [editingSubgroupName, setEditingSubgroupName] = useState('')
-    const [editingSubgroupLocalPath, setEditingSubgroupLocalPath] = useState('')
+    
+    // 폴더 경로 편집
+    const [editingPathId, setEditingPathId] = useState<string | null>(null)
+    const [pathInput, setPathInput] = useState('')
+    
+    // 폴더 열기 함수 (opendir:// 커스텀 프로토콜 사용)
+    const openLocalFolder = (path: string) => {
+        // 역슬래시를 슬래시로 변환하고 프로토콜 추가
+        const url = 'opendir://' + path.replace(/\\/g, '/')
+        window.location.href = url
+    }
 
-    // 토글 상태
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
-    const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set())
-    const [expandedTextbooks, setExpandedTextbooks] = useState<Set<string>>(new Set())
+    // 토글 상태 - 세션 스토리지에서 초기화
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => 
+        loadFromSession(STORAGE_KEY_COLLAPSED_GROUPS)
+    )
+    const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(() => 
+        loadFromSession(STORAGE_KEY_COLLAPSED_SUBGROUPS)
+    )
+    const [expandedTextbooks, setExpandedTextbooks] = useState<Set<string>>(() => 
+        loadFromSession(STORAGE_KEY_EXPANDED_TEXTBOOKS)
+    )
 
     // 교재 펼치기/접기
     const toggleTextbook = (textbookId: string) => {
@@ -101,6 +139,7 @@ export default function TextbookManagementModal({
             const next = new Set(prev)
             if (next.has(textbookId)) next.delete(textbookId)
             else next.add(textbookId)
+            saveToSession(STORAGE_KEY_EXPANDED_TEXTBOOKS, next)
             return next
         })
     }
@@ -145,6 +184,7 @@ export default function TextbookManagementModal({
             const next = new Set(prev)
             if (next.has(groupId)) next.delete(groupId)
             else next.add(groupId)
+            saveToSession(STORAGE_KEY_COLLAPSED_GROUPS, next)
             return next
         })
     }
@@ -154,6 +194,7 @@ export default function TextbookManagementModal({
             const next = new Set(prev)
             if (next.has(subgroupId)) next.delete(subgroupId)
             else next.add(subgroupId)
+            saveToSession(STORAGE_KEY_COLLAPSED_SUBGROUPS, next)
             return next
         })
     }
@@ -457,9 +498,8 @@ export default function TextbookManagementModal({
     const handleAddSubgroup = async () => {
         if (!newSubgroupName.trim() || !activeTab) return
         try {
-            await onCreateSubgroup(activeTab, newSubgroupName.trim(), newSubgroupLocalPath.trim() || undefined)
+            await onCreateSubgroup(activeTab, newSubgroupName.trim())
             setNewSubgroupName('')
-            setNewSubgroupLocalPath('')
             setIsAddingSubgroup(false)
         } catch (error) {
             console.error('Error creating subgroup:', error)
@@ -473,13 +513,9 @@ export default function TextbookManagementModal({
             return
         }
         try {
-            await onUpdateSubgroup(id, { 
-                name: editingSubgroupName.trim(), 
-                local_path: editingSubgroupLocalPath.trim() || undefined 
-            })
+            await onUpdateSubgroup(id, { name: editingSubgroupName.trim() })
             setEditingSubgroupId(null)
             setEditingSubgroupName('')
-            setEditingSubgroupLocalPath('')
         } catch (error) {
             console.error('Error updating subgroup:', error)
             alert('수준 수정에 실패했습니다.')
@@ -500,13 +536,6 @@ export default function TextbookManagementModal({
             console.error('Error deleting subgroup:', error)
             alert('수준 삭제에 실패했습니다.')
         }
-    }
-
-    // 로컬 폴더 열기
-    const openLocalFolder = (localPath: string) => {
-        if (!localPath) return
-        const encodedPath = encodeURIComponent(localPath)
-        window.location.href = `openfolder://open?path=${encodedPath}`
     }
 
     // 단원 단위 표시
@@ -627,6 +656,67 @@ export default function TextbookManagementModal({
                         <Plus size={12} />
                     </button>
                 </div>
+
+                {/* 폴더 경로 버튼 */}
+                {editingPathId === textbook.id ? (
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <input
+                            type="text"
+                            value={pathInput}
+                            onChange={e => setPathInput(e.target.value)}
+                            placeholder="경로 붙여넣기"
+                            className="w-32 px-2 py-0.5 text-xs border border-blue-400 rounded"
+                            autoFocus
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && pathInput.trim()) {
+                                    onUpdateTextbookLocalPath(textbook.id, pathInput.trim())
+                                    setEditingPathId(null)
+                                }
+                                if (e.key === 'Escape') setEditingPathId(null)
+                            }}
+                        />
+                        <button
+                            onClick={() => {
+                                if (pathInput.trim()) {
+                                    onUpdateTextbookLocalPath(textbook.id, pathInput.trim())
+                                }
+                                setEditingPathId(null)
+                            }}
+                            className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                        >
+                            <Check size={12} />
+                        </button>
+                    </div>
+                ) : textbook.local_path ? (
+                    <button
+                        onClick={e => {
+                            e.stopPropagation()
+                            openLocalFolder(textbook.local_path!)
+                        }}
+                        onContextMenu={e => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setPathInput(textbook.local_path || '')
+                            setEditingPathId(textbook.id)
+                        }}
+                        className="px-2 py-0.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-1"
+                        title="클릭: 폴더 열기 | 우클릭: 수정"
+                    >
+                        <FolderOpen size={12} />
+                    </button>
+                ) : (
+                    <button
+                        onClick={e => {
+                            e.stopPropagation()
+                            setPathInput('')
+                            setEditingPathId(textbook.id)
+                        }}
+                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded"
+                        title="폴더 경로 등록"
+                    >
+                        <FolderOpen size={14} />
+                    </button>
+                )}
 
                 {/* 템플릿으로 저장 */}
                 <button
@@ -983,7 +1073,7 @@ export default function TextbookManagementModal({
                                 ) : (
                                     <ChevronDown size={16} className="text-gray-600" />
                                 )}
-                                <FolderOpen size={16} className="text-blue-600" />
+                                <BookOpen size={16} className="text-blue-600" />
                                 <span className="font-bold text-gray-900">{group.name}</span>
                                 <span className="text-sm text-gray-500">({groupTextbooks.length})</span>
                             </div>
@@ -1015,18 +1105,6 @@ export default function TextbookManagementModal({
                                                             )}
                                                             <span className="font-medium text-gray-700">{subgroup.name}</span>
                                                             <span className="text-xs text-gray-400">({subgroupTextbooks.length})</span>
-                                                            {subgroup.local_path && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        openLocalFolder(subgroup.local_path!)
-                                                                    }}
-                                                                    className="p-1 text-gray-400 hover:text-blue-600 rounded"
-                                                                    title={subgroup.local_path}
-                                                                >
-                                                                    <FolderOpen size={14} />
-                                                                </button>
-                                                            )}
                                                         </div>
                                                         {!isSubgroupCollapsed && (
                                                             <div className="ml-4 space-y-1 mt-1">
@@ -1079,7 +1157,7 @@ export default function TextbookManagementModal({
                             ) : (
                                 <ChevronDown size={16} className="text-gray-500" />
                             )}
-                            <FolderOpen size={16} className="text-gray-500" />
+                            <BookOpen size={16} className="text-gray-500" />
                             <span className="font-bold text-gray-700">미분류</span>
                             <span className="text-sm text-gray-500">({uncategorized.length})</span>
                         </div>
@@ -1143,49 +1221,42 @@ export default function TextbookManagementModal({
                                             type="text"
                                             value={editingSubgroupName}
                                             onChange={(e) => setEditingSubgroupName(e.target.value)}
-                                            className="w-16 text-xs border-none focus:outline-none"
+                                            className="w-20 text-xs border-none focus:outline-none"
                                             autoFocus
-                                        />
-                                        <input
-                                            type="text"
-                                            value={editingSubgroupLocalPath}
-                                            onChange={(e) => setEditingSubgroupLocalPath(e.target.value)}
-                                            placeholder="폴더 경로"
-                                            className="w-24 text-xs border-l border-gray-200 pl-1 focus:outline-none"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleUpdateSubgroup(subgroup.id)
+                                                if (e.key === 'Escape') setEditingSubgroupId(null)
+                                            }}
                                         />
                                         <button onClick={() => handleUpdateSubgroup(subgroup.id)} className="p-0.5 text-blue-600">
                                             <Check size={12} />
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className={`flex items-center gap-1 px-2 py-1 bg-white border rounded text-xs cursor-grab ${
+                                    <div className={`flex items-center gap-1 px-2 py-1 bg-white border rounded text-xs cursor-grab group ${
                                         isDragOver ? 'border-blue-500 border-dashed bg-blue-50' : 'border-gray-200 hover:border-gray-400'
                                     }`}>
                                         <GripVertical size={10} className="text-gray-400" />
                                         <span className="text-gray-700">{subgroup.name}</span>
                                         <span className="text-gray-400">({count})</span>
-                                        {subgroup.local_path && (
-                                            <button
-                                                onClick={() => openLocalFolder(subgroup.local_path!)}
-                                                className="p-0.5 text-gray-400 hover:text-blue-600"
-                                                title={subgroup.local_path}
-                                            >
-                                                <FolderOpen size={12} />
-                                            </button>
-                                        )}
                                         <button
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 setEditingSubgroupId(subgroup.id)
                                                 setEditingSubgroupName(subgroup.name)
-                                                setEditingSubgroupLocalPath(subgroup.local_path || '')
                                             }}
-                                            className="p-0.5 text-gray-400 hover:text-blue-600 opacity-0 group-hover/subgroup:opacity-100"
+                                            className="p-0.5 text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="수정"
                                         >
                                             <Edit2 size={10} />
                                         </button>
                                         <button
-                                            onClick={() => handleDeleteSubgroup(subgroup.id, subgroup.name)}
-                                            className="p-0.5 text-gray-400 hover:text-red-600 opacity-0 group-hover/subgroup:opacity-100"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleDeleteSubgroup(subgroup.id, subgroup.name)
+                                            }}
+                                            className="p-0.5 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="삭제"
                                         >
                                             <Trash2 size={10} />
                                         </button>
@@ -1203,20 +1274,17 @@ export default function TextbookManagementModal({
                                 value={newSubgroupName}
                                 onChange={(e) => setNewSubgroupName(e.target.value)}
                                 placeholder="수준명"
-                                className="w-16 text-xs border-none focus:outline-none"
+                                className="w-20 text-xs border-none focus:outline-none"
                                 autoFocus
-                            />
-                            <input
-                                type="text"
-                                value={newSubgroupLocalPath}
-                                onChange={(e) => setNewSubgroupLocalPath(e.target.value)}
-                                placeholder="폴더 경로 (선택)"
-                                className="w-24 text-xs border-l border-gray-200 pl-1 focus:outline-none"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleAddSubgroup()
+                                    if (e.key === 'Escape') { setIsAddingSubgroup(false); setNewSubgroupName('') }
+                                }}
                             />
                             <button onClick={handleAddSubgroup} className="p-0.5 text-blue-600">
                                 <Check size={12} />
                             </button>
-                            <button onClick={() => { setIsAddingSubgroup(false); setNewSubgroupName(''); setNewSubgroupLocalPath('') }} className="p-0.5 text-gray-400">
+                            <button onClick={() => { setIsAddingSubgroup(false); setNewSubgroupName('') }} className="p-0.5 text-gray-400">
                                 <X size={12} />
                             </button>
                         </div>
@@ -1239,7 +1307,6 @@ export default function TextbookManagementModal({
                                 .filter(t => t.subgroup_id === subgroup.id)
                                 .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
                             const isCollapsed = collapsedSubgroups.has(subgroup.id)
-
                             return (
                                 <div key={subgroup.id}>
                                     <div 
@@ -1253,19 +1320,74 @@ export default function TextbookManagementModal({
                                         )}
                                         <span className="font-medium text-gray-800">{subgroup.name}</span>
                                         <span className="text-sm text-gray-500">({subgroupTextbooks.length})</span>
-                                        {subgroup.local_path && (
+                                        <div className="flex-1 border-b border-gray-200 ml-1" />
+                                        
+                                        {/* 폴더 경로 버튼 */}
+                                        {editingPathId === subgroup.id ? (
+                                            // 입력 모드
+                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={pathInput}
+                                                    onChange={e => setPathInput(e.target.value)}
+                                                    placeholder="경로 붙여넣기"
+                                                    className="w-40 px-2 py-0.5 text-xs border border-blue-400 rounded"
+                                                    autoFocus
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter' && pathInput.trim()) {
+                                                            onUpdateSubgroup(subgroup.id, { local_path: pathInput.trim() })
+                                                            setEditingPathId(null)
+                                                        }
+                                                        if (e.key === 'Escape') setEditingPathId(null)
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        if (pathInput.trim()) {
+                                                            onUpdateSubgroup(subgroup.id, { local_path: pathInput.trim() })
+                                                        }
+                                                        setEditingPathId(null)
+                                                    }}
+                                                    className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                                                >
+                                                    <Check size={12} />
+                                                </button>
+                                            </div>
+                                        ) : subgroup.local_path ? (
+                                            // 경로 있음 → 클릭하면 폴더 열기
                                             <button
-                                                onClick={(e) => {
+                                                onClick={e => {
                                                     e.stopPropagation()
                                                     openLocalFolder(subgroup.local_path!)
                                                 }}
-                                                className="p-1 text-gray-400 hover:text-blue-600 rounded"
-                                                title={subgroup.local_path}
+                                                onContextMenu={e => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    setPathInput(subgroup.local_path || '')
+                                                    setEditingPathId(subgroup.id)
+                                                }}
+                                                className="px-2 py-0.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-1"
+                                                title="클릭: 폴더 열기 | 우클릭: 수정"
+                                            >
+                                                <FolderOpen size={12} />
+                                                <span className="max-w-[120px] truncate">
+                                                    {subgroup.local_path.split('\\').pop()}
+                                                </span>
+                                            </button>
+                                        ) : (
+                                            // 경로 없음 → 등록
+                                            <button
+                                                onClick={e => {
+                                                    e.stopPropagation()
+                                                    setPathInput('')
+                                                    setEditingPathId(subgroup.id)
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded"
+                                                title="폴더 경로 등록"
                                             >
                                                 <FolderOpen size={14} />
                                             </button>
                                         )}
-                                        <div className="flex-1 border-b border-gray-200 ml-1" />
                                     </div>
                                     {!isCollapsed && (
                                         <div className="space-y-1 ml-4 mb-2">
@@ -1318,7 +1440,7 @@ export default function TextbookManagementModal({
                     <div className="space-y-1">
                         {groupTextbooks.length === 0 ? (
                             <div className="text-center py-8 text-gray-400">
-                                <FolderOpen size={40} className="mx-auto mb-2 opacity-30" />
+                                <BookOpen size={40} className="mx-auto mb-2 opacity-30" />
                                 <p>이 그룹에 교재가 없습니다</p>
                             </div>
                         ) : (

@@ -1,5 +1,0 @@
-받�? URL: openfolder://open/?path=D%3A%5CMain_Box%5CDropbox%5Cmy_lec%5Cteacher%5C02_%EB%82%B4%EC%8B%A0
-path= ?�치: 20
-추출??경로 (?�코????: D%3A%5CMain_Box%5CDropbox%5Cmy_lec%5Cteacher%5C02_%EB%82%B4%EC%8B%A0
-최종 경로: D:\Main_Box\Dropbox\my_lec\teacher\02_%EB%82%B4%EC%8B%A0
-explorer ?�행 ?�료
