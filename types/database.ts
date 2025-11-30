@@ -217,6 +217,7 @@ export interface Textbook {
     order_index?: number    // 정렬 순서
     local_path?: string     // 로컬 폴더 경로
     memo?: string           // 교재별 메모
+    is_favorite?: boolean   // 즐겨찾기 여부
     created_at: string
 }
 

@@ -12,3 +12,4 @@ FROM ranked
 WHERE textbooks.id = ranked.id;
 
 
+

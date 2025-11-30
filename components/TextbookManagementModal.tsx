@@ -1,10 +1,18 @@
 ﻿'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { X, BookOpen, Trash2, Plus, Minus, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown, FolderOpen, MessageSquare } from 'lucide-react'
+import { X, BookOpen, Trash2, Plus, Minus, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown, FolderOpen, MessageSquare, Star } from 'lucide-react'
 import type { Textbook, TextbookGroup, TextbookSubgroup, TextbookChapter, TextbookTemplate, TemplateChapter } from '@/types/database'
 import { useTextbookChapters } from '@/hooks/useTextbookChapters'
 import { useTextbookTemplates } from '@/hooks/useTextbookTemplates'
+
+// 탭 상수
+const TAB_FAVORITES = 'favorites' as const
+const TAB_ALL = 'all' as const
+
+// 탭 타입 헬퍼
+type TabType = typeof TAB_FAVORITES | typeof TAB_ALL | string
+const isGroupTab = (tab: TabType): boolean => tab !== TAB_FAVORITES && tab !== TAB_ALL
 
 // 세션 스토리지 키
 const STORAGE_KEY_COLLAPSED_GROUPS = 'textbook-collapsed-groups'
@@ -51,6 +59,7 @@ interface TextbookManagementModalProps {
     onUpdateSubgroup: (id: string, updates: { name?: string; local_path?: string | null; memo?: string | null }) => Promise<TextbookSubgroup>
     onDeleteSubgroup: (id: string) => Promise<void>
     onReorderSubgroups: (reorderedSubgroups: TextbookSubgroup[]) => Promise<void>
+    onUpdateTextbookFavorite: (id: string, isFavorite: boolean) => Promise<Textbook>
 }
 
 export default function TextbookManagementModal({
@@ -75,6 +84,7 @@ export default function TextbookManagementModal({
     onUpdateSubgroup,
     onDeleteSubgroup,
     onReorderSubgroups,
+    onUpdateTextbookFavorite,
 }: TextbookManagementModalProps) {
     // 템플릿 훅
     const { 
@@ -103,7 +113,7 @@ export default function TextbookManagementModal({
     const [templateName, setTemplateName] = useState('')
 
     // 그룹 관리 상태
-    const [activeTab, setActiveTab] = useState<string | null>(null) // null = 전체
+    const [activeTab, setActiveTab] = useState<TabType>(TAB_FAVORITES)
     const [isAddingGroup, setIsAddingGroup] = useState(false)
     const [newGroupName, setNewGroupName] = useState('')
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
@@ -111,7 +121,7 @@ export default function TextbookManagementModal({
     
     // 그룹 탭 변경 시 선택된 그룹 자동 반영 (교재 추가 폼용)
     useEffect(() => {
-        if (activeTab) {
+        if (isGroupTab(activeTab)) {
             setSelectedGroupId(activeTab)
             setSelectedSubgroupId(null)
         }
@@ -190,7 +200,7 @@ export default function TextbookManagementModal({
 
     // 현재 그룹의 서브그룹
     const currentSubgroups = useMemo(() => {
-        if (!activeTab) return []
+        if (!isGroupTab(activeTab)) return []
         return subgroups
             .filter(s => s.group_id === activeTab)
             .sort((a, b) => a.order_index - b.order_index)
@@ -199,7 +209,7 @@ export default function TextbookManagementModal({
     // 필터링된 교재
     const filteredTextbooks = useMemo(() => {
         let filtered: Textbook[]
-        if (activeTab === null) {
+        if (!isGroupTab(activeTab)) {
             filtered = [...textbooks]
         } else {
             filtered = textbooks.filter(t => t.group_id === activeTab)
@@ -560,7 +570,7 @@ export default function TextbookManagementModal({
 
         try {
             await onDeleteGroup(id)
-            if (activeTab === id) setActiveTab(null)
+            if (activeTab === id) setActiveTab(TAB_FAVORITES)
         } catch (error) {
             console.error('Error deleting group:', error)
             alert('그룹 삭제에 실패했습니다.')
@@ -569,7 +579,7 @@ export default function TextbookManagementModal({
 
     // 서브그룹 CRUD
     const handleAddSubgroup = async () => {
-        if (!newSubgroupName.trim() || !activeTab) return
+        if (!newSubgroupName.trim() || !isGroupTab(activeTab)) return
         try {
             await onCreateSubgroup(activeTab, newSubgroupName.trim())
             setNewSubgroupName('')
@@ -853,6 +863,18 @@ export default function TextbookManagementModal({
                         <MessageSquare size={14} />
                     </button>
                 )}
+
+                {/* 즐겨찾기 버튼 */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onUpdateTextbookFavorite(textbook.id, !textbook.is_favorite)
+                    }}
+                    className={`p-1 rounded ${textbook.is_favorite ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}`}
+                    title={textbook.is_favorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                >
+                    <Star size={14} fill={textbook.is_favorite ? 'currentColor' : 'none'} />
+                </button>
 
                 {/* 템플릿으로 저장 */}
                 <button
@@ -1170,6 +1192,29 @@ export default function TextbookManagementModal({
         )
     }
 
+    // 즐겨찾기 탭 렌더링
+    const renderFavoriteTextbooks = () => {
+        const favoriteTextbooks = textbooks.filter(t => t.is_favorite)
+        
+        if (favoriteTextbooks.length === 0) {
+            return (
+                <div className="text-center py-12">
+                    <Star size={48} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-500 mb-2">즐겨찾기한 교재가 없습니다</p>
+                    <p className="text-sm text-gray-400">교재 행의 ⭐ 버튼을 클릭하여 즐겨찾기에 추가하세요</p>
+                </div>
+            )
+        }
+
+        return (
+            <div className="space-y-1">
+                {favoriteTextbooks
+                    .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                    .map(renderTextbookItem)}
+            </div>
+        )
+    }
+
     // 전체 탭에서 그룹별 렌더링
     const renderAllTextbooks = () => {
         // 그룹별로 교재 분류
@@ -1422,7 +1467,7 @@ export default function TextbookManagementModal({
 
     // 특정 그룹 탭에서 서브그룹별 렌더링
     const renderGroupTextbooks = () => {
-        if (!activeTab) return null
+        if (!isGroupTab(activeTab)) return null
 
         const groupTextbooks = filteredTextbooks
         const groupSubgroups = currentSubgroups
@@ -1818,16 +1863,17 @@ export default function TextbookManagementModal({
                 {/* 그룹 탭 */}
                 <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        {/* 전체 탭 */}
+                        {/* 즐겨찾기 탭 - 맨 앞 (초기 화면) */}
                         <button
-                            onClick={() => setActiveTab(null)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                activeTab === null
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                            onClick={() => setActiveTab(TAB_FAVORITES)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                                activeTab === TAB_FAVORITES
+                                    ? 'bg-yellow-500 text-white'
+                                    : 'bg-white text-gray-700 hover:bg-yellow-50 border border-yellow-300'
                             }`}
                         >
-                            전체 ({textbooks.length})
+                            <Star size={14} fill={activeTab === TAB_FAVORITES ? 'currentColor' : 'none'} />
+                            즐겨찾기 ({textbooks.filter(t => t.is_favorite).length})
                         </button>
 
                         {/* 그룹 탭들 */}
@@ -1954,6 +2000,18 @@ export default function TextbookManagementModal({
                                 그룹
                             </button>
                         )}
+
+                        {/* 전체 탭 - 우측 */}
+                        <button
+                            onClick={() => setActiveTab(TAB_ALL)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                activeTab === TAB_ALL
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                            }`}
+                        >
+                            전체 ({textbooks.length})
+                        </button>
                     </div>
                 </div>
 
@@ -2099,7 +2157,13 @@ export default function TextbookManagementModal({
 
                 {/* 교재 목록 또는 메모 추적 뷰 */}
                 <div className="flex-1 overflow-y-auto p-4">
-                    {showMemoView ? renderMemoView() : (activeTab === null ? renderAllTextbooks() : renderGroupTextbooks())}
+                    {showMemoView 
+                        ? renderMemoView() 
+                        : activeTab === TAB_FAVORITES 
+                            ? renderFavoriteTextbooks() 
+                            : activeTab === TAB_ALL 
+                                ? renderAllTextbooks() 
+                                : renderGroupTextbooks()}
                 </div>
             </div>
 

@@ -211,6 +211,26 @@ export function useTextbooks() {
         }
     }, [])
 
+    // 즐겨찾기 토글
+    const updateTextbookFavorite = useCallback(async (id: string, isFavorite: boolean): Promise<Textbook> => {
+        try {
+            const { data, error } = await supabase
+                .from('textbooks')
+                .update({ is_favorite: isFavorite })
+                .eq('id', id)
+                .select()
+                .single()
+
+            if (error) throw error
+
+            setTextbooks(prev => prev.map(t => t.id === id ? data : t))
+            return data
+        } catch (error) {
+            console.error('Error updating textbook favorite:', error)
+            throw error
+        }
+    }, [])
+
     // 교재 순서 변경 (같은 그룹/서브그룹 내에서)
     const reorderTextbooks = useCallback(async (reorderedTextbooks: Textbook[]): Promise<void> => {
         // 로컬 상태 먼저 업데이트 (낙관적 업데이트)
@@ -312,6 +332,7 @@ export function useTextbooks() {
         updateTextbookLocalPath,
         updateTextbookMemo,
         updateTextbookName,
+        updateTextbookFavorite,
         reorderTextbooks,
         cleanTextbookDataFromTasks,
         refetch: fetchTextbooks,

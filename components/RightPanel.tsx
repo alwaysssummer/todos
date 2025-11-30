@@ -52,6 +52,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
     updateTextbookLocalPath,
     updateTextbookMemo,
     updateTextbookName,
+    updateTextbookFavorite,
     reorderTextbooks 
   } = useTextbooks()
   const { 
@@ -609,6 +610,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
           onUpdateSubgroup={updateSubgroup}
           onDeleteSubgroup={deleteSubgroup}
           onReorderSubgroups={reorderSubgroups}
+          onUpdateTextbookFavorite={updateTextbookFavorite}
         />
       )}
 
