@@ -125,10 +125,10 @@ export default function TextbookManagementModal({
     const [editingPathId, setEditingPathId] = useState<string | null>(null)
     const [pathInput, setPathInput] = useState('')
     
-    // 메모 편집
-    const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
+    // 메모 편집 모달
+    const [showMemoModal, setShowMemoModal] = useState(false)
+    const [memoModalTarget, setMemoModalTarget] = useState<{ id: string; name: string; type: 'subgroup' | 'textbook'; memo: string }>({ id: '', name: '', type: 'subgroup', memo: '' })
     const [memoInput, setMemoInput] = useState('')
-    const [memoType, setMemoType] = useState<'subgroup' | 'textbook'>('subgroup')
     
     // 메모 추적 뷰
     const [showMemoView, setShowMemoView] = useState(false)
@@ -472,6 +472,28 @@ export default function TextbookManagementModal({
         }
     }
 
+    // 메모 모달 열기
+    const openMemoModal = (id: string, name: string, type: 'subgroup' | 'textbook', memo: string) => {
+        setMemoModalTarget({ id, name, type, memo })
+        setMemoInput(memo || '')
+        setShowMemoModal(true)
+    }
+
+    // 메모 저장
+    const saveMemo = async () => {
+        try {
+            if (memoModalTarget.type === 'subgroup') {
+                await onUpdateSubgroup(memoModalTarget.id, { memo: memoInput.trim() || null })
+            } else {
+                await onUpdateTextbookMemo(memoModalTarget.id, memoInput.trim() || null)
+            }
+            setShowMemoModal(false)
+        } catch (error) {
+            console.error('Error saving memo:', error)
+            alert('메모 저장에 실패했습니다.')
+        }
+    }
+
     // 인라인 교재 추가 (수준 행에서 바로 추가)
     const handleInlineCreate = async (groupId: string, subgroupId: string) => {
         if (!inlineTextbookName.trim()) return
@@ -764,40 +786,11 @@ export default function TextbookManagementModal({
                 )}
 
                 {/* 메모 버튼 */}
-                {editingMemoId === textbook.id && memoType === 'textbook' ? (
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        <input
-                            type="text"
-                            value={memoInput}
-                            onChange={e => setMemoInput(e.target.value)}
-                            placeholder="교재 설명 입력"
-                            className="w-32 px-2 py-0.5 text-xs border border-green-400 rounded"
-                            autoFocus
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                    onUpdateTextbookMemo(textbook.id, memoInput.trim() || null)
-                                    setEditingMemoId(null)
-                                }
-                                if (e.key === 'Escape') setEditingMemoId(null)
-                            }}
-                        />
-                        <button
-                            onClick={() => {
-                                onUpdateTextbookMemo(textbook.id, memoInput.trim() || null)
-                                setEditingMemoId(null)
-                            }}
-                            className="p-1 text-green-600 hover:bg-green-100 rounded"
-                        >
-                            <Check size={12} />
-                        </button>
-                    </div>
-                ) : textbook.memo ? (
+                {textbook.memo ? (
                     <button
                         onClick={e => {
                             e.stopPropagation()
-                            setMemoInput(textbook.memo || '')
-                            setMemoType('textbook')
-                            setEditingMemoId(textbook.id)
+                            openMemoModal(textbook.id, textbook.name, 'textbook', textbook.memo || '')
                         }}
                         className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[100px]"
                         title={textbook.memo}
@@ -809,9 +802,7 @@ export default function TextbookManagementModal({
                     <button
                         onClick={e => {
                             e.stopPropagation()
-                            setMemoInput('')
-                            setMemoType('textbook')
-                            setEditingMemoId(textbook.id)
+                            openMemoModal(textbook.id, textbook.name, 'textbook', '')
                         }}
                         className="p-1 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded"
                         title="메모 추가"
@@ -1370,10 +1361,7 @@ export default function TextbookManagementModal({
                                     </div>
                                     <button
                                         onClick={() => {
-                                            setMemoInput(item.memo)
-                                            setMemoType(item.type as 'subgroup' | 'textbook')
-                                            setEditingMemoId(item.id)
-                                            setShowMemoView(false)
+                                            openMemoModal(item.id, item.name, item.type as 'subgroup' | 'textbook', item.memo)
                                         }}
                                         className="p-1 text-gray-400 hover:text-green-600 rounded"
                                         title="수정"
@@ -1605,40 +1593,11 @@ export default function TextbookManagementModal({
                                         )}
                                         
                                         {/* 메모 버튼 */}
-                                        {editingMemoId === subgroup.id && memoType === 'subgroup' ? (
-                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                                <input
-                                                    type="text"
-                                                    value={memoInput}
-                                                    onChange={e => setMemoInput(e.target.value)}
-                                                    placeholder="수준 설명 입력"
-                                                    className="w-40 px-2 py-0.5 text-xs border border-green-400 rounded"
-                                                    autoFocus
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
-                                                            onUpdateSubgroup(subgroup.id, { memo: memoInput.trim() || null })
-                                                            setEditingMemoId(null)
-                                                        }
-                                                        if (e.key === 'Escape') setEditingMemoId(null)
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={() => {
-                                                        onUpdateSubgroup(subgroup.id, { memo: memoInput.trim() || null })
-                                                        setEditingMemoId(null)
-                                                    }}
-                                                    className="p-1 text-green-600 hover:bg-green-100 rounded"
-                                                >
-                                                    <Check size={12} />
-                                                </button>
-                                            </div>
-                                        ) : subgroup.memo ? (
+                                        {subgroup.memo ? (
                                             <button
                                                 onClick={e => {
                                                     e.stopPropagation()
-                                                    setMemoInput(subgroup.memo || '')
-                                                    setMemoType('subgroup')
-                                                    setEditingMemoId(subgroup.id)
+                                                    openMemoModal(subgroup.id, subgroup.name, 'subgroup', subgroup.memo || '')
                                                 }}
                                                 className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[150px]"
                                                 title={subgroup.memo}
@@ -1650,9 +1609,7 @@ export default function TextbookManagementModal({
                                             <button
                                                 onClick={e => {
                                                     e.stopPropagation()
-                                                    setMemoInput('')
-                                                    setMemoType('subgroup')
-                                                    setEditingMemoId(subgroup.id)
+                                                    openMemoModal(subgroup.id, subgroup.name, 'subgroup', '')
                                                 }}
                                                 className="p-1 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded"
                                                 title="메모 추가"
@@ -2104,6 +2061,52 @@ export default function TextbookManagementModal({
                     {showMemoView ? renderMemoView() : (activeTab === null ? renderAllTextbooks() : renderGroupTextbooks())}
                 </div>
             </div>
+
+            {/* 메모 입력 모달 */}
+            {showMemoModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onClick={() => setShowMemoModal(false)}>
+                    <div className="bg-white rounded-xl w-full max-w-lg mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <MessageSquare size={20} className="text-green-600" />
+                                <h3 className="font-bold text-gray-900">
+                                    {memoModalTarget.type === 'subgroup' ? '수준' : '교재'} 메모
+                                </h3>
+                                <span className="text-sm text-gray-500">- {memoModalTarget.name}</span>
+                            </div>
+                            <button
+                                onClick={() => setShowMemoModal(false)}
+                                className="p-1 hover:bg-gray-100 rounded"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <textarea
+                                value={memoInput}
+                                onChange={e => setMemoInput(e.target.value)}
+                                placeholder={`${memoModalTarget.type === 'subgroup' ? '수준에 대한 설명이나 수업 지침' : '교재에 대한 설명이나 특이사항'}을 입력하세요...`}
+                                className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                autoFocus
+                            />
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button
+                                    onClick={() => setShowMemoModal(false)}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={saveMemo}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                >
+                                    저장
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* 템플릿 저장 모달 */}
             {showSaveTemplateModal && saveTemplateTextbookId && (
