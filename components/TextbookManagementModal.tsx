@@ -783,7 +783,7 @@ export default function TextbookManagementModal({
                                 e.stopPropagation()
                                 openMemoModal(textbook.id, textbook.name, 'textbook', textbook.memo || '')
                             }}
-                            className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[100px]"
+                            className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1"
                             title={textbook.memo}
                         >
                             <MessageSquare size={12} />
@@ -1683,7 +1683,7 @@ export default function TextbookManagementModal({
                                                     e.stopPropagation()
                                                     openMemoModal(subgroup.id, subgroup.name, 'subgroup', subgroup.memo || '')
                                                 }}
-                                                className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[150px]"
+                                                className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1"
                                                 title={subgroup.memo}
                                             >
                                                 <MessageSquare size={12} />
