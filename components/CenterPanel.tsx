@@ -457,7 +457,7 @@ function calculateLayout(tasks: Task[]) {
 export default function CenterPanel({ tasks = [], createTask, updateTask, deleteTask, dragOverSlotId, draggingTask, projects, makeupProject, onClearMakeupMode, currentDate: propCurrentDate = new Date(), onDateChange, pendingCancelTask, setPendingCancelTask, onSelectMakeupProject, onDateHeaderClick }: CenterPanelProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [popoverPosition, setPopoverPosition] = useState<{ x: number, y: number } | undefined>(undefined)
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null) // null로 시작하여 hydration mismatch 방지
   const [showDailyNoteModal, setShowDailyNoteModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const { getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
@@ -466,6 +466,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
   const currentDate = propCurrentDate
 
   useEffect(() => {
+    setNow(new Date()) // 클라이언트에서만 초기화
     const timer = setInterval(() => setNow(new Date()), 60000)
     return () => clearInterval(timer)
   }, [])
@@ -658,7 +659,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
   // 초기 스크롤 위치 설정
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const day = now.getDay()
+      const day = new Date().getDay()
       const isWeekend = day === 0 || day === 6 // 0: 일요일, 6: 토요일
 
       // 평일은 12시(오후 12시), 주말은 9시부터 보이도록 설정
@@ -760,7 +761,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
             <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-0">
               <div className="w-12 border-r border-gray-100 bg-gray-50"></div>
               {days.map((day, i) => {
-                const isToday = isSameDay(weekDates[i], now)
+                const isToday = now ? isSameDay(weekDates[i], now) : isSameDay(weekDates[i], new Date())
                 const dailyNote = getNoteByDate(weekDates[i])
                 const isWeekend = i >= 5 // 토(5), 일(6)
                 return (
@@ -802,7 +803,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                 </div>
 
                 {/* Current Time Line - Only render in the correct hour row */}
-                {hour === now.getHours() && (
+                {now && hour === now.getHours() && (
                   <div
                     className="absolute left-[4rem] right-0 border-t border-red-300 z-20 pointer-events-none flex items-center"
                     style={{ top: `${(now.getMinutes() / 60) * 100}%` }}
@@ -816,7 +817,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                   const layoutMap = dailyLayouts[dateKey] || {}
 
                   return (
-                    <div key={i} className={`border-r border-gray-100 last:border-r-0 relative ${isSameDay(date, now) ? 'border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 bg-blue-50/10' : ''}`}>
+                    <div key={i} className={`border-r border-gray-100 last:border-r-0 relative ${(now ? isSameDay(date, now) : isSameDay(date, new Date())) ? 'border-l-2 border-r-2 border-l-blue-600/30 border-r-blue-600/30 bg-blue-50/10' : ''}`}>
                       {minutes
                         .filter(minute => {
                           // 6시는 30분부터만, 1시는 00분까지만 (06:30 ~ 01:00)
