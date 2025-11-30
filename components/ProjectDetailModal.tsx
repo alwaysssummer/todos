@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Calendar, Edit2, Trash2, BookOpen } from 'lucide-react'
+import { X, Calendar, Edit2, Trash2, BookOpen, ExternalLink } from 'lucide-react'
 import type { Project } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 
@@ -224,6 +224,18 @@ export default function ProjectDetailModal({
               }`}>
                 {status === 'active' ? '진행중' : '완료'}
               </span>
+              {project.type === 'student' && (
+                <a
+                  href={`/student/${project.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                  title="학생 대시보드 열기"
+                >
+                  <ExternalLink size={12} />
+                  대시보드
+                </a>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400">
