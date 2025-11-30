@@ -200,6 +200,7 @@ export interface TextbookSubgroup {
     group_id: string       // 상위 그룹
     name: string           // "초급", "중급", "고급" 등
     local_path?: string    // 로컬 폴더 경로 (예: D:\교재\어법\초급)
+    memo?: string          // 수준별 메모
     order_index: number
     created_at: string
 }
@@ -215,6 +216,7 @@ export interface Textbook {
     subgroup_id?: string    // 그룹2 연결
     order_index?: number    // 정렬 순서
     local_path?: string     // 로컬 폴더 경로
+    memo?: string           // 교재별 메모
     created_at: string
 }
 

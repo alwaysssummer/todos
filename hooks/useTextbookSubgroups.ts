@@ -56,8 +56,8 @@ export function useTextbookSubgroups() {
         return data
     }, [subgroups])
 
-    // 서브그룹 수정 (name, local_path 지원)
-    const updateSubgroup = useCallback(async (id: string, updates: { name?: string; local_path?: string | null }): Promise<TextbookSubgroup> => {
+    // 서브그룹 수정 (name, local_path, memo 지원)
+    const updateSubgroup = useCallback(async (id: string, updates: { name?: string; local_path?: string | null; memo?: string | null }): Promise<TextbookSubgroup> => {
         const { data, error: updateError } = await supabase
             .from('textbook_subgroups')
             .update(updates)

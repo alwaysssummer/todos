@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { X, BookOpen, Trash2, Plus, Minus, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown, FolderOpen } from 'lucide-react'
+import { X, BookOpen, Trash2, Plus, Minus, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown, FolderOpen, MessageSquare } from 'lucide-react'
 import type { Textbook, TextbookGroup, TextbookSubgroup, TextbookChapter, TextbookTemplate, TemplateChapter } from '@/types/database'
 import { useTextbookChapters } from '@/hooks/useTextbookChapters'
 import { useTextbookTemplates } from '@/hooks/useTextbookTemplates'
@@ -40,13 +40,14 @@ interface TextbookManagementModalProps {
     onUpdateTextbookSubgroup: (id: string, subgroupId: string | null) => Promise<Textbook>
     onUpdateTextbookChapters: (id: string, totalChapters: number) => Promise<Textbook>
     onUpdateTextbookLocalPath: (id: string, localPath: string | null) => Promise<Textbook>
+    onUpdateTextbookMemo: (id: string, memo: string | null) => Promise<Textbook>
     onReorderTextbooks: (reorderedTextbooks: Textbook[]) => Promise<void>
     onCreateGroup: (name: string) => Promise<TextbookGroup>
     onUpdateGroup: (id: string, name: string) => Promise<TextbookGroup>
     onDeleteGroup: (id: string) => Promise<void>
     onReorderGroups: (reorderedGroups: TextbookGroup[]) => Promise<void>
     onCreateSubgroup: (groupId: string, name: string) => Promise<TextbookSubgroup>
-    onUpdateSubgroup: (id: string, updates: { name?: string; local_path?: string | null }) => Promise<TextbookSubgroup>
+    onUpdateSubgroup: (id: string, updates: { name?: string; local_path?: string | null; memo?: string | null }) => Promise<TextbookSubgroup>
     onDeleteSubgroup: (id: string) => Promise<void>
     onReorderSubgroups: (reorderedSubgroups: TextbookSubgroup[]) => Promise<void>
 }
@@ -62,6 +63,7 @@ export default function TextbookManagementModal({
     onUpdateTextbookSubgroup,
     onUpdateTextbookChapters,
     onUpdateTextbookLocalPath,
+    onUpdateTextbookMemo,
     onReorderTextbooks,
     onCreateGroup,
     onUpdateGroup,
@@ -114,6 +116,14 @@ export default function TextbookManagementModal({
     // 폴더 경로 편집
     const [editingPathId, setEditingPathId] = useState<string | null>(null)
     const [pathInput, setPathInput] = useState('')
+    
+    // 메모 편집
+    const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
+    const [memoInput, setMemoInput] = useState('')
+    const [memoType, setMemoType] = useState<'subgroup' | 'textbook'>('subgroup')
+    
+    // 메모 추적 뷰
+    const [showMemoView, setShowMemoView] = useState(false)
     
     // 폴더 열기 함수 (opendir:// 커스텀 프로토콜 사용)
     const openLocalFolder = (path: string) => {
@@ -718,6 +728,63 @@ export default function TextbookManagementModal({
                     </button>
                 )}
 
+                {/* 메모 버튼 */}
+                {editingMemoId === textbook.id && memoType === 'textbook' ? (
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <input
+                            type="text"
+                            value={memoInput}
+                            onChange={e => setMemoInput(e.target.value)}
+                            placeholder="교재 설명 입력"
+                            className="w-32 px-2 py-0.5 text-xs border border-green-400 rounded"
+                            autoFocus
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    onUpdateTextbookMemo(textbook.id, memoInput.trim() || null)
+                                    setEditingMemoId(null)
+                                }
+                                if (e.key === 'Escape') setEditingMemoId(null)
+                            }}
+                        />
+                        <button
+                            onClick={() => {
+                                onUpdateTextbookMemo(textbook.id, memoInput.trim() || null)
+                                setEditingMemoId(null)
+                            }}
+                            className="p-1 text-green-600 hover:bg-green-100 rounded"
+                        >
+                            <Check size={12} />
+                        </button>
+                    </div>
+                ) : textbook.memo ? (
+                    <button
+                        onClick={e => {
+                            e.stopPropagation()
+                            setMemoInput(textbook.memo || '')
+                            setMemoType('textbook')
+                            setEditingMemoId(textbook.id)
+                        }}
+                        className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[100px]"
+                        title={textbook.memo}
+                    >
+                        <MessageSquare size={12} />
+                        <span className="truncate">{textbook.memo}</span>
+                    </button>
+                ) : (
+                    <button
+                        onClick={e => {
+                            e.stopPropagation()
+                            setMemoInput('')
+                            setMemoType('textbook')
+                            setEditingMemoId(textbook.id)
+                        }}
+                        className="p-1 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded"
+                        title="메모 추가"
+                    >
+                        <MessageSquare size={14} />
+                    </button>
+                )}
+
                 {/* 템플릿으로 저장 */}
                 <button
                     onClick={(e) => {
@@ -1179,6 +1246,114 @@ export default function TextbookManagementModal({
         )
     }
 
+    // 메모 추적 뷰 렌더링
+    const renderMemoView = () => {
+        // 모든 메모 수집
+        const allMemos: { type: 'subgroup' | 'textbook' | 'chapter'; id: string; name: string; memo: string; parent?: string }[] = []
+        
+        // 수준별 메모
+        subgroups.forEach(sg => {
+            if (sg.memo) {
+                const group = groups.find(g => g.id === sg.group_id)
+                allMemos.push({
+                    type: 'subgroup',
+                    id: sg.id,
+                    name: sg.name,
+                    memo: sg.memo,
+                    parent: group?.name
+                })
+            }
+        })
+        
+        // 교재별 메모
+        textbooks.forEach(tb => {
+            if (tb.memo) {
+                const subgroup = subgroups.find(s => s.id === tb.subgroup_id)
+                const group = groups.find(g => g.id === tb.group_id)
+                allMemos.push({
+                    type: 'textbook',
+                    id: tb.id,
+                    name: tb.name,
+                    memo: tb.memo,
+                    parent: subgroup?.name || group?.name
+                })
+            }
+        })
+        
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <MessageSquare size={20} className="text-green-600" />
+                        메모 추적
+                    </h3>
+                    <span className="text-sm text-gray-500">총 {allMemos.length}개 메모</span>
+                </div>
+                
+                {allMemos.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                        <MessageSquare size={48} className="mx-auto mb-3 opacity-30" />
+                        <p>등록된 메모가 없습니다</p>
+                        <p className="text-sm mt-1">수준이나 교재에 메모를 추가해보세요</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {allMemos.map((item, idx) => (
+                            <div 
+                                key={`${item.type}-${item.id}-${idx}`}
+                                className="p-3 bg-white border border-gray-200 rounded-lg hover:border-green-300 transition-colors"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className={`p-1.5 rounded ${
+                                        item.type === 'subgroup' 
+                                            ? 'bg-purple-100 text-purple-600' 
+                                            : 'bg-blue-100 text-blue-600'
+                                    }`}>
+                                        {item.type === 'subgroup' ? (
+                                            <ChevronRight size={16} />
+                                        ) : (
+                                            <BookOpen size={16} />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-medium text-gray-900">{item.name}</span>
+                                            {item.parent && (
+                                                <span className="text-xs text-gray-400">({item.parent})</span>
+                                            )}
+                                            <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                                item.type === 'subgroup'
+                                                    ? 'bg-purple-50 text-purple-600'
+                                                    : 'bg-blue-50 text-blue-600'
+                                            }`}>
+                                                {item.type === 'subgroup' ? '수준' : '교재'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-700 bg-green-50 px-2 py-1 rounded">
+                                            {item.memo}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setMemoInput(item.memo)
+                                            setMemoType(item.type as 'subgroup' | 'textbook')
+                                            setEditingMemoId(item.id)
+                                            setShowMemoView(false)
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-green-600 rounded"
+                                        title="수정"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     // 특정 그룹 탭에서 서브그룹별 렌더링
     const renderGroupTextbooks = () => {
         if (!activeTab) return null
@@ -1393,6 +1568,63 @@ export default function TextbookManagementModal({
                                                 <FolderOpen size={14} />
                                             </button>
                                         )}
+                                        
+                                        {/* 메모 버튼 */}
+                                        {editingMemoId === subgroup.id && memoType === 'subgroup' ? (
+                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={memoInput}
+                                                    onChange={e => setMemoInput(e.target.value)}
+                                                    placeholder="수준 설명 입력"
+                                                    className="w-40 px-2 py-0.5 text-xs border border-green-400 rounded"
+                                                    autoFocus
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            onUpdateSubgroup(subgroup.id, { memo: memoInput.trim() || null })
+                                                            setEditingMemoId(null)
+                                                        }
+                                                        if (e.key === 'Escape') setEditingMemoId(null)
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        onUpdateSubgroup(subgroup.id, { memo: memoInput.trim() || null })
+                                                        setEditingMemoId(null)
+                                                    }}
+                                                    className="p-1 text-green-600 hover:bg-green-100 rounded"
+                                                >
+                                                    <Check size={12} />
+                                                </button>
+                                            </div>
+                                        ) : subgroup.memo ? (
+                                            <button
+                                                onClick={e => {
+                                                    e.stopPropagation()
+                                                    setMemoInput(subgroup.memo || '')
+                                                    setMemoType('subgroup')
+                                                    setEditingMemoId(subgroup.id)
+                                                }}
+                                                className="px-2 py-0.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 rounded flex items-center gap-1 max-w-[150px]"
+                                                title={subgroup.memo}
+                                            >
+                                                <MessageSquare size={12} />
+                                                <span className="truncate">{subgroup.memo}</span>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={e => {
+                                                    e.stopPropagation()
+                                                    setMemoInput('')
+                                                    setMemoType('subgroup')
+                                                    setEditingMemoId(subgroup.id)
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded"
+                                                title="메모 추가"
+                                            >
+                                                <MessageSquare size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                     {!isCollapsed && (
                                         <div className="space-y-1 ml-4 mb-2">
@@ -1468,6 +1700,17 @@ export default function TextbookManagementModal({
                         <span className="text-sm text-gray-400">({textbooks.length})</span>
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowMemoView(!showMemoView)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1 ${
+                                showMemoView 
+                                    ? 'bg-green-600 text-white' 
+                                    : 'bg-green-50 text-green-700 hover:bg-green-100'
+                            }`}
+                        >
+                            <MessageSquare size={16} />
+                            {showMemoView ? '목록 보기' : '메모 추적'}
+                        </button>
                         <button
                             onClick={() => setShowAddForm(!showAddForm)}
                             className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-1"
@@ -1740,9 +1983,9 @@ export default function TextbookManagementModal({
                     </div>
                 )}
 
-                {/* 교재 목록 */}
+                {/* 교재 목록 또는 메모 추적 뷰 */}
                 <div className="flex-1 overflow-y-auto p-4">
-                    {activeTab === null ? renderAllTextbooks() : renderGroupTextbooks()}
+                    {showMemoView ? renderMemoView() : (activeTab === null ? renderAllTextbooks() : renderGroupTextbooks())}
                 </div>
             </div>
 
