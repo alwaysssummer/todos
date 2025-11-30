@@ -41,6 +41,7 @@ interface TextbookManagementModalProps {
     onUpdateTextbookChapters: (id: string, totalChapters: number) => Promise<Textbook>
     onUpdateTextbookLocalPath: (id: string, localPath: string | null) => Promise<Textbook>
     onUpdateTextbookMemo: (id: string, memo: string | null) => Promise<Textbook>
+    onUpdateTextbookName: (id: string, name: string) => Promise<Textbook>
     onReorderTextbooks: (reorderedTextbooks: Textbook[]) => Promise<void>
     onCreateGroup: (name: string) => Promise<TextbookGroup>
     onUpdateGroup: (id: string, name: string) => Promise<TextbookGroup>
@@ -64,6 +65,7 @@ export default function TextbookManagementModal({
     onUpdateTextbookChapters,
     onUpdateTextbookLocalPath,
     onUpdateTextbookMemo,
+    onUpdateTextbookName,
     onReorderTextbooks,
     onCreateGroup,
     onUpdateGroup,
@@ -120,6 +122,10 @@ export default function TextbookManagementModal({
     const [newSubgroupName, setNewSubgroupName] = useState('')
     const [editingSubgroupId, setEditingSubgroupId] = useState<string | null>(null)
     const [editingSubgroupName, setEditingSubgroupName] = useState('')
+    
+    // 교재명 수정
+    const [editingTextbookId, setEditingTextbookId] = useState<string | null>(null)
+    const [editingTextbookName, setEditingTextbookName] = useState('')
     
     // 폴더 경로 편집
     const [editingPathId, setEditingPathId] = useState<string | null>(null)
@@ -662,7 +668,42 @@ export default function TextbookManagementModal({
                     </button>
                     
                     <BookOpen size={16} className="text-blue-600" />
-                    <span className="font-medium text-gray-900">{textbook.name}</span>
+                    {editingTextbookId === textbook.id ? (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                            <input
+                                type="text"
+                                value={editingTextbookName}
+                                onChange={e => setEditingTextbookName(e.target.value)}
+                                className="px-2 py-0.5 text-sm border border-blue-400 rounded font-medium"
+                                autoFocus
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && editingTextbookName.trim()) {
+                                        onUpdateTextbookName(textbook.id, editingTextbookName.trim())
+                                        setEditingTextbookId(null)
+                                    }
+                                    if (e.key === 'Escape') setEditingTextbookId(null)
+                                }}
+                                onBlur={() => {
+                                    if (editingTextbookName.trim() && editingTextbookName !== textbook.name) {
+                                        onUpdateTextbookName(textbook.id, editingTextbookName.trim())
+                                    }
+                                    setEditingTextbookId(null)
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <span 
+                            className="font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                            onDoubleClick={e => {
+                                e.stopPropagation()
+                                setEditingTextbookId(textbook.id)
+                                setEditingTextbookName(textbook.name)
+                            }}
+                            title="더블클릭하여 수정"
+                        >
+                            {textbook.name}
+                        </span>
+                    )}
                     
                     {/* 폴더 경로 버튼 - 교재명 옆 */}
                     {editingPathId === textbook.id ? (

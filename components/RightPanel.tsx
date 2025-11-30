@@ -51,6 +51,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
     updateTextbookChapters,
     updateTextbookLocalPath,
     updateTextbookMemo,
+    updateTextbookName,
     reorderTextbooks 
   } = useTextbooks()
   const { 
@@ -598,6 +599,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
           onUpdateTextbookChapters={updateTextbookChapters}
           onUpdateTextbookLocalPath={updateTextbookLocalPath}
           onUpdateTextbookMemo={updateTextbookMemo}
+          onUpdateTextbookName={updateTextbookName}
           onReorderTextbooks={reorderTextbooks}
           onCreateGroup={createGroup}
           onUpdateGroup={updateGroup}
