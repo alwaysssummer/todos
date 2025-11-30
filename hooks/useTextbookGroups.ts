@@ -66,6 +66,19 @@ export function useTextbookGroups() {
 
   // 그룹 삭제
   const deleteGroup = useCallback(async (id: string): Promise<void> => {
+    // 1. 해당 그룹에 속한 교재들의 group_id, subgroup_id를 null로 변경
+    await supabase
+      .from('textbooks')
+      .update({ group_id: null, subgroup_id: null })
+      .eq('group_id', id)
+
+    // 2. 해당 그룹의 서브그룹들 삭제
+    await supabase
+      .from('textbook_subgroups')
+      .delete()
+      .eq('group_id', id)
+
+    // 3. 그룹 삭제
     const { error: deleteError } = await supabase
       .from('textbook_groups')
       .delete()
@@ -117,4 +130,3 @@ export function useTextbookGroups() {
     reorderGroups
   }
 }
-

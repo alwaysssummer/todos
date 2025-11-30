@@ -1039,12 +1039,17 @@ export default function TextbookManagementModal({
         // 그룹별로 교재 분류
         const groupedTextbooks: Record<string, Textbook[]> = {}
         const uncategorized: Textbook[] = []
+        
+        // 현재 존재하는 그룹 ID Set
+        const existingGroupIds = new Set(groups.map(g => g.id))
 
         textbooks.forEach(t => {
-            if (t.group_id) {
+            if (t.group_id && existingGroupIds.has(t.group_id)) {
+                // 그룹이 존재하는 경우에만 해당 그룹에 분류
                 if (!groupedTextbooks[t.group_id]) groupedTextbooks[t.group_id] = []
                 groupedTextbooks[t.group_id].push(t)
             } else {
+                // 그룹이 없거나 삭제된 그룹인 경우 미분류
                 uncategorized.push(t)
             }
         })
