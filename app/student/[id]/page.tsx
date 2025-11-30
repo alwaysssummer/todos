@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { format, parseISO, isBefore, isAfter, addDays } from 'date-fns'
+import { format, parseISO, isBefore, isAfter, addDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { BookOpen, Calendar, Clock, CheckCircle, User, Share2, Copy, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -300,51 +300,102 @@ export default function StudentDashboard() {
                     )}
                 </div>
 
-                {/* 다음 수업 일정 */}
+                {/* 다음 수업 일정 - 미니 달력 */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <Calendar size={20} className="text-green-600" />
-                        다음 수업 일정
+                        수업 일정
                     </h2>
 
-                    {upcomingLessons.length === 0 ? (
-                        <div className="text-center py-8 text-gray-400">
-                            <Calendar size={40} className="mx-auto mb-2 opacity-30" />
-                            <p>예정된 수업이 없습니다</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {upcomingLessons.map((lesson, idx) => (
-                                <div 
-                                    key={idx} 
-                                    className={`flex items-center gap-4 p-4 rounded-xl ${
-                                        idx === 0 ? 'bg-green-50 border-2 border-green-200' : 'bg-gray-50'
-                                    }`}
-                                >
-                                    <div className={`text-center ${idx === 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                                        <div className="text-lg font-bold">
-                                            {format(lesson.date, 'M/d')}
-                                        </div>
-                                        <div className="text-xs">
-                                            {format(lesson.date, 'EEE', { locale: ko })}
-                                        </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <Clock size={14} className="text-gray-400" />
-                                            <span className="font-medium">{lesson.time}</span>
-                                            <span className="text-xs text-gray-400">({lesson.duration}분)</span>
-                                        </div>
-                                        {idx === 0 && (
-                                            <span className="inline-block mt-1 px-2 py-0.5 bg-green-200 text-green-700 text-xs rounded-full">
-                                                다음 수업
-                                            </span>
-                                        )}
-                                    </div>
+                    {/* 미니 달력 */}
+                    {(() => {
+                        const today = new Date()
+                        const monthStart = startOfMonth(today)
+                        const monthEnd = endOfMonth(today)
+                        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
+                        const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
+                        const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+                        const lessonDates = new Set(upcomingLessons.map(l => format(l.date, 'yyyy-MM-dd')))
+                        const nextLesson = upcomingLessons[0]
+
+                        return (
+                            <div>
+                                {/* 월 표시 */}
+                                <div className="text-center mb-3">
+                                    <span className="text-sm font-medium text-gray-700">
+                                        {format(today, 'yyyy년 M월', { locale: ko })}
+                                    </span>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                
+                                {/* 요일 헤더 */}
+                                <div className="grid grid-cols-7 mb-1">
+                                    {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+                                        <div key={day} className={`text-center text-xs font-medium py-1 ${
+                                            i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'
+                                        }`}>
+                                            {day}
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {/* 날짜 그리드 */}
+                                <div className="grid grid-cols-7 gap-1">
+                                    {calendarDays.map((day, idx) => {
+                                        const dateKey = format(day, 'yyyy-MM-dd')
+                                        const hasLesson = lessonDates.has(dateKey)
+                                        const isToday = isSameDay(day, today)
+                                        const isCurrentMonth = isSameMonth(day, today)
+                                        const isNextLesson = nextLesson && isSameDay(day, nextLesson.date)
+                                        const dayOfWeek = day.getDay()
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`
+                                                    relative aspect-square flex items-center justify-center text-sm rounded-lg
+                                                    ${!isCurrentMonth ? 'text-gray-300' : ''}
+                                                    ${isCurrentMonth && dayOfWeek === 0 ? 'text-red-500' : ''}
+                                                    ${isCurrentMonth && dayOfWeek === 6 ? 'text-blue-500' : ''}
+                                                    ${isToday ? 'bg-gray-100 font-bold' : ''}
+                                                    ${isNextLesson ? 'bg-green-500 text-white font-bold' : ''}
+                                                    ${hasLesson && !isNextLesson ? 'bg-green-100 text-green-700 font-medium' : ''}
+                                                `}
+                                            >
+                                                {format(day, 'd')}
+                                                {hasLesson && !isNextLesson && (
+                                                    <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full" />
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                {/* 다음 수업 정보 */}
+                                {nextLesson && (
+                                    <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-center">
+                                                <div className="text-lg font-bold text-green-600">
+                                                    {format(nextLesson.date, 'M/d')}
+                                                </div>
+                                                <div className="text-xs text-green-600">
+                                                    {format(nextLesson.date, 'EEE', { locale: ko })}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock size={14} className="text-green-500" />
+                                                    <span className="font-medium text-green-700">{nextLesson.time}</span>
+                                                    <span className="text-xs text-green-500">({nextLesson.duration}분)</span>
+                                                </div>
+                                                <span className="text-xs text-green-600">다음 수업</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })()}
 
                     {/* 수업 기간 */}
                     {student.start_date && (
