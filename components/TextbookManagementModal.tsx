@@ -133,6 +133,11 @@ export default function TextbookManagementModal({
     // 메모 추적 뷰
     const [showMemoView, setShowMemoView] = useState(false)
     
+    // 인라인 교재 추가
+    const [inlineAddSubgroupId, setInlineAddSubgroupId] = useState<string | null>(null)
+    const [inlineTextbookName, setInlineTextbookName] = useState('')
+    const [inlineChapterCount, setInlineChapterCount] = useState(10)
+    
     // 폴더 열기 함수 (opendir:// 커스텀 프로토콜 사용)
     const openLocalFolder = (path: string) => {
         // 역슬래시를 슬래시로 변환하고 프로토콜 추가
@@ -464,6 +469,28 @@ export default function TextbookManagementModal({
             alert('교재 추가에 실패했습니다.')
         } finally {
             setIsCreating(false)
+        }
+    }
+
+    // 인라인 교재 추가 (수준 행에서 바로 추가)
+    const handleInlineCreate = async (groupId: string, subgroupId: string) => {
+        if (!inlineTextbookName.trim()) return
+        
+        try {
+            await onCreateTextbook({
+                name: inlineTextbookName.trim(),
+                total_chapters: inlineChapterCount,
+                chapter_unit: '강',
+                group_id: groupId,
+                subgroup_id: subgroupId,
+            })
+            // 초기화
+            setInlineAddSubgroupId(null)
+            setInlineTextbookName('')
+            setInlineChapterCount(10)
+        } catch (error) {
+            console.error('Error creating textbook:', error)
+            alert('교재 추가에 실패했습니다.')
         }
     }
 
@@ -1631,6 +1658,61 @@ export default function TextbookManagementModal({
                                                 title="메모 추가"
                                             >
                                                 <MessageSquare size={14} />
+                                            </button>
+                                        )}
+                                        
+                                        {/* 인라인 교재 추가 버튼 */}
+                                        {inlineAddSubgroupId === subgroup.id ? (
+                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={inlineTextbookName}
+                                                    onChange={e => setInlineTextbookName(e.target.value)}
+                                                    placeholder="교재명"
+                                                    className="w-24 px-2 py-0.5 text-xs border border-blue-400 rounded"
+                                                    autoFocus
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter' && inlineTextbookName.trim()) {
+                                                            handleInlineCreate(subgroup.group_id, subgroup.id)
+                                                        }
+                                                        if (e.key === 'Escape') setInlineAddSubgroupId(null)
+                                                    }}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    value={inlineChapterCount}
+                                                    onChange={e => setInlineChapterCount(Number(e.target.value))}
+                                                    className="w-12 px-1 py-0.5 text-xs border border-blue-400 rounded text-center"
+                                                    min={1}
+                                                    max={200}
+                                                />
+                                                <span className="text-xs text-gray-500">강</span>
+                                                <button
+                                                    onClick={() => handleInlineCreate(subgroup.group_id, subgroup.id)}
+                                                    disabled={!inlineTextbookName.trim()}
+                                                    className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
+                                                >
+                                                    추가
+                                                </button>
+                                                <button
+                                                    onClick={() => setInlineAddSubgroupId(null)}
+                                                    className="p-0.5 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={e => {
+                                                    e.stopPropagation()
+                                                    setInlineAddSubgroupId(subgroup.id)
+                                                    setInlineTextbookName('')
+                                                    setInlineChapterCount(10)
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                                title="교재 바로 추가"
+                                            >
+                                                <Plus size={14} />
                                             </button>
                                         )}
                                     </div>
