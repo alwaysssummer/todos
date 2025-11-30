@@ -662,7 +662,70 @@ export default function TextbookManagementModal({
                     </button>
                     
                     <BookOpen size={16} className="text-blue-600" />
-                    <span className="flex-1 font-medium text-gray-900">{textbook.name}</span>
+                    <span className="font-medium text-gray-900">{textbook.name}</span>
+                    
+                    {/* 폴더 경로 버튼 - 교재명 옆 */}
+                    {editingPathId === textbook.id ? (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                            <input
+                                type="text"
+                                value={pathInput}
+                                onChange={e => setPathInput(e.target.value)}
+                                placeholder="경로 붙여넣기"
+                                className="w-32 px-2 py-0.5 text-xs border border-blue-400 rounded"
+                                autoFocus
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && pathInput.trim()) {
+                                        onUpdateTextbookLocalPath(textbook.id, pathInput.trim())
+                                        setEditingPathId(null)
+                                    }
+                                    if (e.key === 'Escape') setEditingPathId(null)
+                                }}
+                            />
+                            <button
+                                onClick={() => {
+                                    if (pathInput.trim()) {
+                                        onUpdateTextbookLocalPath(textbook.id, pathInput.trim())
+                                    }
+                                    setEditingPathId(null)
+                                }}
+                                className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                            >
+                                <Check size={12} />
+                            </button>
+                        </div>
+                    ) : textbook.local_path ? (
+                        <button
+                            onClick={e => {
+                                e.stopPropagation()
+                                openLocalFolder(textbook.local_path!)
+                            }}
+                            onContextMenu={e => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setPathInput(textbook.local_path || '')
+                                setEditingPathId(textbook.id)
+                            }}
+                            className="px-2 py-0.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-1"
+                            title="클릭: 폴더 열기 | 우클릭: 수정"
+                        >
+                            <FolderOpen size={12} />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={e => {
+                                e.stopPropagation()
+                                setPathInput('')
+                                setEditingPathId(textbook.id)
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded"
+                            title="폴더 경로 등록"
+                        >
+                            <FolderOpen size={14} />
+                        </button>
+                    )}
+                    
+                    <span className="flex-1" />
                     <span className="text-sm text-gray-500">
                         ({textbook.total_chapters}{chapterUnit})
                     </span>
@@ -723,67 +786,6 @@ export default function TextbookManagementModal({
                         <Plus size={12} />
                     </button>
                 </div>
-
-                {/* 폴더 경로 버튼 */}
-                {editingPathId === textbook.id ? (
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        <input
-                            type="text"
-                            value={pathInput}
-                            onChange={e => setPathInput(e.target.value)}
-                            placeholder="경로 붙여넣기"
-                            className="w-32 px-2 py-0.5 text-xs border border-blue-400 rounded"
-                            autoFocus
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && pathInput.trim()) {
-                                    onUpdateTextbookLocalPath(textbook.id, pathInput.trim())
-                                    setEditingPathId(null)
-                                }
-                                if (e.key === 'Escape') setEditingPathId(null)
-                            }}
-                        />
-                        <button
-                            onClick={() => {
-                                if (pathInput.trim()) {
-                                    onUpdateTextbookLocalPath(textbook.id, pathInput.trim())
-                                }
-                                setEditingPathId(null)
-                            }}
-                            className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                        >
-                            <Check size={12} />
-                        </button>
-                    </div>
-                ) : textbook.local_path ? (
-                    <button
-                        onClick={e => {
-                            e.stopPropagation()
-                            openLocalFolder(textbook.local_path!)
-                        }}
-                        onContextMenu={e => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setPathInput(textbook.local_path || '')
-                            setEditingPathId(textbook.id)
-                        }}
-                        className="px-2 py-0.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-1"
-                        title="클릭: 폴더 열기 | 우클릭: 수정"
-                    >
-                        <FolderOpen size={12} />
-                    </button>
-                ) : (
-                    <button
-                        onClick={e => {
-                            e.stopPropagation()
-                            setPathInput('')
-                            setEditingPathId(textbook.id)
-                        }}
-                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded"
-                        title="폴더 경로 등록"
-                    >
-                        <FolderOpen size={14} />
-                    </button>
-                )}
 
                 {/* 메모 버튼 */}
                 {textbook.memo ? (
@@ -1523,11 +1525,9 @@ export default function TextbookManagementModal({
                                         )}
                                         <span className="font-medium text-gray-800">{subgroup.name}</span>
                                         <span className="text-sm text-gray-500">({subgroupTextbooks.length})</span>
-                                        <div className="flex-1 border-b border-gray-200 ml-1" />
                                         
-                                        {/* 폴더 경로 버튼 */}
+                                        {/* 폴더 경로 버튼 - 수준명 옆 */}
                                         {editingPathId === subgroup.id ? (
-                                            // 입력 모드
                                             <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                                 <input
                                                     type="text"
@@ -1557,7 +1557,6 @@ export default function TextbookManagementModal({
                                                 </button>
                                             </div>
                                         ) : subgroup.local_path ? (
-                                            // 경로 있음 → 클릭하면 폴더 열기
                                             <button
                                                 onClick={e => {
                                                     e.stopPropagation()
@@ -1578,7 +1577,6 @@ export default function TextbookManagementModal({
                                                 </span>
                                             </button>
                                         ) : (
-                                            // 경로 없음 → 등록
                                             <button
                                                 onClick={e => {
                                                     e.stopPropagation()
@@ -1591,6 +1589,8 @@ export default function TextbookManagementModal({
                                                 <FolderOpen size={14} />
                                             </button>
                                         )}
+                                        
+                                        <div className="flex-1 border-b border-gray-200 ml-1" />
                                         
                                         {/* 메모 버튼 */}
                                         {subgroup.memo ? (
