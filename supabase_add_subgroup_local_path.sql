@@ -9,3 +9,4 @@ FROM information_schema.columns
 WHERE table_name = 'textbook_subgroups';
 
 
+
