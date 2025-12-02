@@ -39,6 +39,9 @@ export interface Task {
     // 보관 여부
     is_archived?: boolean     // true면 보관된 노트/테스크
 
+    // 장기 집중 관리
+    is_the_focus?: boolean    // THE FOCUS 영역에 표시
+
     // ===== 블록 기반 확장 필드 (Phase 3) =====
     parent_id?: string | null  // 계층 구조 지원 (부모 Task ID)
     type?: TaskType            // Task 타입 (동적 확장 가능)
@@ -64,7 +67,8 @@ export interface Project {
     textbooks?: string[]  // 배정된 교재 ID (최대 4개)
     is_private?: boolean      // 비공개 수업 여부
     tuition?: number          // 수업료 (만원 단위, 12 = 12만원)
-    tuition_paid?: boolean    // 수업료 납부 여부
+    tuition_paid?: boolean    // 수업료 납부 여부 (이번 달 기본값)
+    tuition_paid_months?: string[]  // 월별 납부 완료 목록 ["2025-12", "2025-11"]
 
     // 루틴/습관 전용
     repeat_days?: number[]    // [1, 2, 3, 4, 5] = 월~금

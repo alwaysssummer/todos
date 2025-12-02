@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Calendar, Folder, GraduationCap, Repeat, X, BookOpen } from 'lucide-react'
+import { Plus, Calendar, Folder, GraduationCap, Repeat, X, BookOpen, ChevronDown, ChevronRight, ExternalLink, Edit2, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Project, Task } from '@/types/database'
 import ProjectCreateModal from './ProjectCreateModal'
@@ -14,6 +14,7 @@ import { useTextbooks } from '@/hooks/useTextbooks'
 import { useTextbookGroups } from '@/hooks/useTextbookGroups'
 import { useTextbookSubgroups } from '@/hooks/useTextbookSubgroups'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
+import { useNotionLinks } from '@/hooks/useNotionLinks'
 
 interface RightPanelProps {
   projects: Project[]
@@ -70,6 +71,14 @@ export default function RightPanel({ projects, createProject, updateProject, del
     reorderSubgroups
   } = useTextbookSubgroups()
   const { hasNoteOnDate, getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
+  const { links: notionLinks, createLink, updateLink, deleteLink } = useNotionLinks()
+  
+  // 프로젝트 링크 토글 상태
+  const [showProjectLinks, setShowProjectLinks] = useState(false)
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [newLinkTitle, setNewLinkTitle] = useState('')
+  const [newLinkUrl, setNewLinkUrl] = useState('')
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null)
 
   const handleGenerateTasks = async (newTasks: any[]) => {
     if (!createTask) return
@@ -375,21 +384,29 @@ export default function RightPanel({ projects, createProject, updateProject, del
               {/* 2줄: 금액 통계 */}
               <div className="flex items-center gap-2 text-xs">
                 {(() => {
+                  // 현재 월 계산 (YYYY-MM 형식)
+                  const now = new Date()
+                  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+                  
+                  // 현재 월 납부 여부 확인 함수
+                  const isPaidThisMonth = (p: typeof studentProjects[0]) => 
+                    p.tuition_paid_months?.includes(currentMonth) || false
+                  
                   // 총 금액 계산
                   const totalAmount = studentProjects.reduce((sum, p) => sum + (p.tuition || 0), 0)
-                  const totalPaid = studentProjects.filter(p => p.tuition_paid).reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const totalPaid = studentProjects.filter(isPaidThisMonth).reduce((sum, p) => sum + (p.tuition || 0), 0)
                   const totalUnpaid = totalAmount - totalPaid
                   
                   // 공개학생 금액
                   const publicProjects = studentProjects.filter(p => !p.is_private)
                   const publicAmount = publicProjects.reduce((sum, p) => sum + (p.tuition || 0), 0)
-                  const publicPaid = publicProjects.filter(p => p.tuition_paid).reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const publicPaid = publicProjects.filter(isPaidThisMonth).reduce((sum, p) => sum + (p.tuition || 0), 0)
                   const publicUnpaid = publicAmount - publicPaid
                   
                   // 비공개학생 금액
                   const privateProjects = studentProjects.filter(p => p.is_private)
                   const privateAmount = privateProjects.reduce((sum, p) => sum + (p.tuition || 0), 0)
-                  const privatePaid = privateProjects.filter(p => p.tuition_paid).reduce((sum, p) => sum + (p.tuition || 0), 0)
+                  const privatePaid = privateProjects.filter(isPaidThisMonth).reduce((sum, p) => sum + (p.tuition || 0), 0)
                   const privateUnpaid = privateAmount - privatePaid
                   
                   return (
@@ -436,8 +453,12 @@ export default function RightPanel({ projects, createProject, updateProject, del
                         {project.start_date && (
                           <span className={`text-xs flex-shrink-0 ${
                             (() => {
-                              // 납부 완료 시 녹색
-                              if (project.tuition_paid) {
+                              // 현재 월 계산
+                              const now = new Date()
+                              const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+                              
+                              // 현재 월 납부 완료 시 녹색
+                              if (project.tuition_paid_months?.includes(currentMonth)) {
                                 return 'text-green-600 font-semibold'
                               }
                               
@@ -445,8 +466,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
                               const startDate = new Date(project.start_date)
                               const startDay = startDate.getDate() // 시작일의 날짜 (예: 19일)
                               
-                              const today = new Date()
-                              const currentDay = today.getDate() // 현재 날짜 (예: 24일)
+                              const currentDay = now.getDate() // 현재 날짜 (예: 24일)
                               
                               // 이번 달 시작일부터 경과 일수
                               const daysPassed = currentDay - startDay
@@ -555,6 +575,128 @@ export default function RightPanel({ projects, createProject, updateProject, del
           <BookOpen size={16} />
           <span className="font-medium">교재 관리</span>
         </button>
+      </div>
+
+      {/* 프로젝트 링크 - 토글 섹션 */}
+      <div className="border-t border-gray-200">
+        <button
+          onClick={() => setShowProjectLinks(!showProjectLinks)}
+          className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center justify-between text-gray-700"
+        >
+          <div className="flex items-center gap-2">
+            <ExternalLink size={16} />
+            <span className="font-medium">프로젝트 링크</span>
+            <span className="text-xs text-gray-400">({notionLinks.length})</span>
+          </div>
+          {showProjectLinks ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        </button>
+        
+        {showProjectLinks && (
+          <div className="px-4 pb-3 space-y-2">
+            {notionLinks.map((link) => (
+              <div key={link.id} className="flex items-center gap-2 group">
+                {editingLinkId === link.id ? (
+                  <input
+                    type="text"
+                    defaultValue={link.title}
+                    onBlur={(e) => {
+                      updateLink(link.id, { title: e.target.value })
+                      setEditingLinkId(null)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        updateLink(link.id, { title: e.currentTarget.value })
+                        setEditingLinkId(null)
+                      }
+                    }}
+                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-sm text-blue-600 hover:underline truncate"
+                    >
+                      {link.title}
+                    </a>
+                    <button
+                      onClick={() => setEditingLinkId(link.id)}
+                      className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('이 링크를 삭제하시겠습니까?')) {
+                          deleteLink(link.id)
+                        }
+                      }}
+                      className="p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+            
+            {/* 링크 추가 버튼/폼 */}
+            {showLinkModal ? (
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <input
+                  type="text"
+                  value={newLinkTitle}
+                  onChange={(e) => setNewLinkTitle(e.target.value)}
+                  placeholder="링크 제목"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                />
+                <input
+                  type="url"
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                  placeholder="URL (https://...)"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      if (newLinkTitle && newLinkUrl) {
+                        await createLink({ title: newLinkTitle, url: newLinkUrl, order_index: notionLinks.length })
+                        setNewLinkTitle('')
+                        setNewLinkUrl('')
+                        setShowLinkModal(false)
+                      }
+                    }}
+                    className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    추가
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowLinkModal(false)
+                      setNewLinkTitle('')
+                      setNewLinkUrl('')
+                    }}
+                    className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowLinkModal(true)}
+                className="w-full px-2 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded flex items-center gap-1 justify-center"
+              >
+                <Plus size={14} />
+                링크 추가
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tag Panel - Fixed Bottom */}

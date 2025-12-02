@@ -2,11 +2,8 @@
 
 import { useMemo } from 'react'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
-import type { Task, NotionLink } from '@/types/database'
-import RoutineSection from '../RoutineSection'
+import type { Task } from '@/types/database'
 import SortableTaskItem from './SortableTaskItem'
-import SortableNotionLink from './SortableNotionLink'
 import DroppableContainer from './DroppableContainer'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
 
@@ -14,7 +11,7 @@ interface MainTabProps {
   focusTasks: Task[]
   todayTasks: Task[]
   recentTasks: Task[]
-  notionLinks: NotionLink[]
+  theFocusTasks: Task[]  // THE FOCUS 태스크
   completingIds: Set<string>
   expandedTaskIds: Set<string>
   onTaskClick: (e: React.MouseEvent, task: Task) => void
@@ -24,16 +21,13 @@ interface MainTabProps {
   onConvertType: (task: Task, newType: 'task' | 'note') => void
   getSubtasks: (parentId: string) => Task[]
   toggleTaskStatus: (id: string, status: string) => void
-  updateLink: (id: string, updates: Partial<NotionLink>) => void
-  onDeleteNotionLink: (id: string) => void
-  onShowNotionLinkModal: () => void
 }
 
 export default function MainTab({
   focusTasks,
   todayTasks,
   recentTasks,
-  notionLinks,
+  theFocusTasks,
   completingIds,
   expandedTaskIds,
   onTaskClick,
@@ -43,9 +37,6 @@ export default function MainTab({
   onConvertType,
   getSubtasks,
   toggleTaskStatus,
-  updateLink,
-  onDeleteNotionLink,
-  onShowNotionLinkModal
 }: MainTabProps) {
   // 체크리스트 개수(분모) 기준으로 정렬 (많은 순)
   const sortedFocusTasks = useMemo(() => {
@@ -64,40 +55,49 @@ export default function MainTab({
     })
   }, [todayTasks])
 
+  // THE FOCUS 태스크 정렬
+  const sortedTheFocusTasks = useMemo(() => {
+    return [...theFocusTasks].sort((a, b) => {
+      const aCount = parseChecklistFromMemo(a.description).length
+      const bCount = parseChecklistFromMemo(b.description).length
+      return bCount - aCount
+    })
+  }, [theFocusTasks])
+
   return (
-    <>
-      {/* PROJECT - 제일 위 */}
-      <div className="border-b border-gray-200 flex-shrink-0">
-        <h2 className="text-xs mb-1 px-4 pt-3 font-semibold text-gray-900 flex items-center justify-between">
-          PROJECT
-          <button
-            onClick={onShowNotionLinkModal}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            title="프로젝트 링크 추가"
-          >
-            <Plus size={14} />
-          </button>
-        </h2>
-        
-        <div className="px-4 pb-2">
-          <SortableContext items={notionLinks.map(l => `notion-link-${l.id}`)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1">
-              {notionLinks.length === 0 && (
+    <div className="space-y-0">
+      {/* THE FOCUS - 장기 집중 관리 영역 */}
+      <div className="border-b border-gray-200">
+        <DroppableContainer id="the-focus-container" title="THE FOCUS" titleColor="text-gray-900">
+          <SortableContext items={sortedTheFocusTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-1.5">
+              {sortedTheFocusTasks.length === 0 && (
                 <div className="text-xs text-gray-400 text-center py-2">
-                  + 버튼을 눌러 프로젝트를 추가하세요
+                  장기 집중 태스크를 이곳으로 드래그하세요
                 </div>
               )}
-              {notionLinks.map((link) => (
-                <SortableNotionLink
-                  key={link.id}
-                  link={link}
-                  onUpdate={updateLink}
-                  onDelete={onDeleteNotionLink}
-                />
+              {sortedTheFocusTasks.map((task) => (
+                <div 
+                  key={task.id}
+                  className="border-b-2 border-gray-900 [&_.task-title]:font-black [&_.task-title]:text-gray-900"
+                >
+                  <SortableTaskItem
+                    task={task}
+                    isCompleting={completingIds.has(task.id)}
+                    isExpanded={expandedTaskIds.has(task.id)}
+                    onClick={(e) => onTaskClick(e, task)}
+                    onToggleComplete={() => onToggleComplete(task)}
+                    onChecklistToggle={onChecklistToggle}
+                    onToggleExpand={onToggleExpand}
+                    onConvertType={onConvertType}
+                    subtasks={getSubtasks(task.id)}
+                    onSubtaskToggle={(subtask) => toggleTaskStatus(subtask.id, subtask.status)}
+                  />
+                </div>
               ))}
             </div>
           </SortableContext>
-        </div>
+        </DroppableContainer>
       </div>
 
       {/* Today's Focus */}
@@ -160,9 +160,6 @@ export default function MainTab({
         </DroppableContainer>
       </div>
 
-      {/* ROUTINES */}
-      <RoutineSection />
-
       {/* 최근 항목 - 제일 아래 */}
       {recentTasks.length > 0 && (
         <div className="border-t border-gray-200 flex-shrink-0 px-2 py-1">
@@ -186,7 +183,7 @@ export default function MainTab({
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 

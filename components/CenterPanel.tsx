@@ -3,11 +3,13 @@
 import { useState, useEffect, useMemo, useRef, memo } from 'react'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { format, isSameMinute, parseISO, isSameDay } from 'date-fns'
-import { Check, X } from 'lucide-react'
+import { Check, X, Plus } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import TaskDetailPopover from './DetailPopover'
 import { DailyNoteModal } from './DailyNoteModal'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
+import { useRoutines } from '@/hooks/useRoutines'
+import RoutineDashboardModal from './RoutineDashboardModal'
 
 interface CenterPanelProps {
   tasks: Task[]
@@ -461,6 +463,22 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
   const [showDailyNoteModal, setShowDailyNoteModal] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const { getNoteByDate, createNote, updateNote, deleteNote } = useDailyNotes()
+  
+  // 루틴 관련
+  const { 
+    routines,
+    getRoutineCompletedByDate, 
+    toggleCompleteByDate,
+    fetchWeekLogs,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    saveNote: saveRoutineNote,
+    getStats,
+    getCalendarLogs,
+    getRecentNotes
+  } = useRoutines()
+  const [showRoutineModal, setShowRoutineModal] = useState(false)
 
   // prop으로 받은 currentDate 사용
   const currentDate = propCurrentDate
@@ -508,6 +526,14 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     d.setDate(weekStart.getDate() + i)
     return d
   })
+
+  // 주간 루틴 로그 조회
+  const weekStartStr = format(weekDates[0], 'yyyy-MM-dd')
+  const weekEndStr = format(weekDates[6], 'yyyy-MM-dd')
+  
+  useEffect(() => {
+    fetchWeekLogs(weekStartStr, weekEndStr)
+  }, [weekStartStr, weekEndStr, fetchWeekLogs])
 
   const handlePrevWeek = () => {
     const newDate = new Date(currentDate)
@@ -791,6 +817,75 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
                 )
               })}
             </div>
+
+            {/* 루틴 행 */}
+            <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-0 border-b border-gray-300">
+              <div className="w-12 border-r border-gray-200 bg-gray-50 flex items-start justify-center pt-1">
+                <button
+                  onClick={() => setShowRoutineModal(true)}
+                  className="text-gray-400 hover:text-gray-600 p-0.5"
+                  title="루틴 관리"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+              {weekDates.map((date, dayIndex) => {
+                const dayOfWeek = date.getDay()
+                const dayRoutines = routines.filter(r => r.repeat_days.includes(dayOfWeek))
+                const isToday = now ? isSameDay(date, now) : isSameDay(date, new Date())
+                const dateStr = format(date, 'yyyy-MM-dd')
+                const isFuture = date > today
+                
+                return (
+                  <div
+                    key={dayIndex}
+                    className={`px-1.5 py-1 border-r border-gray-200 last:border-r-0 ${
+                      isToday ? 'bg-amber-50/50' : ''
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      {dayRoutines.map(routine => {
+                        const isCompleted = getRoutineCompletedByDate(routine.id, dateStr)
+                        return (
+                          <div
+                            key={routine.id}
+                            onClick={() => !isFuture && toggleCompleteByDate(routine.id, dateStr, weekStartStr, weekEndStr)}
+                            className={`flex items-center gap-1 text-[11px] ${
+                              isFuture ? '' : 'cursor-pointer hover:bg-gray-100 rounded px-0.5 -mx-0.5'
+                            }`}
+                          >
+                            {/* 체크박스 */}
+                            <div className={`w-3 h-3 rounded-sm border flex-shrink-0 flex items-center justify-center ${
+                              isCompleted
+                                ? 'bg-green-500 border-green-500'
+                                : isToday
+                                  ? 'border-orange-400'
+                                  : isFuture
+                                    ? 'border-gray-200'
+                                    : 'border-gray-400'
+                            }`}>
+                              {isCompleted && <Check size={8} strokeWidth={3} className="text-white" />}
+                            </div>
+                            {/* 제목 */}
+                            <span className={`truncate ${
+                              isCompleted
+                                ? 'text-gray-400 line-through'
+                                : isToday
+                                  ? 'text-gray-700'
+                                  : isFuture
+                                    ? 'text-gray-300'
+                                    : 'text-gray-500'
+                            }`}>
+                              {routine.title}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <div className="relative">
@@ -878,6 +973,11 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
             setSelectedDate(null)
           }}
         />
+      )}
+
+      {/* Routine Dashboard Modal */}
+      {showRoutineModal && (
+        <RoutineDashboardModal onClose={() => setShowRoutineModal(false)} />
       )}
     </div>
   )

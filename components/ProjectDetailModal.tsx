@@ -35,8 +35,33 @@ export default function ProjectDetailModal({
   const [isPrivate, setIsPrivate] = useState(project.is_private || false)
   const [tuition, setTuition] = useState<number | ''>(project.tuition || '')
   const [tuitionPaid, setTuitionPaid] = useState(project.tuition_paid || false)
+  const [tuitionPaidMonths, setTuitionPaidMonths] = useState<string[]>(project.tuition_paid_months || [])
   
   const { textbooks, cleanTextbookDataFromTasks } = useTextbooks()
+
+  // 최근 3개월 계산 (현재 월 포함)
+  const getRecentMonths = () => {
+    const months: { key: string; label: string }[] = []
+    const now = new Date()
+    for (let i = 0; i < 3; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const label = `${date.getMonth() + 1}월`
+      months.push({ key, label })
+    }
+    return months
+  }
+
+  const recentMonths = getRecentMonths()
+
+  // 월별 납부 토글
+  const toggleMonthPaid = (monthKey: string) => {
+    setTuitionPaidMonths(prev => 
+      prev.includes(monthKey) 
+        ? prev.filter(m => m !== monthKey)
+        : [...prev, monthKey]
+    )
+  }
 
   const colors = [
     '#bae6fd', // 연한 하늘색 - 30분
@@ -122,6 +147,7 @@ export default function ProjectDetailModal({
       updates.is_private = isPrivate
       updates.tuition = tuition === '' ? undefined : Number(tuition)
       updates.tuition_paid = tuitionPaid
+      updates.tuition_paid_months = tuitionPaidMonths
     } else if (project.type === 'habit') {
       updates.start_date = startDate
       updates.repeat_days = repeatDays
@@ -334,7 +360,7 @@ export default function ProjectDetailModal({
                     수업료 <span className="text-xs text-gray-500">(만원 단위)</span>
                   </label>
                   {isEditing ? (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -343,24 +369,44 @@ export default function ProjectDetailModal({
                           placeholder="12"
                           min="0"
                           step="1"
-                          className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <span className="text-sm text-gray-600">만원</span>
                       </div>
-                      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={tuitionPaid}
-                          onChange={(e) => setTuitionPaid(e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <span>납부 완료</span>
-                      </label>
+                      
+                      {/* 최근 3개월 납부 현황 - 수업료 옆에 배치 */}
+                      <div className="flex items-center gap-2">
+                        {recentMonths.map(({ key, label }) => (
+                          <label 
+                            key={key}
+                            className="flex items-center gap-1 text-sm cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={tuitionPaidMonths.includes(key)}
+                              onChange={() => toggleMonthPaid(key)}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-500"
+                            />
+                            <span className={tuitionPaidMonths.includes(key) ? 'text-blue-600 font-medium' : 'text-gray-500'}>
+                              {label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-gray-900">
-                      {tuition ? `${tuition}만원` : '미설정'}
-                      {tuitionPaid && ' (납부 완료)'}
+                    <div className="text-gray-900 flex items-center gap-2">
+                      <span>{tuition ? `${tuition}만원` : '미설정'}</span>
+                      {recentMonths.length > 0 && (
+                        <span className="text-xs text-gray-500">
+                          ({recentMonths.map(m => 
+                            tuitionPaidMonths.includes(m.key) 
+                              ? <span key={m.key} className="text-green-600">{m.label}✓</span>
+                              : <span key={m.key} className="text-red-400">{m.label}✗</span>
+                          ).reduce((prev, curr, i) => i === 0 ? [curr] : [...prev, ' ', curr], [] as React.ReactNode[])}
+                          )
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

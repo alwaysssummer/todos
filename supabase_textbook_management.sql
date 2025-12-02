@@ -53,3 +53,7 @@ CREATE TABLE IF NOT EXISTS textbook_chapters (
 -- 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_textbook_chapters_textbook_id ON textbook_chapters(textbook_id);
 
+
+
+
+

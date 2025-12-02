@@ -169,7 +169,7 @@ export default function SortableTaskItem({
         <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
           {/* 제목 + 체크리스트 진행률 */}
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className={`truncate ${isInbox ? 'text-xs' : 'text-sm'} ${isCompleting || isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
+            <span className={`task-title truncate ${isInbox ? 'text-xs' : 'text-sm'} ${isCompleting || isCompleted ? 'line-through' : ''} ${task.is_top5 ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
               {renderTitle(task.title)}
             </span>
             {/* 체크리스트 진행률 - 제목 바로 우측 */}

@@ -96,26 +96,34 @@ export default function LeftPanel({
   const todayStr = new Date().toISOString().split('T')[0]
 
   // ===== Task Filters =====
-  const focusTasks = tasks.filter(t => 
-    t.is_top5 && t.status !== 'completed' && t.status !== 'waiting' && 
+  // THE FOCUS: 장기 집중 관리 태스크
+  const theFocusTasks = tasks.filter(t => 
+    t.is_the_focus && t.status !== 'completed' && t.status !== 'waiting' && 
     !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
   )
 
+  const focusTasks = tasks.filter(t => 
+    t.is_top5 && !t.is_the_focus && t.status !== 'completed' && t.status !== 'waiting' && 
+    !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
+  )
+
+  // Today's Task: due_date가 오늘 또는 과거인 태스크 (자정이 지나도 유지됨)
   const todayTasks = tasks.filter(t => 
-    !t.is_top5 && t.due_date?.split('T')[0] === todayStr && 
+    !t.is_top5 && !t.is_the_focus && t.due_date && t.due_date.split('T')[0] <= todayStr && 
     t.status !== 'completed' && t.status !== 'waiting' && 
     !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
   )
 
   const waitingTasks = tasks.filter(t => 
-    t.status === 'waiting' && !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
+    t.status === 'waiting' && !t.is_the_focus && !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
   )
 
+  // Inbox: due_date가 없는 태스크
   const inboxTasks = useMemo(() => {
     let filtered = tasks.filter(t => 
       t.status !== 'completed' && t.status !== 'waiting' && 
-      !t.is_auto_generated && !t.is_makeup && !t.is_top5 &&
-      t.due_date?.split('T')[0] !== todayStr && !t.parent_id && t.type !== 'note'
+      !t.is_auto_generated && !t.is_makeup && !t.is_top5 && !t.is_the_focus &&
+      !t.due_date && !t.parent_id && t.type !== 'note'
     )
     if (selectedProjectId) {
       filtered = filtered.filter(t => t.project_id === selectedProjectId)
@@ -149,7 +157,7 @@ export default function LeftPanel({
     return uniqueTags.size
   }, [tasks])
 
-  // 최근 생성된 태스크/노트 5개 (완료되지 않은 것, Today's Focus/Task 제외)
+  // 최근 생성된 태스크/노트 5개 (완료되지 않은 것, Focus/Today's Task/THE FOCUS 제외)
   const recentTasks = useMemo(() => {
     return [...tasks]
       .filter(t => 
@@ -157,12 +165,13 @@ export default function LeftPanel({
         !t.is_auto_generated && 
         !t.is_makeup && 
         !t.parent_id &&
-        !t.is_top5 &&  // Today's Focus 제외
-        t.due_date?.split('T')[0] !== todayStr  // Today's Task 제외
+        !t.is_top5 &&       // Today's Focus 제외
+        !t.is_the_focus &&  // THE FOCUS 제외
+        !t.due_date         // Today's Task 제외
       )
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5)
-  }, [tasks, todayStr])
+  }, [tasks])
 
   // ===== Helper Functions =====
   const getSubtasks = (parentId: string) => {
@@ -270,14 +279,15 @@ export default function LeftPanel({
     const realActiveId = activeId.replace(/-inbox$/, '').replace(/-waiting$/, '').replace(/-note$/, '')
     const realOverId = overId.replace(/-inbox$/, '').replace(/-waiting$/, '').replace(/-note$/, '')
 
-    if (['focus-container', 'today-container', 'inbox-container', 'waiting-container'].includes(overId)) {
+    if (['the-focus-container', 'focus-container', 'today-container', 'inbox-container', 'waiting-container'].includes(overId)) {
       const task = tasks.find(t => t.id === realActiveId)
       if (!task) return
       const updates: Partial<Task> = {}
-      if (overId === 'focus-container') { updates.is_top5 = true; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
-      else if (overId === 'today-container') { updates.is_top5 = false; updates.due_date = todayStr; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
-      else if (overId === 'inbox-container') { updates.is_top5 = false; updates.due_date = undefined; updates.status = 'inbox' }
-      else if (overId === 'waiting-container') { updates.status = 'waiting'; updates.is_top5 = false; updates.due_date = null; updates.start_time = null; updates.duration = null }
+      if (overId === 'the-focus-container') { updates.is_the_focus = true; updates.is_top5 = false; updates.due_date = undefined; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
+      else if (overId === 'focus-container') { updates.is_top5 = true; updates.is_the_focus = false; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
+      else if (overId === 'today-container') { updates.is_top5 = false; updates.is_the_focus = false; updates.due_date = todayStr; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
+      else if (overId === 'inbox-container') { updates.is_top5 = false; updates.is_the_focus = false; updates.due_date = undefined; updates.status = 'inbox' }
+      else if (overId === 'waiting-container') { updates.status = 'waiting'; updates.is_top5 = false; updates.is_the_focus = false; updates.due_date = null; updates.start_time = null; updates.duration = null }
       if (Object.keys(updates).length > 0) await updateTask(realActiveId, updates)
       return
     }
@@ -293,7 +303,7 @@ export default function LeftPanel({
         const updates: Partial<Task> = {}
         let shouldUpdate = false
         if (isOverFocusList && (!activeTask.is_top5 || activeTask.status === 'waiting')) { updates.is_top5 = true; if (activeTask.status === 'waiting') updates.status = 'inbox'; shouldUpdate = true }
-        else if (isOverTodayList && (activeTask.is_top5 || activeTask.due_date?.split('T')[0] !== todayStr || activeTask.status === 'waiting')) { updates.is_top5 = false; updates.due_date = todayStr; if (activeTask.status === 'waiting') updates.status = 'inbox'; shouldUpdate = true }
+        else if (isOverTodayList && (activeTask.is_top5 || !activeTask.due_date || activeTask.status === 'waiting')) { updates.is_top5 = false; updates.due_date = todayStr; if (activeTask.status === 'waiting') updates.status = 'inbox'; shouldUpdate = true }
         else if (isOverWaitingList && activeTask.status !== 'waiting') { updates.status = 'waiting'; updates.is_top5 = false; updates.due_date = null; updates.start_time = null; updates.duration = null; shouldUpdate = true }
         else if (isOverInboxList) { if (activeTask.status === 'waiting') { updates.status = 'inbox'; updates.is_top5 = false; updates.due_date = undefined; shouldUpdate = true } else if (!activeId.endsWith('-inbox')) { updates.is_top5 = false; updates.due_date = undefined; shouldUpdate = true } }
         if (shouldUpdate) await updateTask(realActiveId, updates)
@@ -339,13 +349,13 @@ export default function LeftPanel({
         {activeTab === 'main' && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <MainTab
-              focusTasks={focusTasks} todayTasks={todayTasks} recentTasks={recentTasks} notionLinks={notionLinks}
+              focusTasks={focusTasks} todayTasks={todayTasks} recentTasks={recentTasks}
+              theFocusTasks={theFocusTasks}
               completingIds={completingIds} expandedTaskIds={expandedTaskIds}
               onTaskClick={handleTaskClick} onToggleComplete={handleToggleComplete}
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}
               onConvertType={handleConvertType} getSubtasks={getSubtasks}
-              toggleTaskStatus={toggleTaskStatus} updateLink={updateLink}
-              onDeleteNotionLink={handleDeleteNotionLink} onShowNotionLinkModal={() => setShowNotionLinkModal(true)}
+              toggleTaskStatus={toggleTaskStatus}
             />
           </DndContext>
         )}

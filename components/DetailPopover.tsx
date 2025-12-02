@@ -199,9 +199,21 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
 
     // 통합 입력 핸들러 (LeftPanel의 빠른 입력과 동일한 로직)
     const handleQuickInput = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        console.log('handleQuickInput 호출됨, key:', e.key, 'quickInput:', quickInput)
+        
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            if (!quickInput.trim() || !createTask) return
+            console.log('Enter 키 감지, quickInput:', quickInput)
+            
+            if (!quickInput.trim()) {
+                console.log('quickInput이 비어있음')
+                return
+            }
+            if (!createTask) {
+                console.error('createTask is not available')
+                alert('저장 기능을 사용할 수 없습니다.')
+                return
+            }
 
             let title = quickInput.trim()
             let isTop5 = false
@@ -219,22 +231,32 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
             // 태그 추출 (LeftPanel과 동일)
             const { cleanTitle, tags } = extractTags(title)
 
-            // 학생 이름 자동 태그 추가 (유일한 차이점!)
-            const studentTag = project?.name || ''
-            const allTags = [...new Set([...tags, studentTag])]
+            // 학생 이름: project 객체에서 직접 가져옴 (이미 컴포넌트 레벨에서 정의됨)
+            const studentName = project?.name || ''
+            console.log('학생 이름 확인:', { projectName: project?.name, studentName, projectId: task.project_id })
+            
+            const allTags = [...new Set([...tags, studentName].filter(Boolean))]
 
-            // INBOX에 새 Task 생성 (LeftPanel과 동일!)
-            await createTask({
-                title: cleanTitle,
-                status: 'inbox',
-                is_top5: isTop5,
-                due_date: dueDate,
-                project_id: task.project_id,  // 학생 프로젝트 연결
-                tags: allTags,  // #서원 자동 포함
-                start_time: task.start_time  // 수업 날짜/시간
-            })
+            try {
+                // INBOX에 새 Task 생성 (학생 이름을 제목 앞에 자동 추가)
+                const titleWithStudent = studentName ? `${studentName}>${cleanTitle}` : cleanTitle
+                
+                console.log('생성할 제목:', titleWithStudent)
+                
+                await createTask({
+                    title: titleWithStudent,
+                    status: 'inbox',
+                    is_top5: isTop5,
+                    due_date: dueDate,
+                    project_id: task.project_id,
+                    tags: allTags,
+                })
 
-            setQuickInput('')  // 입력 초기화
+                setQuickInput('')
+            } catch (error) {
+                console.error('수업 메모 저장 실패:', error)
+                alert('저장에 실패했습니다.')
+            }
         }
     }
 

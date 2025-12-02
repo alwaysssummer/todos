@@ -7,6 +7,7 @@ import { Routine, RoutineLog, RoutineStats, RoutineCalendarLog, RoutineRecentNot
 export function useRoutines() {
   const [routines, setRoutines] = useState<Routine[]>([])
   const [todayLogs, setTodayLogs] = useState<RoutineLog[]>([])
+  const [weekLogs, setWeekLogs] = useState<RoutineLog[]>([])  // 주간 로그
   const [loading, setLoading] = useState(true)
 
   // 오늘 날짜 (YYYY-MM-DD)
@@ -49,6 +50,21 @@ export function useRoutines() {
     }
   }, [today])
 
+  // ===== 주간 로그 조회 =====
+  const fetchWeekLogs = useCallback(async (startDate: string, endDate: string) => {
+    const { data, error } = await supabase
+      .from('routine_logs')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate)
+
+    if (error) {
+      console.error('❌ 주간 로그 조회 에러:', error.message)
+    } else if (data) {
+      setWeekLogs(data)
+    }
+  }, [])
+
   // ===== 초기 로드 =====
   useEffect(() => {
     const loadData = async () => {
@@ -69,6 +85,12 @@ export function useRoutines() {
     const log = todayLogs.find(l => l.routine_id === routineId)
     return log?.is_completed ?? false
   }, [todayLogs])
+
+  // ===== 루틴별 특정 날짜 완료 여부 =====
+  const getRoutineCompletedByDate = useCallback((routineId: string, dateStr: string): boolean => {
+    const log = weekLogs.find(l => l.routine_id === routineId && l.date === dateStr)
+    return log?.is_completed ?? false
+  }, [weekLogs])
 
   // ===== 루틴별 오늘 메모 =====
   const getRoutineNote = useCallback((routineId: string): string => {
@@ -206,6 +228,51 @@ export function useRoutines() {
     await fetchTodayLogs()
     return true
   }, [todayLogs, today, fetchTodayLogs])
+
+  // ===== 특정 날짜 체크 토글 =====
+  const toggleCompleteByDate = useCallback(async (routineId: string, dateStr: string, weekStart: string, weekEnd: string): Promise<boolean> => {
+    const existingLog = weekLogs.find(l => l.routine_id === routineId && l.date === dateStr)
+    
+    if (existingLog) {
+      // 기존 로그 업데이트
+      const newCompleted = !existingLog.is_completed
+      const { error } = await supabase
+        .from('routine_logs')
+        .update({
+          is_completed: newCompleted,
+          completed_at: newCompleted ? new Date().toISOString() : null
+        })
+        .eq('id', existingLog.id)
+
+      if (error) {
+        console.error('❌ 체크 토글 에러:', error.message)
+        return false
+      }
+    } else {
+      // 새 로그 생성 (체크됨)
+      const { error } = await supabase
+        .from('routine_logs')
+        .insert({
+          routine_id: routineId,
+          date: dateStr,
+          is_completed: true,
+          completed_at: new Date().toISOString()
+        })
+
+      if (error) {
+        console.error('❌ 로그 생성 에러:', error.message)
+        return false
+      }
+    }
+
+    // 주간 로그 다시 조회
+    await fetchWeekLogs(weekStart, weekEnd)
+    // 오늘 날짜면 todayLogs도 업데이트
+    if (dateStr === today) {
+      await fetchTodayLogs()
+    }
+    return true
+  }, [weekLogs, today, fetchWeekLogs, fetchTodayLogs])
 
   // ===== 메모 저장 =====
   const saveNote = useCallback(async (routineId: string, note: string): Promise<boolean> => {
@@ -446,15 +513,19 @@ export function useRoutines() {
     routines,
     todayRoutines,
     todayLogs,
+    weekLogs,
     loading,
     today,
     getRoutineCompleted,
+    getRoutineCompletedByDate,
     getRoutineNote,
     createRoutine,
     updateRoutine,
     deleteRoutine,
     reorderRoutines,
     toggleComplete,
+    toggleCompleteByDate,
+    fetchWeekLogs,
     saveNote,
     getStats,
     getCalendarLogs,
