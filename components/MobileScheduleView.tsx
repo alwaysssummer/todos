@@ -33,9 +33,13 @@ export default function MobileScheduleView({
     isSameDay(new Date(task.start_time), currentDate) &&
     (task.is_auto_generated || task.is_makeup) &&
     !task.is_cancelled
-  ).sort((a, b) => 
-    new Date(a.start_time!).getTime() - new Date(b.start_time!).getTime()
-  )
+  ).sort((a, b) => {
+    // 완료된 수업은 맨 아래로
+    if (a.status === 'completed' && b.status !== 'completed') return 1
+    if (a.status !== 'completed' && b.status === 'completed') return -1
+    // 그 외에는 시간순 정렬
+    return new Date(a.start_time!).getTime() - new Date(b.start_time!).getTime()
+  })
 
   const goToPrevDay = () => setCurrentDate(prev => subDays(prev, 1))
   const goToNextDay = () => setCurrentDate(prev => addDays(prev, 1))
