@@ -18,3 +18,6 @@ WHERE textbooks.id = ranked.id;
 
 
 
+
+
+

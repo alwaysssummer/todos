@@ -12,6 +12,8 @@ import MobileInboxView from '@/components/MobileInboxView'
 import MobileScheduleView from '@/components/MobileScheduleView'
 import MobileTagsView from '@/components/MobileTagsView'
 import MobileMoreView from '@/components/MobileMoreView'
+import MobileFocusView from '@/components/MobileFocusView'
+import MobileNotesView from '@/components/MobileNotesView'
 import TagModal from '@/components/TagModal'
 import TagArchiveDashboard from '@/components/TagArchiveDashboard'
 import TaskDetailPopover from '@/components/DetailPopover'
@@ -21,7 +23,7 @@ import { useScheduleManager } from '@/hooks/useScheduleManager'
 import type { Task } from '@/types/database'
 import { addWeeks, startOfWeek, endOfWeek } from 'date-fns'
 
-type PanelType = 'today' | 'inbox' | 'schedule' | 'tags' | 'more'
+type PanelType = 'focus' | 'today' | 'inbox' | 'schedule' | 'notes'
 
 export default function Home() {
   const [activePanel, setActivePanel] = useState<PanelType>('today')
@@ -298,6 +300,16 @@ export default function Home() {
         {/* Mobile: Single Panel with Bottom Navigation */}
         <div className="md:hidden h-full flex flex-col">
           <div className="flex-1 overflow-hidden">
+            {activePanel === 'focus' && (
+              <MobileFocusView
+                tasks={tasks}
+                createTask={createTask}
+                updateTask={updateTask}
+                toggleTaskStatus={toggleTaskStatus}
+                projects={projects}
+                onSelectTask={setMobileSelectedTask}
+              />
+            )}
             {activePanel === 'today' && (
               <MobileTodayView
                 tasks={tasks}
@@ -326,16 +338,14 @@ export default function Home() {
                 createTask={createTask}
               />
             )}
-            {activePanel === 'tags' && (
-              <MobileTagsView
+            {activePanel === 'notes' && (
+              <MobileNotesView
                 tasks={tasks}
-                onTagSelect={handleOpenTagModal}
-              />
-            )}
-            {activePanel === 'more' && (
-              <MobileMoreView
+                updateTask={updateTask}
+                deleteTask={deleteTask}
+                toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
-                onArchiveOpen={() => setIsArchiveOpen(true)}
+                onSelectTask={setMobileSelectedTask}
               />
             )}
           </div>

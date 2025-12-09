@@ -626,6 +626,14 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         transform: 'translate(-50%, -50%)'
     }
 
+    // 닫기 버튼 핸들러 - 제목이 비어있으면 태스크 삭제
+    const handleClose = async () => {
+        if (!title.trim() && task.id && deleteTask) {
+            await deleteTask(task.id)
+        }
+        onClose()
+    }
+
     return (
         <>
             {/* 어두운 배경 오버레이 */}
@@ -1269,7 +1277,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                     </button>
 
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
                     >
                         닫기

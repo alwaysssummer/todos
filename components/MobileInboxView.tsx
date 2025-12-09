@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
+import { parseChecklistFromMemo } from '@/utils/checklistParser'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -120,6 +122,7 @@ export default function MobileInboxView({
 }: MobileInboxViewProps) {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -209,6 +212,34 @@ export default function MobileInboxView({
     }
   }
 
+  const toggleExpand = (taskId: string) => {
+    setExpandedTaskIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId)
+      } else {
+        newSet.add(taskId)
+      }
+      return newSet
+    })
+  }
+
+  // 체크리스트 토글
+  const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
+    if (!task.description) return
+    
+    const lines = task.description.split('\n')
+    const line = lines[lineIndex]
+    
+    if (newCompleted) {
+      lines[lineIndex] = line.replace(/^\[\]\s/, '[x] ')
+    } else {
+      lines[lineIndex] = line.replace(/^\[x\]\s/i, '[] ')
+    }
+    
+    await updateTask(task.id, { description: lines.join('\n') })
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* INBOX 헤더 */}
@@ -227,65 +258,119 @@ export default function MobileInboxView({
               const isRed = task.is_top5
               const isGreen = task.due_date?.split('T')[0] === todayStr
               const isYellow = task.status === 'scheduled'
+              const checklistItems = parseChecklistFromMemo(task.description)
+              const hasChecklist = checklistItems.length > 0
+              const isExpanded = expandedTaskIds.has(task.id)
+              const completedCount = checklistItems.filter(item => item.isCompleted).length
 
               return (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-2 px-3 py-1.5 active:bg-gray-50"
-                >
-                  <AnimatedCheckbox
-                    checked={task.status === 'completed'}
-                    onChange={() => handleToggleComplete(task)}
-                    color={isRed ? 'red' : isGreen ? 'green' : 'blue'}
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    {editingTaskId === task.id ? (
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => handleEdit(task, editValue)}
-                        onKeyDown={(e) => handleKeyDown(e, task)}
-                        className="flex-1 text-xs border-b-2 border-blue-500 bg-blue-50 px-1 py-0.5 focus:outline-none"
-                        placeholder="* Focus | / 오늘"
-                      />
-                    ) : (
-                      <div 
-                        onClick={() => handleTaskClick(task)}
-                        className={`text-xs truncate ${
-                          task.status === 'completed' 
-                            ? 'line-through text-gray-400' 
-                            : isRed 
-                              ? 'text-gray-900 font-semibold' 
-                              : 'text-gray-900'
-                        }`}
+                <div key={task.id}>
+                  <div className="flex items-center gap-2 px-3 py-1.5 active:bg-gray-50">
+                    <AnimatedCheckbox
+                      checked={task.status === 'completed'}
+                      onChange={() => handleToggleComplete(task)}
+                      color={isRed ? 'red' : isGreen ? 'green' : 'blue'}
+                      size="sm"
+                    />
+                    
+                    {/* 체크리스트 토글 버튼 */}
+                    {hasChecklist && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleExpand(task.id)
+                        }}
+                        className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-gray-400"
                       >
-                        {task.title}
-                      </div>
+                        <ChevronRight 
+                          size={12} 
+                          className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+                        />
+                      </button>
                     )}
-                    {task.tags && task.tags.length > 0 && (
-                      <div className="flex gap-0.5 flex-shrink-0">
-                        {task.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                            #{tag}
+
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      {editingTaskId === task.id ? (
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleEdit(task, editValue)}
+                          onKeyDown={(e) => handleKeyDown(e, task)}
+                          className="flex-1 text-xs border-b-2 border-blue-500 bg-blue-50 px-1 py-0.5 focus:outline-none"
+                          placeholder="* Focus | / 오늘"
+                        />
+                      ) : (
+                        <div 
+                          onClick={() => handleTaskClick(task)}
+                          className={`text-xs truncate ${
+                            task.status === 'completed' 
+                              ? 'line-through text-gray-400' 
+                              : isRed 
+                                ? 'text-gray-900 font-semibold' 
+                                : 'text-gray-900'
+                          }`}
+                        >
+                          {task.title}
+                        </div>
+                      )}
+                      {hasChecklist && (
+                        <span className="text-[9px] text-gray-400 flex-shrink-0">
+                          {completedCount}/{checklistItems.length}
+                        </span>
+                      )}
+                      {task.tags && task.tags.length > 0 && (
+                        <div className="flex gap-0.5 flex-shrink-0">
+                          {task.tags.slice(0, 2).map(tag => (
+                            <span key={tag} className="text-[9px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      {isRed && (
+                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full" title="Focus" />
+                      )}
+                      {isGreen && (
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full" title="Today" />
+                      )}
+                      {isYellow && (
+                        <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Scheduled" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 체크리스트 항목 (펼쳐졌을 때) */}
+                  {hasChecklist && isExpanded && (
+                    <div className="ml-8 mr-3 mb-1 py-1 space-y-0.5 bg-gray-50 rounded-lg">
+                      {checklistItems.map((item, idx) => (
+                        <div 
+                          key={idx}
+                          className="flex items-center gap-2 px-2 py-1 text-xs"
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleChecklistToggle(task, item.lineIndex, !item.isCompleted)
+                            }}
+                            className={`flex-shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition-all
+                              ${item.isCompleted
+                                ? 'bg-blue-500 border-blue-500 text-white'
+                                : 'border-gray-300 bg-white'
+                              }`}
+                          >
+                            {item.isCompleted && <Check size={8} strokeWidth={3} />}
+                          </button>
+                          <span className={item.isCompleted ? 'line-through text-gray-400' : 'text-gray-700'}>
+                            {item.text}
                           </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-0.5 flex-shrink-0">
-                    {isRed && (
-                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full" title="Focus" />
-                    )}
-                    {isGreen && (
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" title="Today" />
-                    )}
-                    {isYellow && (
-                      <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Scheduled" />
-                    )}
-                  </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}

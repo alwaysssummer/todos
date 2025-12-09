@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
+import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import { useRoutines } from '@/hooks/useRoutines'
 
 // 애니메이션 체크박스 컴포넌트
@@ -118,6 +120,7 @@ export default function MobileTodayView({
   onSelectTask
 }: MobileTodayViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -238,6 +241,125 @@ export default function MobileTodayView({
     toggleTaskStatus(task.id, task.status)
   }
 
+  const toggleExpand = (taskId: string) => {
+    setExpandedTaskIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId)
+      } else {
+        newSet.add(taskId)
+      }
+      return newSet
+    })
+  }
+
+  // 체크리스트 토글
+  const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
+    if (!task.description) return
+    
+    const lines = task.description.split('\n')
+    const line = lines[lineIndex]
+    
+    if (newCompleted) {
+      lines[lineIndex] = line.replace(/^\[\]\s/, '[x] ')
+    } else {
+      lines[lineIndex] = line.replace(/^\[x\]\s/i, '[] ')
+    }
+    
+    await updateTask(task.id, { description: lines.join('\n') })
+  }
+
+  // 태스크 아이템 렌더링 헬퍼
+  const renderTaskItem = (task: Task, color: 'red' | 'green') => {
+    const checklistItems = parseChecklistFromMemo(task.description)
+    const hasChecklist = checklistItems.length > 0
+    const isExpanded = expandedTaskIds.has(task.id)
+    const completedCount = checklistItems.filter(item => item.isCompleted).length
+    
+    return (
+      <div key={task.id}>
+        <div className="flex items-center gap-2 px-3 py-2 active:bg-gray-50">
+          <AnimatedCheckbox
+            checked={task.status === 'completed'}
+            onChange={() => handleToggleComplete(task)}
+            color={color}
+          />
+          
+          {/* 체크리스트 토글 버튼 */}
+          {hasChecklist && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleExpand(task.id)
+              }}
+              className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-gray-400"
+            >
+              <ChevronRight 
+                size={14} 
+                className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+              />
+            </button>
+          )}
+
+          <div 
+            className="flex-1 min-w-0 flex items-center gap-2"
+            onClick={() => onSelectTask?.(task)}
+          >
+            <div className={`text-sm truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'} ${color === 'red' ? 'font-semibold' : ''}`}>
+              {task.title}
+            </div>
+            {hasChecklist && (
+              <span className="text-[10px] text-gray-400 flex-shrink-0">
+                {completedCount}/{checklistItems.length}
+              </span>
+            )}
+            {task.tags && task.tags.length > 0 && (
+              <div className="flex gap-1 flex-shrink-0">
+                {task.tags.slice(0, 2).map(tag => (
+                  <span key={tag} className="text-[11px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {task.status === 'scheduled' && (
+            <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" />
+          )}
+        </div>
+
+        {/* 체크리스트 항목 (펼쳐졌을 때) */}
+        {hasChecklist && isExpanded && (
+          <div className="ml-10 mr-3 mb-2 py-1 space-y-0.5 bg-gray-50 rounded-lg">
+            {checklistItems.map((item, idx) => (
+              <div 
+                key={idx}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm"
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleChecklistToggle(task, item.lineIndex, !item.isCompleted)
+                  }}
+                  className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all
+                    ${item.isCompleted
+                      ? 'bg-blue-500 border-blue-500 text-white'
+                      : 'border-gray-300 bg-white'
+                    }`}
+                >
+                  {item.isCompleted && <Check size={10} strokeWidth={3} />}
+                </button>
+                <span className={item.isCompleted ? 'line-through text-gray-400' : 'text-gray-700'}>
+                  {item.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 스크롤 영역 */}
@@ -297,35 +419,7 @@ export default function MobileTodayView({
               <h2 className="text-sm font-bold text-red-600">Today's Focus</h2>
             </div>
             <div className="divide-y divide-gray-100">
-              {focusTasks.map(task => (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
-                >
-                  <AnimatedCheckbox
-                    checked={task.status === 'completed'}
-                    onChange={() => handleToggleComplete(task)}
-                    color="red"
-                  />
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <div className={`text-sm font-semibold truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                      {task.title}
-                    </div>
-                    {task.tags && task.tags.length > 0 && (
-                      <div className="flex gap-1 flex-shrink-0">
-                        {task.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="text-[11px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {task.status === 'scheduled' && (
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" />
-                  )}
-                </div>
-              ))}
+              {focusTasks.map(task => renderTaskItem(task, 'red'))}
             </div>
           </div>
         )}
@@ -337,35 +431,7 @@ export default function MobileTodayView({
               <h2 className="text-sm font-bold text-green-600">Today's Task</h2>
             </div>
             <div className="divide-y divide-gray-100">
-              {todayTasks.map(task => (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
-                >
-                  <AnimatedCheckbox
-                    checked={task.status === 'completed'}
-                    onChange={() => handleToggleComplete(task)}
-                    color="green"
-                  />
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <div className={`text-sm truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                      {task.title}
-                    </div>
-                    {task.tags && task.tags.length > 0 && (
-                      <div className="flex gap-1 flex-shrink-0">
-                        {task.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="text-[11px] text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {task.status === 'scheduled' && (
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" />
-                  )}
-                </div>
-              ))}
+              {todayTasks.map(task => renderTaskItem(task, 'green'))}
             </div>
           </div>
         )}
