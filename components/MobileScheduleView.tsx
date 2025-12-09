@@ -143,9 +143,29 @@ export default function MobileScheduleView({
               return (
                 <div key={lesson.id}>
                   <div
-                    className={`${getTaskBgColor(lesson)} ${getTaskBorderColor(lesson)} border-l-4 rounded-lg px-3 py-2 active:opacity-70`}
+                    className={`${getTaskBgColor(lesson)} ${getTaskBorderColor(lesson)} border-l-4 rounded-lg px-3 py-2 active:opacity-70 ${lesson.status === 'completed' ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-center gap-2">
+                      {/* 수업 완료 체크박스 (출석 처리) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const newStatus = lesson.status === 'completed' ? 'scheduled' : 'completed'
+                          const updates: Partial<Task> = { 
+                            status: newStatus,
+                            attendance: newStatus === 'completed' ? 'present' : undefined
+                          }
+                          updateTask(lesson.id, updates)
+                        }}
+                        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                          ${lesson.status === 'completed'
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'border-gray-300 bg-white hover:border-blue-400'
+                          }`}
+                      >
+                        {lesson.status === 'completed' && <Check size={12} strokeWidth={3} />}
+                      </button>
+
                       {/* 체크리스트 토글 버튼 */}
                       {hasChecklist && (
                         <button
@@ -169,7 +189,7 @@ export default function MobileScheduleView({
                         className="flex-1 min-w-0 flex items-center gap-2"
                         onClick={() => setSelectedTask(lesson)}
                       >
-                        <span className="text-sm font-bold text-gray-900 truncate">
+                        <span className={`text-sm font-bold truncate ${lesson.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                           {lesson.title}
                         </span>
                         {hasChecklist && (
