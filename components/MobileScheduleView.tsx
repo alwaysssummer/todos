@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { format, addDays, subDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
+import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import TaskDetailPopover from './DetailPopover'
 
 interface MobileScheduleViewProps {
@@ -23,6 +25,7 @@ export default function MobileScheduleView({
 }: MobileScheduleViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
 
   // 오늘 수업만 필터링 (학생 수업)
   const todayLessons = tasks.filter(task => 
@@ -53,6 +56,34 @@ export default function MobileScheduleView({
     if (task.is_cancelled) return 'border-gray-300'
     if (task.is_makeup) return 'border-yellow-300'
     return 'border-sky-300'
+  }
+
+  const toggleExpand = (taskId: string) => {
+    setExpandedTaskIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId)
+      } else {
+        newSet.add(taskId)
+      }
+      return newSet
+    })
+  }
+
+  // 체크리스트 토글
+  const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
+    if (!task.description) return
+    
+    const lines = task.description.split('\n')
+    const line = lines[lineIndex]
+    
+    if (newCompleted) {
+      lines[lineIndex] = line.replace(/^\[\]\s/, '[x] ')
+    } else {
+      lines[lineIndex] = line.replace(/^\[x\]\s/i, '[] ')
+    }
+    
+    await updateTask(task.id, { description: lines.join('\n') })
   }
 
   return (
@@ -104,23 +135,83 @@ export default function MobileScheduleView({
           <div className="p-3 space-y-2">
             {todayLessons.map(lesson => {
               const project = projects.find(p => p.id === lesson.project_id)
+              const checklistItems = parseChecklistFromMemo(lesson.description)
+              const hasChecklist = checklistItems.length > 0
+              const isExpanded = expandedTaskIds.has(lesson.id)
+              const completedCount = checklistItems.filter(item => item.isCompleted).length
+
               return (
-                <div
-                  key={lesson.id}
-                  onClick={() => setSelectedTask(lesson)}
-                  className={`${getTaskBgColor(lesson)} ${getTaskBorderColor(lesson)} border-l-4 rounded-lg px-3 py-2 active:opacity-70`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-700 flex-shrink-0">
-                      {formatTime(lesson.start_time!)}
-                    </span>
-                    <span className="text-sm font-bold text-gray-900 flex-1 truncate">
-                      {lesson.title}
-                    </span>
-                    <span className="text-[10px] text-gray-500 flex-shrink-0">
-                      {lesson.duration}분
-                    </span>
+                <div key={lesson.id}>
+                  <div
+                    className={`${getTaskBgColor(lesson)} ${getTaskBorderColor(lesson)} border-l-4 rounded-lg px-3 py-2 active:opacity-70`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* 체크리스트 토글 버튼 */}
+                      {hasChecklist && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleExpand(lesson.id)
+                          }}
+                          className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400"
+                        >
+                          <ChevronRight 
+                            size={16} 
+                            className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+                          />
+                        </button>
+                      )}
+
+                      <span className="text-xs font-semibold text-gray-700 flex-shrink-0">
+                        {formatTime(lesson.start_time!)}
+                      </span>
+                      <div 
+                        className="flex-1 min-w-0 flex items-center gap-2"
+                        onClick={() => setSelectedTask(lesson)}
+                      >
+                        <span className="text-sm font-bold text-gray-900 truncate">
+                          {lesson.title}
+                        </span>
+                        {hasChecklist && (
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">
+                            {completedCount}/{checklistItems.length}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-500 flex-shrink-0">
+                        {lesson.duration}분
+                      </span>
+                    </div>
                   </div>
+
+                  {/* 체크리스트 항목 (펼쳐졌을 때) */}
+                  {hasChecklist && isExpanded && (
+                    <div className="ml-4 mt-1 py-1 space-y-0.5 bg-white rounded-lg border border-gray-100">
+                      {checklistItems.map((item, idx) => (
+                        <div 
+                          key={idx}
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm"
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleChecklistToggle(lesson, item.lineIndex, !item.isCompleted)
+                            }}
+                            className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all
+                              ${item.isCompleted
+                                ? 'bg-blue-500 border-blue-500 text-white'
+                                : 'border-gray-300 bg-white'
+                              }`}
+                          >
+                            {item.isCompleted && <Check size={10} strokeWidth={3} />}
+                          </button>
+                          <span className={item.isCompleted ? 'line-through text-gray-400' : 'text-gray-700'}>
+                            {item.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -150,4 +241,3 @@ export default function MobileScheduleView({
     </div>
   )
 }
-
