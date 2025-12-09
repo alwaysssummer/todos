@@ -6,7 +6,7 @@ import { ko } from 'date-fns/locale'
 import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
-import MobileStudentDetailModal from './MobileStudentDetailModal'
+import MobileStudentDetailView from './MobileStudentDetailView'
 
 interface MobileScheduleViewProps {
   tasks: Task[]
@@ -88,6 +88,19 @@ export default function MobileScheduleView({
     }
     
     await updateTask(task.id, { description: lines.join('\n') })
+  }
+
+  // 학생 상세 화면이 선택된 경우 전체 화면 전환
+  if (selectedTask) {
+    return (
+      <MobileStudentDetailView
+        task={selectedTask}
+        project={projects.find(p => p.id === selectedTask.project_id) || null}
+        onBack={() => setSelectedTask(null)}
+        updateTask={updateTask}
+        tasks={tasks}
+      />
+    )
   }
 
   return (
@@ -250,16 +263,6 @@ export default function MobileScheduleView({
         )}
       </div>
 
-      {/* 학생 상세 모달 */}
-      {selectedTask && (
-        <MobileStudentDetailModal
-          task={selectedTask}
-          project={projects.find(p => p.id === selectedTask.project_id) || null}
-          onClose={() => setSelectedTask(null)}
-          updateTask={updateTask}
-          tasks={tasks}
-        />
-      )}
     </div>
   )
 }
