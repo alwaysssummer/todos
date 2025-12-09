@@ -6,7 +6,7 @@ import { ko } from 'date-fns/locale'
 import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
-import TaskDetailPopover from './DetailPopover'
+import MobileStudentDetailModal from './MobileStudentDetailModal'
 
 interface MobileScheduleViewProps {
   tasks: Task[]
@@ -250,16 +250,14 @@ export default function MobileScheduleView({
         )}
       </div>
 
-      {/* Task Detail Popover */}
+      {/* 학생 상세 모달 */}
       {selectedTask && (
-        <TaskDetailPopover
+        <MobileStudentDetailModal
           task={selectedTask}
-          updateTask={updateTask}
-          deleteTask={deleteTask}
+          project={projects.find(p => p.id === selectedTask.project_id) || null}
           onClose={() => setSelectedTask(null)}
-          projects={projects}
+          updateTask={updateTask}
           tasks={tasks}
-          createTask={createTask}
         />
       )}
     </div>
