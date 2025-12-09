@@ -5,6 +5,7 @@ import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import MobileTaskDetailView from './MobileTaskDetailView'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -76,21 +77,22 @@ interface MobileFocusViewProps {
   tasks: Task[]
   createTask: (task: Partial<Task>) => Promise<any>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
-  onSelectTask?: (task: Task) => void
 }
 
 export default function MobileFocusView({
   tasks,
   createTask,
   updateTask,
+  deleteTask,
   toggleTaskStatus,
-  projects,
-  onSelectTask
+  projects
 }: MobileFocusViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   // 화면 진입 시 자동 포커스
@@ -169,6 +171,19 @@ export default function MobileFocusView({
     await updateTask(task.id, { description: lines.join('\n') })
   }
 
+  // 태스크 상세 화면
+  if (selectedTask) {
+    return (
+      <MobileTaskDetailView
+        task={selectedTask}
+        onBack={() => setSelectedTask(null)}
+        updateTask={updateTask}
+        deleteTask={deleteTask}
+        projects={projects}
+      />
+    )
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 스크롤 영역 */}
@@ -206,7 +221,7 @@ export default function MobileFocusView({
                   <div key={task.id}>
                     <div
                       className="flex items-center gap-3 px-4 py-3 active:bg-gray-50"
-                      onClick={() => onSelectTask?.(task)}
+                      onClick={() => setSelectedTask(task)}
                     >
                       <AnimatedCheckbox
                         checked={task.status === 'completed'}

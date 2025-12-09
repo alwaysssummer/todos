@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import MobileTaskDetailView from './MobileTaskDetailView'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -118,11 +119,14 @@ interface MobileInboxViewProps {
 export default function MobileInboxView({
   tasks,
   updateTask,
+  deleteTask,
   toggleTaskStatus,
+  projects
 }: MobileInboxViewProps) {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -164,8 +168,7 @@ export default function MobileInboxView({
   }
 
   const handleTaskClick = (task: Task) => {
-    setEditingTaskId(task.id)
-    setEditValue(task.title)
+    setSelectedTask(task)
   }
 
   useEffect(() => {
@@ -238,6 +241,19 @@ export default function MobileInboxView({
     }
     
     await updateTask(task.id, { description: lines.join('\n') })
+  }
+
+  // 태스크 상세 화면
+  if (selectedTask) {
+    return (
+      <MobileTaskDetailView
+        task={selectedTask}
+        onBack={() => setSelectedTask(null)}
+        updateTask={updateTask}
+        deleteTask={deleteTask}
+        projects={projects}
+      />
+    )
   }
 
   return (

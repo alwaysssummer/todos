@@ -6,6 +6,7 @@ import type { Task, Project } from '@/types/database'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import { useRoutines } from '@/hooks/useRoutines'
+import MobileTaskDetailView from './MobileTaskDetailView'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -106,21 +107,22 @@ interface MobileTodayViewProps {
   tasks: Task[]
   createTask: (task: Partial<Task>) => Promise<any>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
-  onSelectTask?: (task: Task) => void
 }
 
 export default function MobileTodayView({
   tasks,
   createTask,
   updateTask,
+  deleteTask,
   toggleTaskStatus,
-  projects,
-  onSelectTask
+  projects
 }: MobileTodayViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -197,9 +199,9 @@ export default function MobileTodayView({
       
       setNewTaskTitle('')
       
-      // 생성된 노트의 상세 모달 열기
-      if (newTask && onSelectTask) {
-        onSelectTask(newTask)
+      // 생성된 노트의 상세 화면 열기
+      if (newTask) {
+        setSelectedTask(newTask)
       }
       return
     }
@@ -303,7 +305,7 @@ export default function MobileTodayView({
 
           <div 
             className="flex-1 min-w-0 flex items-center gap-2"
-            onClick={() => onSelectTask?.(task)}
+            onClick={() => setSelectedTask(task)}
           >
             <div className={`text-sm truncate ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'} ${color === 'red' ? 'font-semibold' : ''}`}>
               {task.title}
@@ -357,6 +359,19 @@ export default function MobileTodayView({
           </div>
         )}
       </div>
+    )
+  }
+
+  // 태스크 상세 화면
+  if (selectedTask) {
+    return (
+      <MobileTaskDetailView
+        task={selectedTask}
+        onBack={() => setSelectedTask(null)}
+        updateTask={updateTask}
+        deleteTask={deleteTask}
+        projects={projects}
+      />
     )
   }
 

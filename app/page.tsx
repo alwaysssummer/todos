@@ -305,9 +305,9 @@ export default function Home() {
                 tasks={tasks}
                 createTask={createTask}
                 updateTask={updateTask}
+                deleteTask={deleteTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
-                onSelectTask={setMobileSelectedTask}
               />
             )}
             {activePanel === 'today' && (
@@ -315,9 +315,9 @@ export default function Home() {
                 tasks={tasks}
                 createTask={createTask}
                 updateTask={updateTask}
+                deleteTask={deleteTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
-                onSelectTask={setMobileSelectedTask}
               />
             )}
             {activePanel === 'inbox' && (
@@ -345,7 +345,6 @@ export default function Home() {
                 deleteTask={deleteTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
-                onSelectTask={setMobileSelectedTask}
               />
             )}
           </div>

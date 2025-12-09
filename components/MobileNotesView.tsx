@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { FileText, Check, Archive, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import MobileTaskDetailView from './MobileTaskDetailView'
 
 interface MobileNotesViewProps {
   tasks: Task[]
@@ -11,7 +12,6 @@ interface MobileNotesViewProps {
   deleteTask: (id: string) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
-  onSelectTask?: (task: Task) => void
 }
 
 export default function MobileNotesView({
@@ -19,12 +19,12 @@ export default function MobileNotesView({
   updateTask,
   deleteTask,
   toggleTaskStatus,
-  projects,
-  onSelectTask
+  projects
 }: MobileNotesViewProps) {
   const [showCompleted, setShowCompleted] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const todayStr = new Date().toISOString().split('T')[0]
 
   // 노트 타입 필터링
@@ -96,6 +96,19 @@ export default function MobileNotesView({
     await updateTask(task.id, { description: lines.join('\n') })
   }
 
+  // 노트 상세 화면
+  if (selectedTask) {
+    return (
+      <MobileTaskDetailView
+        task={selectedTask}
+        onBack={() => setSelectedTask(null)}
+        updateTask={updateTask}
+        deleteTask={deleteTask}
+        projects={projects}
+      />
+    )
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 헤더 */}
@@ -138,7 +151,7 @@ export default function MobileNotesView({
                     return (
                       <div key={task.id}>
                         <div
-                          onClick={() => onSelectTask?.(task)}
+                          onClick={() => setSelectedTask(task)}
                           className="flex items-center gap-3 px-4 py-3 active:bg-gray-50"
                         >
                           <button
@@ -251,7 +264,7 @@ export default function MobileNotesView({
                     {archivedNotes.map(task => (
                       <div
                         key={task.id}
-                        onClick={() => onSelectTask?.(task)}
+                        onClick={() => setSelectedTask(task)}
                         className="flex items-center gap-3 px-4 py-3 bg-purple-50/50 active:bg-purple-100"
                       >
                         <Archive size={16} className="text-purple-400 flex-shrink-0" />
@@ -292,7 +305,7 @@ export default function MobileNotesView({
                     {completedNotes.map(task => (
                       <div
                         key={task.id}
-                        onClick={() => onSelectTask?.(task)}
+                        onClick={() => setSelectedTask(task)}
                         className="flex items-center gap-3 px-4 py-3 bg-gray-50/50 active:bg-gray-100"
                       >
                         <div className="w-5 h-5 rounded-md bg-gray-300 flex items-center justify-center flex-shrink-0">
