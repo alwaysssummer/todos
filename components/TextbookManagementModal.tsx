@@ -1,10 +1,12 @@
-﻿'use client'
+'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { X, BookOpen, Trash2, Plus, Minus, Edit2, Check, ChevronRight, ChevronDown, GripVertical, Save, FileDown, FolderOpen, MessageSquare, Star } from 'lucide-react'
 import type { Textbook, TextbookGroup, TextbookSubgroup, TextbookChapter, TextbookTemplate, TemplateChapter } from '@/types/database'
 import { useTextbookChapters } from '@/hooks/useTextbookChapters'
 import { useTextbookTemplates } from '@/hooks/useTextbookTemplates'
+import BulkChapterImportModal from './BulkChapterImportModal'
+import type { ParsedChapter } from '@/utils/chapterParser'
 
 // 탭 상수
 const TAB_FAVORITES = 'favorites' as const
@@ -140,6 +142,13 @@ export default function TextbookManagementModal({
     // 폴더 경로 편집
     const [editingPathId, setEditingPathId] = useState<string | null>(null)
     const [pathInput, setPathInput] = useState('')
+    
+    // 일괄 등록 모달 상태
+    const [bulkImportTextbookId, setBulkImportTextbookId] = useState<string | null>(null)
+    
+    const setShowBulkImportForTextbook = (textbookId: string) => {
+        setBulkImportTextbookId(textbookId)
+    }
     
     // 메모 편집 모달
     const [showMemoModal, setShowMemoModal] = useState(false)
@@ -840,6 +849,17 @@ export default function TextbookManagementModal({
 
                 {/* 단원 수 조절 */}
                 <div className="flex items-center gap-1">
+                    {/* All 버튼 (일괄 등록) */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setBulkImportTextbookId(textbook.id)
+                        }}
+                        className="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded transition-colors"
+                        title="단원 일괄 등록"
+                    >
+                        All
+                    </button>
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
@@ -926,7 +946,8 @@ export default function TextbookManagementModal({
             updateChapterName, 
             addChapter, 
             deleteChapter, 
-            reorderChapters 
+            reorderChapters,
+            bulkImportChapters
         } = useTextbookChapters(textbook.id)
         
         const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
@@ -934,6 +955,7 @@ export default function TextbookManagementModal({
         const [draggingChapter, setDraggingChapter] = useState<TextbookChapter | null>(null)
         const [dragOverChapterId, setDragOverChapterId] = useState<string | null>(null)
         const draggingChapterRef = useRef<TextbookChapter | null>(null)
+        const [showBulkImport, setShowBulkImport] = useState(false)
 
         // 표시할 단원 목록 (DB 데이터 + 기본 생성 병합)
         const displayChapters = useMemo(() => {
@@ -1069,6 +1091,17 @@ export default function TextbookManagementModal({
             }
 
             handleChapterDragEnd()
+        }
+
+        // 일괄 등록 핸들러
+        const handleBulkImport = async (chapters: Array<{ chapterNumber: string; chapterName: string }>) => {
+            try {
+                await bulkImportChapters(textbook.id, chapters)
+                await fetchChapters()
+            } catch (error) {
+                console.error('Error bulk importing chapters:', error)
+                throw error
+            }
         }
 
         if (loading) {
@@ -1565,7 +1598,7 @@ export default function TextbookManagementModal({
                                 value={newSubgroupName}
                                 onChange={(e) => setNewSubgroupName(e.target.value)}
                                 placeholder="수준명"
-                                className="w-20 text-xs border-none focus:outline-none"
+                                className="w-32 text-xs border-none focus:outline-none"
                                 autoFocus
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleAddSubgroup()
@@ -1712,7 +1745,7 @@ export default function TextbookManagementModal({
                                                     value={inlineTextbookName}
                                                     onChange={e => setInlineTextbookName(e.target.value)}
                                                     placeholder="교재명"
-                                                    className="w-24 px-2 py-0.5 text-xs border border-blue-400 rounded"
+                                                    className="w-40 px-2 py-0.5 text-xs border border-blue-400 rounded"
                                                     autoFocus
                                                     onKeyDown={e => {
                                                         if (e.key === 'Enter' && inlineTextbookName.trim()) {
@@ -1725,7 +1758,7 @@ export default function TextbookManagementModal({
                                                     type="number"
                                                     value={inlineChapterCount}
                                                     onChange={e => setInlineChapterCount(Number(e.target.value))}
-                                                    className="w-12 px-1 py-0.5 text-xs border border-blue-400 rounded text-center"
+                                                    className="w-16 px-1 py-0.5 text-xs border border-blue-400 rounded text-center"
                                                     min={1}
                                                     max={200}
                                                 />
@@ -1981,7 +2014,7 @@ export default function TextbookManagementModal({
                                         }
                                     }}
                                     placeholder="그룹명"
-                                    className="w-16 text-sm border-none focus:outline-none"
+                                    className="w-32 text-sm border-none focus:outline-none"
                                     autoFocus
                                 />
                                 <button onClick={handleAddGroup} className="p-0.5 text-green-600">
@@ -2228,7 +2261,52 @@ export default function TextbookManagementModal({
                     }}
                 />
             )}
+
+            {/* 단원 일괄 등록 모달 */}
+            {bulkImportTextbookId && (() => {
+                const textbook = textbooks.find(t => t.id === bulkImportTextbookId)
+                if (!textbook) return null
+                
+                return (
+                    <BulkChapterImportModalWrapper
+                        textbookId={textbook.id}
+                        textbookName={textbook.name}
+                        currentTotalChapters={textbook.total_chapters}
+                        onClose={() => setBulkImportTextbookId(null)}
+                    />
+                )
+            })()}
         </div>
+    )
+}
+
+// 단원 일괄 등록 모달 래퍼 컴포넌트 (hook을 사용하기 위함)
+function BulkChapterImportModalWrapper({
+    textbookId,
+    textbookName,
+    currentTotalChapters,
+    onClose
+}: {
+    textbookId: string
+    textbookName: string
+    currentTotalChapters: number
+    onClose: () => void
+}) {
+    const { bulkImportChapters, fetchChapters } = useTextbookChapters(textbookId)
+
+    const handleImport = async (chapters: ParsedChapter[]) => {
+        await bulkImportChapters(textbookId, chapters)
+        await fetchChapters()
+    }
+
+    return (
+        <BulkChapterImportModal
+            textbookId={textbookId}
+            textbookName={textbookName}
+            currentTotalChapters={currentTotalChapters}
+            onImport={handleImport}
+            onClose={onClose}
+        />
     )
 }
 

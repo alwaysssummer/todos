@@ -295,6 +295,92 @@ export function useTextbookChapters(textbookId?: string) {
     }
   }, [fetchChapters])
 
+  // 단원 일괄 등록 (기존 단원 전체 삭제 후 새로 등록)
+  const bulkImportChapters = useCallback(async (
+    targetTextbookId: string,
+    chapters: Array<{ chapterNumber: string; chapterName: string }>
+  ): Promise<void> => {
+    try {
+      console.log('🔵 [Step 1] 기존 단원 삭제 시작, textbookId:', targetTextbookId)
+      
+      // 1. 기존 단원들 모두 삭제
+      const { error: deleteError } = await supabase
+        .from('textbook_chapters')
+        .delete()
+        .eq('textbook_id', targetTextbookId)
+
+      if (deleteError) {
+        console.error('❌ [Step 1] 삭제 에러:', deleteError)
+        throw deleteError
+      }
+      
+      console.log('✅ [Step 1] 삭제 완료')
+
+      console.log('🔵 [Step 2] 단원 삽입 시작 (배치 처리)')
+      
+      // 2. 새 단원들 배치로 생성 (50개씩)
+      const newChapters = chapters.map((ch, index) => ({
+        textbook_id: targetTextbookId,
+        chapter_number: index + 1,  // 1부터 시작하는 순차 번호
+        // custom_name에 "단원번호 단원명" 형식으로 저장
+        custom_name: ch.chapterName ? `${ch.chapterNumber} ${ch.chapterName}` : ch.chapterNumber
+      }))
+
+      console.log('📝 등록할 단원 수:', newChapters.length)
+      console.log('📝 첫 번째 단원 샘플:', newChapters[0])
+
+      const batchSize = 50
+      let totalInserted = 0
+      
+      for (let i = 0; i < newChapters.length; i += batchSize) {
+        const batch = newChapters.slice(i, i + batchSize)
+        console.log(`📝 배치 ${Math.floor(i / batchSize) + 1}: ${batch.length}개 삽입 중...`)
+        
+        const { data: insertData, error: insertError } = await supabase
+          .from('textbook_chapters')
+          .insert(batch)
+          .select()
+
+        if (insertError) {
+          console.error(`❌ 배치 ${Math.floor(i / batchSize) + 1} 삽입 에러:`, insertError)
+          throw insertError
+        }
+        
+        totalInserted += insertData?.length || 0
+        console.log(`✅ 배치 ${Math.floor(i / batchSize) + 1} 성공: ${insertData?.length}개`)
+      }
+      
+      console.log('✅ [Step 2] 전체 삽입 완료:', totalInserted, '개')
+
+      console.log('🔵 [Step 3] total_chapters 업데이트 시작')
+      
+      // 3. textbooks 테이블의 total_chapters 업데이트
+      const { error: updateError } = await supabase
+        .from('textbooks')
+        .update({ total_chapters: chapters.length })
+        .eq('id', targetTextbookId)
+
+      if (updateError) {
+        console.error('❌ [Step 3] 업데이트 에러:', updateError)
+        throw updateError
+      }
+      
+      console.log('✅ [Step 3] 업데이트 완료')
+
+      console.log('🔵 [Step 4] 로컬 상태 새로고침')
+      
+      // 4. 로컬 상태 새로고침
+      if (targetTextbookId === textbookId) {
+        await fetchChapters()
+      }
+      
+      console.log('✅ [전체 완료] 일괄 등록 성공!')
+    } catch (err) {
+      console.error('❌ [Error] bulk importing chapters:', err)
+      throw err
+    }
+  }, [textbookId, fetchChapters])
+
   return {
     chapters,
     loading,
@@ -306,7 +392,8 @@ export function useTextbookChapters(textbookId?: string) {
     saveChapterMemo,
     addChapter,
     deleteChapter,
-    reorderChapters
+    reorderChapters,
+    bulkImportChapters
   }
 }
 
