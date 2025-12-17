@@ -569,7 +569,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
       {/* 교재 관리 버튼 - TagPanel 위 */}
       <div className="px-0 py-2 border-t border-gray-200">
         <button
-          onClick={() => setShowTextbookModal(true)}
+          onClick={() => window.open('/textbook-management', '_blank')}
           className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
         >
           <BookOpen size={16} />

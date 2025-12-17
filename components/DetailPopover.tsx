@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { format, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen, Archive } from 'lucide-react'
+import { X, Calendar, Clock, Repeat, CheckSquare, Trash2, FileText, MoreHorizontal, ChevronLeft, ChevronRight, FolderInput, StickyNote, Folder, UserCheck, BookCheck, AlertCircle, PlusCircle, BookOpen, Archive, ChevronUp, ChevronDown } from 'lucide-react'
 import type { Task, Project, HomeworkCheckItem, HomeworkAssignmentItem } from '@/types/database'
 import { useTextbooks } from '@/hooks/useTextbooks'
 import { supabase } from '@/lib/supabase'
@@ -332,6 +332,58 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         if (newValue) {
             onClose() // 보관 시 모달 닫기
         }
+    }
+
+    // 현재 위계 파악 (0: 인박스, 1: 투데이즈 테스크, 2: 투데이즈 포커스, 3: 더 포커스)
+    const getCurrentHierarchy = (): number => {
+        if (task.is_the_focus) return 3
+        if (task.is_top5) return 2
+        if (task.due_date && task.due_date.split('T')[0] <= todayStr) return 1
+        return 0
+    }
+
+    // 위계 상승 (우선순위 올리기)
+    const moveUp = async () => {
+        const current = getCurrentHierarchy()
+        if (current >= 3) return // 이미 최상위
+
+        const updates: Partial<Task> = {}
+        
+        if (current === 0) { // 인박스 → 투데이즈 테스크
+            updates.due_date = todayStr
+            setIsTodayTask(true)
+        } else if (current === 1) { // 투데이즈 테스크 → 투데이즈 포커스
+            updates.is_top5 = true
+            setIsTop5(true)
+        } else if (current === 2) { // 투데이즈 포커스 → 더 포커스
+            updates.is_the_focus = true
+            updates.is_top5 = false
+            setIsTop5(false)
+        }
+
+        await updateTask(task.id, updates)
+    }
+
+    // 위계 하강 (우선순위 내리기)
+    const moveDown = async () => {
+        const current = getCurrentHierarchy()
+        if (current <= 0) return // 이미 최하위
+
+        const updates: Partial<Task> = {}
+        
+        if (current === 3) { // 더 포커스 → 투데이즈 포커스
+            updates.is_the_focus = false
+            updates.is_top5 = true
+            setIsTop5(true)
+        } else if (current === 2) { // 투데이즈 포커스 → 투데이즈 테스크
+            updates.is_top5 = false
+            setIsTop5(false)
+        } else if (current === 1) { // 투데이즈 테스크 → 인박스
+            updates.due_date = null
+            setIsTodayTask(false)
+        }
+
+        await updateTask(task.id, updates)
     }
 
     const toggleComplete = () => {
@@ -695,6 +747,26 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                             title="Scheduled"
                         />
                     )}
+
+                    {/* 위계 이동 버튼 */}
+                    <div className="flex items-center gap-0.5 border-r border-gray-200 pr-2 mr-1">
+                        <button
+                            onClick={moveUp}
+                            disabled={getCurrentHierarchy() >= 3}
+                            className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="위계 올리기 (우선순위 ↑)"
+                        >
+                            <ChevronUp size={16} className="text-gray-600" />
+                        </button>
+                        <button
+                            onClick={moveDown}
+                            disabled={getCurrentHierarchy() <= 0}
+                            className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="위계 내리기 (우선순위 ↓)"
+                        >
+                            <ChevronDown size={16} className="text-gray-600" />
+                        </button>
+                    </div>
 
                     {/* Today's Task - 초록색 원 */}
                     <button

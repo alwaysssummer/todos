@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Check, ChevronRight } from 'lucide-react'
+import { Check, ChevronRight, Repeat } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import { useRoutines } from '@/hooks/useRoutines'
 import MobileTaskDetailView from './MobileTaskDetailView'
 
 // 애니메이션 체크박스 컴포넌트
@@ -95,6 +96,14 @@ export default function MobileFocusView({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
+  // 루틴 훅 사용
+  const {
+    todayRoutines,
+    loading: routinesLoading,
+    getRoutineCompleted,
+    toggleComplete: toggleRoutineComplete,
+  } = useRoutines()
+
   // 화면 진입 시 자동 포커스
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -106,11 +115,13 @@ export default function MobileFocusView({
   }, [])
 
   // THE FOCUS 태스크 (is_the_focus = true)
-  const focusTasks = tasks.filter(t => 
-    t.is_the_focus && 
-    t.status !== 'completed' && 
-    !t.is_auto_generated && 
-    !t.is_makeup
+  // 더포커스만 표시 (노트 제외)
+  const focusTasks = tasks.filter(t =>
+    t.is_the_focus &&
+    t.status !== 'completed' &&
+    !t.is_auto_generated &&
+    !t.is_makeup &&
+    t.type !== 'note'
   )
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -310,6 +321,52 @@ export default function MobileFocusView({
             </div>
           )}
         </div>
+
+        {/* 루틴 섹션 */}
+        {!routinesLoading && todayRoutines.length > 0 && (
+          <div className="bg-white mt-2">
+            <div className="px-4 py-2 border-b border-gray-100">
+              <h2 className="text-sm font-bold text-purple-600 flex items-center gap-1">
+                <Repeat size={14} />
+                루틴 ({todayRoutines.length})
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {todayRoutines.map(routine => {
+                const completed = getRoutineCompleted(routine.id)
+                return (
+                  <div
+                    key={routine.id}
+                    className="flex items-center gap-3 px-4 py-2.5 active:bg-gray-50"
+                  >
+                    <button
+                      onClick={() => toggleRoutineComplete(routine.id)}
+                      className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all
+                        ${completed
+                          ? 'bg-purple-500 border-purple-500 text-white'
+                          : 'border-purple-300 bg-white'
+                        }`}
+                    >
+                      {completed && <Check size={12} strokeWidth={3} />}
+                    </button>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm ${completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                        {routine.title}
+                      </div>
+                    </div>
+                    
+                    {routine.target_time && (
+                      <div className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                        {routine.target_time}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 빠른 입력창 - 하단 고정 */}

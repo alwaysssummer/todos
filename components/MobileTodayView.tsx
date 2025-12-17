@@ -5,7 +5,6 @@ import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
-import { useRoutines } from '@/hooks/useRoutines'
 import MobileTaskDetailView from './MobileTaskDetailView'
 
 // 애니메이션 체크박스 컴포넌트
@@ -137,31 +136,27 @@ export default function MobileTodayView({
     }
   }, [])
 
-  // ===== 루틴 (모바일 전용 간단 뷰) =====
-  const {
-    todayRoutines,
-    loading: routinesLoading,
-    getRoutineCompleted,
-    toggleComplete: toggleRoutineComplete,
-  } = useRoutines()
-
   // Focus Tasks (빨간색)
-  const focusTasks = tasks.filter(t => 
-    t.is_top5 && 
-    t.status !== 'completed' && 
-    t.status !== 'waiting' && 
-    !t.is_auto_generated && 
-    !t.is_makeup
+  // 투데이즈 포커스 (is_top5) - 노트 제외
+  const focusTasks = tasks.filter(t =>
+    t.is_top5 &&
+    t.status !== 'completed' &&
+    t.status !== 'waiting' &&
+    !t.is_auto_generated &&
+    !t.is_makeup &&
+    t.type !== 'note'
   )
 
-  // Today's Tasks (초록색)
-  const todayTasks = tasks.filter(t => 
-    !t.is_top5 && 
-    t.due_date?.split('T')[0] === todayStr && 
-    t.status !== 'completed' && 
-    t.status !== 'waiting' && 
-    !t.is_auto_generated && 
-    !t.is_makeup
+  // 투데이즈 테스크 (due_date가 오늘 또는 과거) - 노트 제외
+  const todayTasks = tasks.filter(t =>
+    !t.is_top5 &&
+    t.due_date &&
+    t.due_date.split('T')[0] <= todayStr &&
+    t.status !== 'completed' &&
+    t.status !== 'waiting' &&
+    !t.is_auto_generated &&
+    !t.is_makeup &&
+    t.type !== 'note'
   )
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -379,84 +374,38 @@ export default function MobileTodayView({
     <div className="h-full flex flex-col bg-gray-50">
       {/* 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto pb-32">
-        {/* ROUTINES - Today's Focus 위에 노출 (모바일 전용) */}
+        {/* Today's Focus */}
         <div className="bg-white mb-2">
-          <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-orange-500">ROUTINES</h2>
-            {!routinesLoading && todayRoutines.length > 0 && (
-              <span className="text-[11px] text-gray-400">
-                오늘 {todayRoutines.length}개
-              </span>
-            )}
+          <div className="px-3 py-2 border-b border-gray-100">
+            <h2 className="text-sm font-bold text-red-600">Today's Focus ({focusTasks.length})</h2>
           </div>
-
-          {routinesLoading ? (
-            <div className="px-3 py-3 text-xs text-gray-400">루틴 불러오는 중...</div>
-          ) : todayRoutines.length === 0 ? (
-            <div className="px-3 py-3 text-xs text-gray-400">
-              좌측 패널에서 루틴을 추가하면 이곳에 표시됩니다.
+          {focusTasks.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {focusTasks.map(task => renderTaskItem(task, 'red'))}
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {todayRoutines.map(routine => {
-                const completed = getRoutineCompleted(routine.id)
-                return (
-                  <div
-                    key={routine.id}
-                    className="flex items-center gap-2 px-3 py-2 active:bg-gray-50"
-                  >
-                    <AnimatedCheckbox
-                      checked={completed}
-                      onChange={() => toggleRoutineComplete(routine.id)}
-                      color="orange"
-                    />
-                    <div className="flex-1 min-w-0 flex items-center gap-2">
-                      <div className={`text-sm truncate ${completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                        {routine.title}
-                      </div>
-                    </div>
-                    {routine.target_time && (
-                      <span className="text-[11px] text-gray-400 flex-shrink-0">
-                        {routine.target_time}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
+            <div className="px-3 py-3 text-xs text-gray-400">
+              * 표시로 포커스 태스크를 추가하세요
             </div>
           )}
         </div>
 
-        {/* Today's Focus */}
-        {focusTasks.length > 0 && (
-          <div className="bg-white mb-2">
-            <div className="px-3 py-2 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-red-600">Today's Focus</h2>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {focusTasks.map(task => renderTaskItem(task, 'red'))}
-            </div>
-          </div>
-        )}
-
         {/* Today's Task */}
-        {todayTasks.length > 0 && (
-          <div className="bg-white mb-2">
-            <div className="px-3 py-2 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-green-600">Today's Task</h2>
-            </div>
+        <div className="bg-white mb-2">
+          <div className="px-3 py-2 border-b border-gray-100">
+            <h2 className="text-sm font-bold text-green-600">Today's Task ({todayTasks.length})</h2>
+          </div>
+          {todayTasks.length > 0 ? (
             <div className="divide-y divide-gray-100">
               {todayTasks.map(task => renderTaskItem(task, 'green'))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="px-3 py-3 text-xs text-gray-400">
+              / 표시로 오늘 할 태스크를 추가하세요
+            </div>
+          )}
+        </div>
 
-        {/* 빈 상태 */}
-        {focusTasks.length === 0 && todayTasks.length === 0 && (
-          <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-            오늘 할 일이 없습니다 ✨
-          </div>
-        )}
       </div>
 
       {/* 빠른 입력창 - 하단 고정 */}

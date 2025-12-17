@@ -62,6 +62,7 @@ interface TextbookManagementModalProps {
     onDeleteSubgroup: (id: string) => Promise<void>
     onReorderSubgroups: (reorderedSubgroups: TextbookSubgroup[]) => Promise<void>
     onUpdateTextbookFavorite: (id: string, isFavorite: boolean) => Promise<Textbook>
+    isStandalonePage?: boolean
 }
 
 export default function TextbookManagementModal({
@@ -87,6 +88,7 @@ export default function TextbookManagementModal({
     onDeleteSubgroup,
     onReorderSubgroups,
     onUpdateTextbookFavorite,
+    isStandalonePage = false,
 }: TextbookManagementModalProps) {
     // 템플릿 훅
     const { 
@@ -394,34 +396,50 @@ export default function TextbookManagementModal({
         setDragOverTextbookId(null)
     }
 
-    const handleTextbookDragOver = (targetTextbookId: string) => {
+    const handleTextbookDragOver = (targetTextbookId: string, isFavoritesTab: boolean = false) => {
         const dragged = draggingTextbookRef.current
         if (dragged && dragged.id !== targetTextbookId) {
             const target = textbooks.find(t => t.id === targetTextbookId)
-            // 같은 그룹, 같은 서브그룹 내에서만 이동 가능
-            if (target && dragged.group_id === target.group_id && dragged.subgroup_id === target.subgroup_id) {
-                setDragOverTextbookId(targetTextbookId)
+            
+            // 즐겨찾기 탭에서는 즐겨찾기끼리만 이동 가능
+            if (isFavoritesTab) {
+                if (target && dragged.is_favorite && target.is_favorite) {
+                    setDragOverTextbookId(targetTextbookId)
+                }
+            } else {
+                // 같은 그룹, 같은 서브그룹 내에서만 이동 가능
+                if (target && dragged.group_id === target.group_id && dragged.subgroup_id === target.subgroup_id) {
+                    setDragOverTextbookId(targetTextbookId)
+                }
             }
         }
     }
 
-    const handleTextbookDrop = async (targetTextbookId: string) => {
+    const handleTextbookDrop = async (targetTextbookId: string, isFavoritesTab: boolean = false) => {
         const draggedTextbook = draggingTextbookRef.current
         if (!draggedTextbook || draggedTextbook.id === targetTextbookId) {
             handleTextbookDragEnd()
             return
         }
 
-        // 같은 그룹/서브그룹의 교재만 필터
-        const sameGroupTextbooks = textbooks.filter(
-            t => t.group_id === draggedTextbook.group_id && t.subgroup_id === draggedTextbook.subgroup_id
-        ).sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+        let reorderTextbooks: Textbook[]
+        
+        if (isFavoritesTab) {
+            // 즐겨찾기 탭: 즐겨찾기 교재만 필터
+            reorderTextbooks = textbooks.filter(t => t.is_favorite)
+                .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+        } else {
+            // 일반 탭: 같은 그룹/서브그룹의 교재만 필터
+            reorderTextbooks = textbooks.filter(
+                t => t.group_id === draggedTextbook.group_id && t.subgroup_id === draggedTextbook.subgroup_id
+            ).sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+        }
 
-        const draggedIndex = sameGroupTextbooks.findIndex(t => t.id === draggedTextbook.id)
-        const targetIndex = sameGroupTextbooks.findIndex(t => t.id === targetTextbookId)
+        const draggedIndex = reorderTextbooks.findIndex(t => t.id === draggedTextbook.id)
+        const targetIndex = reorderTextbooks.findIndex(t => t.id === targetTextbookId)
 
         if (draggedIndex !== -1 && targetIndex !== -1) {
-            const newTextbooks = [...sameGroupTextbooks]
+            const newTextbooks = [...reorderTextbooks]
             const [removed] = newTextbooks.splice(draggedIndex, 1)
             newTextbooks.splice(targetIndex, 0, removed)
 
@@ -638,7 +656,7 @@ export default function TextbookManagementModal({
     }
 
     // 교재 아이템 렌더링
-    const renderTextbookItem = (textbook: Textbook) => {
+    const renderTextbookItem = (textbook: Textbook, isFavoritesTab: boolean = false) => {
         const isDragging = draggingTextbook?.id === textbook.id
         const isDragOver = dragOverTextbookId === textbook.id
         const isExpanded = expandedTextbooks.has(textbook.id)
@@ -662,11 +680,11 @@ export default function TextbookManagementModal({
                     onDragEnd={handleTextbookDragEnd}
                     onDragOver={(e) => {
                         e.preventDefault()
-                        handleTextbookDragOver(textbook.id)
+                        handleTextbookDragOver(textbook.id, isFavoritesTab)
                     }}
                     onDrop={(e) => {
                         e.preventDefault()
-                        handleTextbookDrop(textbook.id)
+                        handleTextbookDrop(textbook.id, isFavoritesTab)
                     }}
                 >
                     <GripVertical size={14} className="text-gray-400 cursor-grab" />
@@ -1243,7 +1261,7 @@ export default function TextbookManagementModal({
             <div className="space-y-1">
                 {favoriteTextbooks
                     .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-                    .map(renderTextbookItem)}
+                    .map(textbook => renderTextbookItem(textbook, true))}
             </div>
         )
     }
@@ -1856,8 +1874,8 @@ export default function TextbookManagementModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl">
+        <div className={isStandalonePage ? "min-h-screen bg-gray-100 p-4 flex items-start justify-center" : "fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"}>
+            <div className={`bg-white rounded-xl w-full max-w-5xl flex flex-col shadow-2xl ${isStandalonePage ? 'min-h-[90vh] mt-4' : 'h-[90vh]'}`}>
                 {/* 헤더 */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-3">

@@ -322,8 +322,8 @@ export function useTextbookChapters(textbookId?: string) {
       const newChapters = chapters.map((ch, index) => ({
         textbook_id: targetTextbookId,
         chapter_number: index + 1,  // 1부터 시작하는 순차 번호
-        // custom_name에 한 줄 전체를 그대로 저장
-        custom_name: ch.chapterName || null
+        // custom_name에 "단원번호 단원명" 형식으로 저장
+        custom_name: ch.chapterName ? `${ch.chapterNumber} ${ch.chapterName}` : ch.chapterNumber
       }))
 
       console.log('📝 등록할 단원 수:', newChapters.length)

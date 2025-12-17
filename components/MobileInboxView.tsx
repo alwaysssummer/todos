@@ -131,11 +131,16 @@ export default function MobileInboxView({
   const todayStr = new Date().toISOString().split('T')[0]
 
   // INBOX 필터링 (LeftPanel과 동일)
-  let inboxTasks = tasks.filter(t => 
-    t.status !== 'completed' && 
-    t.status !== 'waiting' && 
-    !t.is_auto_generated && 
-    !t.is_makeup
+  // 더포커스/투데이즈 포커스/투데이즈 테스크에 배정되지 않은 나머지 테스크만 (노트 제외)
+  let inboxTasks = tasks.filter(t =>
+    t.status !== 'completed' &&
+    t.status !== 'waiting' &&
+    !t.is_auto_generated &&
+    !t.is_makeup &&
+    !t.is_the_focus &&  // 더포커스 제외
+    !t.is_top5 &&  // 투데이즈 포커스 제외
+    !(t.due_date?.split('T')[0] === todayStr) &&  // 투데이즈 테스크 제외
+    t.type !== 'note'  // 노트 제외
   )
 
   // INBOX 정렬 (LeftPanel과 동일)

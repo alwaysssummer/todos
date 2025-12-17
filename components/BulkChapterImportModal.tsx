@@ -130,7 +130,12 @@ export default function BulkChapterImportModal({
                         {i + 1}
                       </div>
                       
-                      {/* 단원명 (한 줄 전체) */}
+                      {/* 단원 번호 */}
+                      <div className="w-20 font-mono text-sm font-bold text-gray-700 flex-shrink-0">
+                        {ch.chapterNumber}
+                      </div>
+                      
+                      {/* 단원명 */}
                       <div className="flex-1 text-sm text-gray-900 min-w-0">
                         <span className="line-clamp-2">{ch.chapterName}</span>
                       </div>

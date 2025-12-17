@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ChevronLeft, Check } from 'lucide-react'
+import { ChevronLeft, Check, Trash2 } from 'lucide-react'
 import type { Task, Project, HomeworkCheckItem } from '@/types/database'
 import { supabase } from '@/lib/supabase'
 
@@ -12,6 +12,7 @@ interface MobileStudentDetailViewProps {
   project: Project | null
   onBack: () => void
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
+  deleteTask?: (id: string) => Promise<void>
   tasks: Task[]
 }
 
@@ -20,6 +21,7 @@ export default function MobileStudentDetailView({
   project,
   onBack,
   updateTask,
+  deleteTask,
   tasks
 }: MobileStudentDetailViewProps) {
   const [memo, setMemo] = useState(task.description || '')
@@ -192,6 +194,22 @@ export default function MobileStudentDetailView({
             className="w-full h-20 text-sm resize-none border-0 focus:outline-none"
           />
         </div>
+
+        {/* 보충 수업 삭제 버튼 */}
+        {task.is_makeup && deleteTask && (
+          <button
+            onClick={() => {
+              if (confirm('보충 수업을 삭제하시겠습니까?')) {
+                deleteTask(task.id)
+                onBack()
+              }
+            }}
+            className="w-full bg-white rounded-lg p-3 border border-red-200 text-red-500 font-medium active:bg-red-50 flex items-center justify-center gap-2"
+          >
+            <Trash2 size={16} />
+            <span>삭제하기</span>
+          </button>
+        )}
 
       </div>
     </div>

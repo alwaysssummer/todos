@@ -7,6 +7,7 @@ import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import MobileStudentDetailView from './MobileStudentDetailView'
+import MobileMakeupLessonModal from './MobileMakeupLessonModal'
 
 interface MobileScheduleViewProps {
   tasks: Task[]
@@ -26,6 +27,7 @@ export default function MobileScheduleView({
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [showMakeupModal, setShowMakeupModal] = useState(false)
 
   // 오늘 수업만 필터링 (학생 수업)
   const todayLessons = tasks.filter(task => 
@@ -98,6 +100,7 @@ export default function MobileScheduleView({
         project={projects.find(p => p.id === selectedTask.project_id) || null}
         onBack={() => setSelectedTask(null)}
         updateTask={updateTask}
+        deleteTask={deleteTask}
         tasks={tasks}
       />
     )
@@ -142,6 +145,16 @@ export default function MobileScheduleView({
             className="w-full mt-2 py-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg active:bg-blue-100"
           >
             오늘로 이동
+          </button>
+        )}
+        
+        {/* 보충 수업 추가 버튼 */}
+        {createTask && (
+          <button
+            onClick={() => setShowMakeupModal(true)}
+            className="w-full mt-2 py-1.5 text-xs text-yellow-600 bg-yellow-50 rounded-lg active:bg-yellow-100 font-medium"
+          >
+            + 보충 수업 추가
           </button>
         )}
       </div>
@@ -263,6 +276,18 @@ export default function MobileScheduleView({
         )}
       </div>
 
+      {/* 보충 수업 추가 모달 */}
+      {showMakeupModal && createTask && (
+        <MobileMakeupLessonModal
+          onClose={() => setShowMakeupModal(false)}
+          onCreate={async (taskData) => {
+            await createTask(taskData)
+            setShowMakeupModal(false)
+          }}
+          projects={projects}
+          currentDate={currentDate}
+        />
+      )}
     </div>
   )
 }
