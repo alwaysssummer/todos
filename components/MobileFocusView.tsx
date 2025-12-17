@@ -205,7 +205,7 @@ export default function MobileFocusView({
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div className="flex-1 overflow-y-auto pb-40">
         {/* THE FOCUS 헤더 */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3">
           <h1 className="text-lg font-bold flex items-center gap-2">
@@ -384,21 +384,16 @@ export default function MobileFocusView({
       </div>
 
       {/* 빠른 입력창 - 하단 고정 */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="THE FOCUS에 추가할 태스크 입력..."
-            className="flex-1 px-3 py-2 text-base border border-blue-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={2}
-          />
-        </div>
-        <p className="text-[10px] text-gray-400 mt-1 text-center">
-          Enter를 눌러 THE FOCUS에 바로 추가
-        </p>
+      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 z-40">
+        <textarea
+          ref={inputRef}
+          value={newTaskTitle}
+          onChange={(e) => setNewTaskTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="THE FOCUS에 추가 (Enter)"
+          className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          rows={1}
+        />
       </div>
     </div>
   )

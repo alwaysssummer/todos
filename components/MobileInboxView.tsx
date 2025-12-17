@@ -278,7 +278,7 @@ export default function MobileInboxView({
       </div>
 
       {/* INBOX 목록 */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-24">
         {inboxTasks.length > 0 ? (
           <div className="bg-white divide-y divide-gray-100">
             {inboxTasks.map(task => {

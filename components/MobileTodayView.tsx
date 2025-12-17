@@ -386,7 +386,7 @@ export default function MobileTodayView({
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div className="flex-1 overflow-y-auto pb-40">
         {/* Today's Focus */}
         <div className="bg-white mb-2">
           <div className="px-3 py-2 border-b border-gray-100">
@@ -422,23 +422,22 @@ export default function MobileTodayView({
       </div>
 
       {/* 빠른 입력창 - 하단 고정 */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40">
-        <div className="flex gap-2">
-          {/* 모바일에서만 표시되는 버튼 (세로 배치) */}
-          <div className="md:hidden flex flex-col gap-2">
+      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 z-40">
+        <div className="flex gap-2 items-center">
+          {/* 모바일에서만 표시되는 버튼 (가로 배치) */}
+          <div className="md:hidden flex gap-1">
             <button
               type="button"
-              onMouseDown={(e) => e.preventDefault()} // 버튼이 포커스를 가져가지 않도록
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 if (newTaskTitle.startsWith('*')) {
                   setNewTaskTitle(newTaskTitle.substring(1).trim())
                 } else {
                   setNewTaskTitle('*' + newTaskTitle.replace(/^\/\s*/, ''))
                 }
-                // 누른 후에도 입력창 포커스 유지
                 inputRef.current?.focus()
               }}
-              className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
+              className={`px-2 py-1.5 text-xs font-bold rounded transition-colors ${
                 newTaskTitle.startsWith('*')
                   ? 'bg-red-600 text-white'
                   : 'bg-gray-100 text-gray-700 active:bg-gray-200'
@@ -457,7 +456,7 @@ export default function MobileTodayView({
                 }
                 inputRef.current?.focus()
               }}
-              className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
+              className={`px-2 py-1.5 text-xs font-bold rounded transition-colors ${
                 newTaskTitle.startsWith('/')
                   ? 'bg-green-600 text-white'
                   : 'bg-gray-100 text-gray-700 active:bg-gray-200'
@@ -471,9 +470,9 @@ export default function MobileTodayView({
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="빠른 입력 (Enter: 테스크 | Shift+Enter: 노트)"
-            className="flex-1 px-3 py-2 text-base border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={2}
+            placeholder="*Focus / Today"
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={1}
           />
         </div>
       </div>
