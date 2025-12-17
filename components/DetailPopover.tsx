@@ -52,6 +52,9 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     // 테스크/노트 타입 상태 (즉시 반영용)
     const [taskType, setTaskType] = useState<'task' | 'note'>(task.type === 'note' ? 'note' : 'task')
 
+    // 메모 보기/편집 모드 (탭용)
+    const [memoMode, setMemoMode] = useState<'view' | 'edit'>('view')
+
     // 시간 설정 드롭다운 상태
     const [showTimeDropdown, setShowTimeDropdown] = useState(false)
 
@@ -686,6 +689,19 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         onClose()
     }
 
+    // 저장 핸들러 - description 저장 + 보기 모드 전환 (창은 열린 상태 유지)
+    const handleSave = async () => {
+        // description 저장 (태그 재추출 포함)
+        const allTags = extractAllTags(title, description)
+        await updateTask(task.id, { 
+            description,
+            tags: allTags.length > 0 ? allTags : undefined
+        })
+        
+        // 보기 모드로 전환 (창은 닫지 않음)
+        setMemoMode('view')
+    }
+
     return (
         <>
             {/* 어두운 배경 오버레이 */}
@@ -698,7 +714,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
         <div
             ref={popoverRef}
             style={style}
-                className="z-50 w-[900px] h-[700px] bg-white rounded-xl shadow-2xl border-2 border-gray-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                className="z-50 w-[1200px] h-[92vh] max-h-[1100px] bg-white rounded-xl shadow-2xl border-2 border-gray-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
             {/* Header */}
             <div className="p-2 flex items-start gap-2 border-b border-gray-50">
@@ -915,8 +931,32 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                 {/* Memo - 체크리스트 지원 메모 */}
                 {!isStudentLesson && (
                     <div className="flex-1 flex flex-col min-h-0">
+                        {/* 보기/편집 탭 */}
+                        <div className="flex items-center gap-1 mb-2 border-b border-gray-200">
+                            <button
+                                onClick={() => setMemoMode('view')}
+                                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                                    memoMode === 'view'
+                                        ? 'text-blue-600 border-b-2 border-blue-600'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                보기
+                            </button>
+                            <button
+                                onClick={() => setMemoMode('edit')}
+                                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                                    memoMode === 'edit'
+                                        ? 'text-blue-600 border-b-2 border-blue-600'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                편집
+                            </button>
+                        </div>
+
                         <ChecklistMemo
-                        value={description}
+                            value={description}
                             onChange={setDescription}
                             onSave={(val) => {
                                 // 메모 저장 시 제목 + 메모에서 태그 재추출
@@ -929,8 +969,10 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                             placeholder="메모 입력... ([] 로 체크리스트 생성)"
                             className="flex-1"
                             autoFocus={task.type === 'note'}
-                    />
-                </div>
+                            mode={memoMode}
+                            onModeChange={setMemoMode}
+                        />
+                    </div>
                 )}
 
 
@@ -1355,7 +1397,7 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
                         닫기
                     </button>
                     <button
-                        onClick={onClose}
+                        onClick={handleSave}
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
                     >
                         저장

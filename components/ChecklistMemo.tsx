@@ -1,8 +1,25 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react'
 import { uploadImage, getImageFromClipboard } from '@/utils/imageUpload'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface ChecklistMemoProps {
   value: string
@@ -11,6 +28,8 @@ interface ChecklistMemoProps {
   placeholder?: string
   className?: string
   autoFocus?: boolean
+  mode?: 'view' | 'edit' // 외부에서 모드 제어 (탭용)
+  onModeChange?: (mode: 'view' | 'edit') => void
 }
 
 // 파싱된 블록 타입
@@ -21,6 +40,13 @@ interface ParsedBlock {
   content: string
   children?: ParsedBlock[]
   id: string // 고유 ID (토글 상태 관리용)
+}
+
+// 블록 그룹 (빈 줄로 구분된 단위)
+interface BlockGroup {
+  id: string
+  blocks: ParsedBlock[]
+  rawText: string // 원본 텍스트 (재구성용)
 }
 
 /**
@@ -45,12 +71,37 @@ export default function ChecklistMemo({
   onSave,
   placeholder = '메모 입력... ([] 체크리스트, >>> 토글)',
   className = '',
-  autoFocus = false
+  autoFocus = false,
+  mode,
+  onModeChange
 }: ChecklistMemoProps) {
-  const [isEditing, setIsEditing] = useState(autoFocus)
+  // 외부에서 mode가 제공되면 외부 제어, 아니면 내부 state 사용
+  const [internalMode, setInternalMode] = useState<'view' | 'edit'>(autoFocus ? 'edit' : 'view')
   const [isUploading, setIsUploading] = useState(false)
   const [expandedToggles, setExpandedToggles] = useState<Set<string>>(new Set())
+  const [blockGroups, setBlockGroups] = useState<BlockGroup[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // 드래그 앤 드롭 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // 실제 사용할 모드 (외부 제어 우선)
+  const currentMode = mode !== undefined ? mode : internalMode
+  const isEditing = currentMode === 'edit'
+
+  // 모드 변경 함수
+  const setMode = (newMode: 'view' | 'edit') => {
+    if (onModeChange) {
+      onModeChange(newMode)
+    } else {
+      setInternalMode(newMode)
+    }
+  }
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -60,8 +111,48 @@ export default function ChecklistMemo({
     }
   }, [isEditing])
 
+  // 블록 그룹 초기화
+  useEffect(() => {
+    const groups = parseBlockGroups(value)
+    setBlockGroups(groups)
+  }, [value])
+
+  // 드래그 종료 핸들러
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      setBlockGroups((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id)
+        const newIndex = items.findIndex((item) => item.id === over.id)
+        
+        const newItems = arrayMove(items, oldIndex, newIndex)
+        
+        // textarea 텍스트 동기화 (다음 틱에 실행)
+        setTimeout(() => {
+          const newText = newItems.map(group => group.rawText).join('\n\n')
+          onChange(newText)
+        }, 0)
+        
+        return newItems
+      })
+    }
+  }
+
   // ========== 파싱 로직 ==========
   
+  // 빈 줄(\n\n) 기준으로 블록 그룹 생성
+  const parseBlockGroups = (text: string): BlockGroup[] => {
+    // 빈 줄(\n\n)로 분리
+    const sections = text.split(/\n\n+/)
+    
+    return sections.map((section, index) => ({
+      id: `group-${index}`,
+      blocks: parseBlocks(section),
+      rawText: section
+    }))
+  }
+
   const parseBlocks = (text: string): ParsedBlock[] => {
     const lines = text.split('\n')
     const result: ParsedBlock[] = []
@@ -81,7 +172,7 @@ export default function ChecklistMemo({
           return blocks
         }
 
-        // 토글 시작
+        // 토글 시작 (제목 있음)
         if (trimmed.startsWith('>>> ')) {
           const title = trimmed.substring(4)
           const toggleId = `toggle-${toggleCounter++}`
@@ -90,6 +181,20 @@ export default function ChecklistMemo({
           blocks.push({
             type: 'toggle',
             content: title,
+            children,
+            id: toggleId
+          })
+          continue
+        }
+
+        // 토글 시작 (제목 없음)
+        if (trimmed === '>>>') {
+          const toggleId = `toggle-${toggleCounter++}`
+          i++
+          const children = parseUntilEnd(depth + 1)
+          blocks.push({
+            type: 'toggle',
+            content: '', // 제목 없음
             children,
             id: toggleId
           })
@@ -383,7 +488,7 @@ export default function ChecklistMemo({
             </button>
             <span 
               className={`text-sm flex-1 cursor-text ${isChecked ? 'text-gray-400 line-through' : 'text-gray-700'}`}
-              onClick={() => setIsEditing(true)}
+              onClick={() => setMode('edit')}
             >
               {renderText(block.content)}
             </span>
@@ -416,7 +521,7 @@ export default function ChecklistMemo({
       case 'text':
       default:
         return (
-          <p key={block.id} className="text-sm text-gray-700 cursor-text" onClick={() => setIsEditing(true)}>
+          <p key={block.id} className="text-sm text-gray-700 cursor-text" onClick={() => setMode('edit')}>
             {renderText(block.content)}
           </p>
         )
@@ -428,7 +533,7 @@ export default function ChecklistMemo({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Escape: 저장 후 편집 종료
     if (e.key === 'Escape') {
-      setIsEditing(false)
+      setMode('view')
       onSave(value)
       return
     }
@@ -479,6 +584,79 @@ export default function ChecklistMemo({
     }
   }
 
+  // 블록 삭제 핸들러
+  const handleDeleteBlock = (groupId: string) => {
+    const newGroups = blockGroups.filter(g => g.id !== groupId)
+    setBlockGroups(newGroups)
+    
+    // textarea 텍스트 동기화
+    setTimeout(() => {
+      const newText = newGroups.map(group => group.rawText).join('\n\n')
+      onChange(newText)
+    }, 0)
+  }
+
+  // ========== Sortable 블록 컴포넌트 ==========
+  
+  const SortableBlockGroup = ({ group }: { group: BlockGroup }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: group.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="group relative"
+      >
+        {/* 삭제 버튼 & 드래그 핸들 */}
+        <div className="absolute -left-11 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          {/* 삭제 버튼 */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteBlock(group.id)
+            }}
+            className="text-gray-400 hover:text-red-500 transition-colors"
+            title="블록 삭제"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          
+          {/* 드래그 핸들 */}
+          <div
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-grab active:cursor-grabbing"
+          >
+            <GripVertical size={16} className="text-gray-400 hover:text-gray-600" />
+          </div>
+        </div>
+        
+        {/* 블록 내용 */}
+        <div className="space-y-1">
+          {group.blocks.map(renderBlock)}
+        </div>
+      </div>
+    )
+  }
+
   // ========== 렌더링 ==========
 
   if (isEditing) {
@@ -489,8 +667,11 @@ export default function ChecklistMemo({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => {
-            setIsEditing(false)
-            onSave(value)
+            // 탭 모드일 때는 blur로 자동 전환하지 않음
+            if (mode === undefined) {
+              setMode('view')
+              onSave(value)
+            }
           }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
@@ -515,20 +696,32 @@ export default function ChecklistMemo({
     )
   }
 
-  const blocks = parseBlocks(value)
-
+  // 보기 모드 - 블록 그룹으로 렌더링
   return (
-    <div 
-      className={`w-full p-3 bg-gray-50 rounded-lg min-h-[400px] cursor-text hover:bg-gray-100 transition-colors overflow-auto ${className}`}
-      onClick={() => setIsEditing(true)}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
     >
-      {!value.trim() ? (
-        <p className="text-sm text-gray-400">{placeholder}</p>
-      ) : (
-        <div className="space-y-1">
-          {blocks.map(renderBlock)}
-        </div>
-      )}
-    </div>
+      <div 
+        className={`w-full p-3 pl-14 bg-gray-50 rounded-lg min-h-[400px] cursor-text hover:bg-gray-100 transition-colors overflow-auto ${className}`}
+        onClick={() => setMode('edit')}
+      >
+        {!value.trim() ? (
+          <p className="text-sm text-gray-400">{placeholder}</p>
+        ) : (
+          <SortableContext
+            items={blockGroups.map(g => g.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-4">
+              {blockGroups.map((group) => (
+                <SortableBlockGroup key={group.id} group={group} />
+              ))}
+            </div>
+          </SortableContext>
+        )}
+      </div>
+    </DndContext>
   )
 }
