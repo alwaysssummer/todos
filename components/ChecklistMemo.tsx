@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { GripVertical } from 'lucide-react'
+import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react'
 import { uploadImage, getImageFromClipboard } from '@/utils/imageUpload'
 import {
   DndContext,
@@ -33,15 +33,13 @@ interface ChecklistMemoProps {
 }
 
 // 파싱된 블록 타입
-type BlockType = 'toggle' | 'checkbox' | 'checkbox-checked' | 'image' | 'text' | 'empty' | 'number-1' | 'number-2' | 'number-3'
+type BlockType = 'toggle' | 'checkbox' | 'checkbox-checked' | 'image' | 'text' | 'empty'
 
 interface ParsedBlock {
   type: BlockType
   content: string
   children?: ParsedBlock[]
   id: string // 고유 ID (토글 상태 관리용)
-  number?: number // 넘버링 숫자
-  indent?: number // 들여쓰기 레벨
 }
 
 // 블록 그룹 (빈 줄로 구분된 단위)
@@ -82,7 +80,6 @@ export default function ChecklistMemo({
   const [isUploading, setIsUploading] = useState(false)
   const [expandedToggles, setExpandedToggles] = useState<Set<string>>(new Set())
   const [blockGroups, setBlockGroups] = useState<BlockGroup[]>([])
-  const [targetCursorPos, setTargetCursorPos] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 드래그 앤 드롭 센서 설정
@@ -108,44 +105,11 @@ export default function ChecklistMemo({
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      const textarea = textareaRef.current
-      textarea.focus()
-      
-      // 타겟 커서 위치가 있으면 그 위치로, 없으면 끝으로
-      if (targetCursorPos !== null) {
-        textarea.setSelectionRange(targetCursorPos, targetCursorPos)
-        setTargetCursorPos(null)
-        
-        // 커서 위치로 스크롤 조정
-        setTimeout(() => {
-          if (textarea) {
-            // 커서가 있는 줄의 대략적인 위치 계산
-            const textBeforeCursor = textarea.value.substring(0, targetCursorPos)
-            const linesBefore = textBeforeCursor.split('\n').length
-            const lineHeight = 20 // 대략적인 줄 높이 (text-sm)
-            const cursorY = linesBefore * lineHeight
-            
-            // textarea의 보이는 영역 높이
-            const viewportHeight = textarea.clientHeight
-            
-            // 커서가 화면 하단 30% 이하에 있으면 스크롤
-            const scrollThreshold = viewportHeight * 0.7
-            
-            if (cursorY > textarea.scrollTop + scrollThreshold) {
-              // 커서를 화면 중앙에 위치시키도록 스크롤
-              textarea.scrollTop = cursorY - viewportHeight / 2
-            } else if (cursorY < textarea.scrollTop) {
-              // 커서가 화면 위쪽에 있으면 위로 스크롤
-              textarea.scrollTop = Math.max(0, cursorY - 100)
-            }
-          }
-        }, 0)
-      } else {
-        const len = textarea.value.length
-        textarea.setSelectionRange(len, len)
-      }
+      textareaRef.current.focus()
+      const len = textareaRef.current.value.length
+      textareaRef.current.setSelectionRange(len, len)
     }
-  }, [isEditing, targetCursorPos])
+  }, [isEditing])
 
   // 블록 그룹 초기화
   useEffect(() => {
@@ -166,23 +130,7 @@ export default function ChecklistMemo({
         
         // textarea 텍스트 동기화 (다음 틱에 실행)
         setTimeout(() => {
-          // 체크박스는 줄바꿈만, 일반 블록은 빈 줄로 구분
-          const newText = newItems.map((group, idx) => {
-            if (idx === 0) return group.rawText
-            
-            const prevGroup = newItems[idx - 1]
-            const isCurrentCheckbox = group.rawText.trim().startsWith('[')
-            const isPrevCheckbox = prevGroup.rawText.trim().startsWith('[')
-            
-            // 둘 다 체크박스면 줄바꿈 하나만
-            if (isCurrentCheckbox && isPrevCheckbox) {
-              return '\n' + group.rawText
-            }
-            
-            // 그 외는 빈 줄 추가
-            return '\n\n' + group.rawText
-          }).join('')
-          
+          const newText = newItems.map(group => group.rawText).join('\n\n')
           onChange(newText)
         }, 0)
         
@@ -193,131 +141,16 @@ export default function ChecklistMemo({
 
   // ========== 파싱 로직 ==========
   
-  // 블록 그룹 생성 (체크박스는 개별, 토글은 통합, 나머지는 빈 줄 기준)
+  // 빈 줄(\n\n) 기준으로 블록 그룹 생성
   const parseBlockGroups = (text: string): BlockGroup[] => {
-    const lines = text.split('\n')
-    const groups: BlockGroup[] = []
-    let i = 0
-    let groupIndex = 0
-
-    while (i < lines.length) {
-      const line = lines[i]
-      const trimmed = line.trim()
-
-      // 1. 넘버링 리스트 (개별 블록)
-      // 1단계: 1. 2. 3.
-      const number1Match = trimmed.match(/^(\d+)\.\s+(.*)$/)
-      if (number1Match) {
-        groups.push({
-          id: `group-${groupIndex++}`,
-          blocks: parseBlocks(line),
-          rawText: line
-        })
-        i++
-        continue
-      }
-
-      // 2단계: 1) 2) 3)
-      const number2Match = trimmed.match(/^(\d+)\)\s+(.*)$/)
-      if (number2Match) {
-        groups.push({
-          id: `group-${groupIndex++}`,
-          blocks: parseBlocks(line),
-          rawText: line
-        })
-        i++
-        continue
-      }
-
-      // 3단계: ① ② ③
-      const number3Match = trimmed.match(/^([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s+(.*)$/)
-      if (number3Match) {
-        groups.push({
-          id: `group-${groupIndex++}`,
-          blocks: parseBlocks(line),
-          rawText: line
-        })
-        i++
-        continue
-      }
-
-      // 2. 체크박스는 항상 개별 블록
-      if (trimmed.startsWith('[] ') || trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
-        groups.push({
-          id: `group-${groupIndex++}`,
-          blocks: parseBlocks(line),
-          rawText: line
-        })
-        i++
-        continue
-      }
-
-      // 2. 토글은 >>> ~ <<< 전체를 하나의 블록으로
-      if (trimmed.startsWith('>>> ') || trimmed === '>>>') {
-        const startIndex = i
-        i++ // >>> 다음 줄로
-        
-        // <<< 를 찾을 때까지 수집
-        while (i < lines.length && lines[i].trim() !== '<<<') {
-          i++
-        }
-        
-        // <<< 포함
-        if (i < lines.length) {
-          i++
-        }
-        
-        const toggleText = lines.slice(startIndex, i).join('\n')
-        groups.push({
-          id: `group-${groupIndex++}`,
-          blocks: parseBlocks(toggleText),
-          rawText: toggleText
-        })
-        continue
-      }
-
-      // 3. 빈 줄은 건너뛰기
-      if (!trimmed) {
-        i++
-        continue
-      }
-
-      // 4. 일반 텍스트는 빈 줄까지 수집
-      const startIndex = i
-      while (i < lines.length) {
-        const currentTrimmed = lines[i].trim()
-        
-        // 빈 줄을 만나면 중단
-        if (!currentTrimmed) {
-          break
-        }
-        
-        // 체크박스, 토글, 넘버링을 만나면 중단
-        if (currentTrimmed.startsWith('[] ') || 
-            currentTrimmed.startsWith('[x] ') || 
-            currentTrimmed.startsWith('[X] ') ||
-            currentTrimmed.startsWith('>>> ') ||
-            currentTrimmed === '>>>' ||
-            /^\d+\.\s/.test(currentTrimmed) ||
-            /^\d+\)\s/.test(currentTrimmed) ||
-            /^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]\s/.test(currentTrimmed)) {
-          break
-        }
-        
-        i++
-      }
-      
-      const textBlock = lines.slice(startIndex, i).join('\n')
-      if (textBlock.trim()) {
-        groups.push({
-          id: `group-${groupIndex++}`,
-          blocks: parseBlocks(textBlock),
-          rawText: textBlock
-        })
-      }
-    }
-
-    return groups
+    // 빈 줄(\n\n)로 분리
+    const sections = text.split(/\n\n+/)
+    
+    return sections.map((section, index) => ({
+      id: `group-${index}`,
+      blocks: parseBlocks(section),
+      rawText: section
+    }))
   }
 
   const parseBlocks = (text: string): ParsedBlock[] => {
@@ -365,54 +198,6 @@ export default function ChecklistMemo({
             children,
             id: toggleId
           })
-          continue
-        }
-
-        // 넘버링 1단계: 1. 2. 3.
-        const number1Match = trimmed.match(/^(\d+)\.\s+(.*)$/)
-        if (number1Match) {
-          const indent = line.length - line.trimStart().length
-          blocks.push({
-            type: 'number-1',
-            content: number1Match[2],
-            number: parseInt(number1Match[1]),
-            indent,
-            id: `line-${i}`
-          })
-          i++
-          continue
-        }
-
-        // 넘버링 2단계: 1) 2) 3)
-        const number2Match = trimmed.match(/^(\d+)\)\s+(.*)$/)
-        if (number2Match) {
-          const indent = line.length - line.trimStart().length
-          blocks.push({
-            type: 'number-2',
-            content: number2Match[2],
-            number: parseInt(number2Match[1]),
-            indent,
-            id: `line-${i}`
-          })
-          i++
-          continue
-        }
-
-        // 넘버링 3단계: ① ② ③
-        const circledNumbers = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-        const number3Match = trimmed.match(/^([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s+(.*)$/)
-        if (number3Match) {
-          const indent = line.length - line.trimStart().length
-          const circledChar = number3Match[1]
-          const number = circledNumbers.indexOf(circledChar) + 1
-          blocks.push({
-            type: 'number-3',
-            content: number3Match[2],
-            number,
-            indent,
-            id: `line-${i}`
-          })
-          i++
           continue
         }
 
@@ -648,42 +433,6 @@ export default function ChecklistMemo({
     })
   }
 
-  // ========== 블록 클릭 핸들러 ==========
-
-  // 블록 그룹의 텍스트 시작 위치 계산
-  const getBlockGroupTextPosition = (groupId: string): number => {
-    let position = 0
-    for (const group of blockGroups) {
-      if (group.id === groupId) {
-        return position
-      }
-      position += group.rawText.length
-      
-      // 다음 그룹과의 구분자 계산
-      const nextGroupIndex = blockGroups.indexOf(group) + 1
-      if (nextGroupIndex < blockGroups.length) {
-        const nextGroup = blockGroups[nextGroupIndex]
-        const isCurrentCheckbox = group.rawText.trim().startsWith('[')
-        const isNextCheckbox = nextGroup.rawText.trim().startsWith('[')
-        
-        // 둘 다 체크박스면 줄바꿈 하나만
-        if (isCurrentCheckbox && isNextCheckbox) {
-          position += 1
-        } else {
-          position += 2 // 빈 줄
-        }
-      }
-    }
-    return position
-  }
-
-  // 블록 클릭 시 편집 모드로 전환
-  const handleBlockClick = (groupId: string) => {
-    const position = getBlockGroupTextPosition(groupId)
-    setTargetCursorPos(position)
-    setMode('edit')
-  }
-
   // ========== 블록 렌더링 ==========
 
   const renderBlock = (block: ParsedBlock): React.ReactNode => {
@@ -701,49 +450,17 @@ export default function ChecklistMemo({
               className="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900 py-0.5 w-full text-left"
             >
               {isExpanded ? (
-                <svg width="16" height="16" viewBox="0 0 16 16" className="text-gray-700 flex-shrink-0">
-                  <path d="M3 6 L8 11 L13 6" fill="currentColor" />
-                </svg>
+                <ChevronDown size={16} className="text-gray-500 flex-shrink-0" />
               ) : (
-                <svg width="16" height="16" viewBox="0 0 16 16" className="text-gray-700 flex-shrink-0">
-                  <path d="M6 3 L11 8 L6 13" fill="currentColor" />
-                </svg>
+                <ChevronRight size={16} className="text-gray-500 flex-shrink-0" />
               )}
-              <span className="font-medium">
-                {block.content ? renderText(block.content) : <span className="text-gray-400">토글</span>}
-              </span>
+              <span className="font-medium">{renderText(block.content)}</span>
             </button>
             {isExpanded && block.children && block.children.length > 0 && (
               <div className="ml-5 border-l-2 border-gray-200 pl-3 py-1 space-y-1">
                 {block.children.map(renderBlock)}
               </div>
             )}
-          </div>
-        )
-      }
-
-      case 'number-1':
-      case 'number-2':
-      case 'number-3': {
-        const circledNumbers = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-        let numberPrefix = ''
-        
-        if (block.type === 'number-1') {
-          numberPrefix = `${block.number}.`
-        } else if (block.type === 'number-2') {
-          numberPrefix = `${block.number})`
-        } else if (block.type === 'number-3' && block.number) {
-          numberPrefix = circledNumbers[block.number - 1] || `${block.number}`
-        }
-
-        const indentStyle = block.indent ? { paddingLeft: `${block.indent}px` } : {}
-
-        return (
-          <div key={block.id} className="flex items-start gap-2 text-sm text-gray-700" style={indentStyle}>
-            <span className="font-medium text-gray-600 select-none min-w-[2rem]">{numberPrefix}</span>
-            <span className="flex-1 cursor-text">
-              {renderText(block.content)}
-            </span>
           </div>
         )
       }
@@ -771,6 +488,7 @@ export default function ChecklistMemo({
             </button>
             <span 
               className={`text-sm flex-1 cursor-text ${isChecked ? 'text-gray-400 line-through' : 'text-gray-700'}`}
+              onClick={() => setMode('edit')}
             >
               {renderText(block.content)}
             </span>
@@ -803,7 +521,7 @@ export default function ChecklistMemo({
       case 'text':
       default:
         return (
-          <p key={block.id} className="text-sm text-gray-700 cursor-text">
+          <p key={block.id} className="text-sm text-gray-700 cursor-text" onClick={() => setMode('edit')}>
             {renderText(block.content)}
           </p>
         )
@@ -813,266 +531,11 @@ export default function ChecklistMemo({
   // ========== 키보드 핸들러 ==========
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-
     // Escape: 저장 후 편집 종료
     if (e.key === 'Escape') {
       setMode('view')
       onSave(value)
       return
-    }
-
-    // Enter: 넘버링 자동 증가
-    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
-      const cursorPos = textarea.selectionStart
-      const textBeforeCursor = value.substring(0, cursorPos)
-      const lines = textBeforeCursor.split('\n')
-      const currentLine = lines[lines.length - 1]
-      const trimmed = currentLine.trim()
-
-      // 1단계: 1. 2. 3.
-      const number1Match = trimmed.match(/^(\d+)\.\s*(.*)$/)
-      if (number1Match) {
-        const num = parseInt(number1Match[1])
-        const content = number1Match[2]
-        
-        // 내용이 없으면 넘버링 종료
-        if (!content) {
-          e.preventDefault()
-          const indent = currentLine.length - currentLine.trimStart().length
-          const newText = value.substring(0, cursorPos - trimmed.length - indent) + value.substring(cursorPos)
-          onChange(newText)
-          setTimeout(() => {
-            if (textarea) {
-              textarea.selectionStart = textarea.selectionEnd = cursorPos - trimmed.length - indent
-            }
-          }, 0)
-          return
-        }
-        
-        // 다음 번호 생성
-        e.preventDefault()
-        const indent = currentLine.length - currentLine.trimStart().length
-        const spaces = ' '.repeat(indent)
-        const newNumber = `\n${spaces}${num + 1}. `
-        const textAfter = value.substring(cursorPos)
-        onChange(value.substring(0, cursorPos) + newNumber + textAfter)
-        setTimeout(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = cursorPos + newNumber.length
-          }
-        }, 0)
-        return
-      }
-
-      // 2단계: 1) 2) 3)
-      const number2Match = trimmed.match(/^(\d+)\)\s*(.*)$/)
-      if (number2Match) {
-        const num = parseInt(number2Match[1])
-        const content = number2Match[2]
-        
-        if (!content) {
-          e.preventDefault()
-          const indent = currentLine.length - currentLine.trimStart().length
-          const newText = value.substring(0, cursorPos - trimmed.length - indent) + value.substring(cursorPos)
-          onChange(newText)
-          setTimeout(() => {
-            if (textarea) {
-              textarea.selectionStart = textarea.selectionEnd = cursorPos - trimmed.length - indent
-            }
-          }, 0)
-          return
-        }
-        
-        e.preventDefault()
-        const indent = currentLine.length - currentLine.trimStart().length
-        const spaces = ' '.repeat(indent)
-        const newNumber = `\n${spaces}${num + 1}) `
-        const textAfter = value.substring(cursorPos)
-        onChange(value.substring(0, cursorPos) + newNumber + textAfter)
-        setTimeout(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = cursorPos + newNumber.length
-          }
-        }, 0)
-        return
-      }
-
-      // 3단계: ① ② ③
-      const circledNumbers = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-      const number3Match = trimmed.match(/^([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s*(.*)$/)
-      if (number3Match) {
-        const circledChar = number3Match[1]
-        const content = number3Match[2]
-        const num = circledNumbers.indexOf(circledChar) + 1
-        
-        if (!content) {
-          e.preventDefault()
-          const indent = currentLine.length - currentLine.trimStart().length
-          const newText = value.substring(0, cursorPos - trimmed.length - indent) + value.substring(cursorPos)
-          onChange(newText)
-          setTimeout(() => {
-            if (textarea) {
-              textarea.selectionStart = textarea.selectionEnd = cursorPos - trimmed.length - indent
-            }
-          }, 0)
-          return
-        }
-        
-        if (num < 20) {
-          e.preventDefault()
-          const indent = currentLine.length - currentLine.trimStart().length
-          const spaces = ' '.repeat(indent)
-          const nextCircled = circledNumbers[num]
-          const newNumber = `\n${spaces}${nextCircled} `
-          const textAfter = value.substring(cursorPos)
-          onChange(value.substring(0, cursorPos) + newNumber + textAfter)
-          setTimeout(() => {
-            if (textarea) {
-              textarea.selectionStart = textarea.selectionEnd = cursorPos + newNumber.length
-            }
-          }, 0)
-          return
-        }
-      }
-    }
-
-    // Tab: 레벨 증가 (1. -> 1) -> ①)
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault()
-      const cursorPos = textarea.selectionStart
-      const lines = value.split('\n')
-      
-      // 현재 커서가 있는 라인 찾기
-      let currentPos = 0
-      let currentLineIndex = 0
-      for (let i = 0; i < lines.length; i++) {
-        if (currentPos + lines[i].length >= cursorPos) {
-          currentLineIndex = i
-          break
-        }
-        currentPos += lines[i].length + 1 // +1 for \n
-      }
-      
-      const currentLine = lines[currentLineIndex]
-      const trimmed = currentLine.trim()
-
-      // 1. -> 1) (번호를 1로 리셋)
-      const number1Match = trimmed.match(/^(\d+)\.\s+(.*)$/)
-      if (number1Match) {
-        const content = number1Match[2]
-        const indent = currentLine.length - currentLine.trimStart().length
-        const newIndent = indent + 2
-        const spaces = ' '.repeat(newIndent)
-        const newLine = `${spaces}1) ${content}`  // 항상 1로 시작
-        lines[currentLineIndex] = newLine
-        const newText = lines.join('\n')
-        onChange(newText)
-        
-        // 커서 위치 계산
-        const newCursorPos = lines.slice(0, currentLineIndex).join('\n').length + 
-                             (currentLineIndex > 0 ? 1 : 0) + 
-                             newLine.length
-        setTimeout(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = newCursorPos
-          }
-        }, 0)
-        return
-      }
-
-      // 1) -> ① (번호를 ①로 리셋)
-      const number2Match = trimmed.match(/^(\d+)\)\s+(.*)$/)
-      if (number2Match) {
-        const content = number2Match[2]
-        const circledNumbers = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-        const indent = currentLine.length - currentLine.trimStart().length
-        const newIndent = indent + 2
-        const spaces = ' '.repeat(newIndent)
-        const newLine = `${spaces}① ${content}`  // 항상 ①로 시작
-        lines[currentLineIndex] = newLine
-        const newText = lines.join('\n')
-        onChange(newText)
-        
-        const newCursorPos = lines.slice(0, currentLineIndex).join('\n').length + 
-                             (currentLineIndex > 0 ? 1 : 0) + 
-                             newLine.length
-        setTimeout(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = newCursorPos
-          }
-        }, 0)
-        return
-      }
-    }
-
-    // Shift+Tab: 레벨 감소 (① -> 1) -> 1.)
-    if (e.key === 'Tab' && e.shiftKey) {
-      e.preventDefault()
-      const cursorPos = textarea.selectionStart
-      const lines = value.split('\n')
-      
-      // 현재 커서가 있는 라인 찾기
-      let currentPos = 0
-      let currentLineIndex = 0
-      for (let i = 0; i < lines.length; i++) {
-        if (currentPos + lines[i].length >= cursorPos) {
-          currentLineIndex = i
-          break
-        }
-        currentPos += lines[i].length + 1
-      }
-      
-      const currentLine = lines[currentLineIndex]
-      const trimmed = currentLine.trim()
-
-      // ① -> 1) (번호를 1로 리셋)
-      const circledNumbers = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-      const number3Match = trimmed.match(/^([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s+(.*)$/)
-      if (number3Match) {
-        const content = number3Match[2]
-        const indent = currentLine.length - currentLine.trimStart().length
-        const newIndent = Math.max(0, indent - 2)
-        const spaces = ' '.repeat(newIndent)
-        const newLine = `${spaces}1) ${content}`  // 항상 1로 시작
-        lines[currentLineIndex] = newLine
-        const newText = lines.join('\n')
-        onChange(newText)
-        
-        const newCursorPos = lines.slice(0, currentLineIndex).join('\n').length + 
-                             (currentLineIndex > 0 ? 1 : 0) + 
-                             newLine.length
-        setTimeout(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = newCursorPos
-          }
-        }, 0)
-        return
-      }
-
-      // 1) -> 1. (번호를 1로 리셋)
-      const number2Match = trimmed.match(/^(\d+)\)\s+(.*)$/)
-      if (number2Match) {
-        const content = number2Match[2]
-        const indent = currentLine.length - currentLine.trimStart().length
-        const newIndent = Math.max(0, indent - 2)
-        const spaces = ' '.repeat(newIndent)
-        const newLine = `${spaces}1. ${content}`  // 항상 1로 시작
-        lines[currentLineIndex] = newLine
-        const newText = lines.join('\n')
-        onChange(newText)
-        
-        const newCursorPos = lines.slice(0, currentLineIndex).join('\n').length + 
-                             (currentLineIndex > 0 ? 1 : 0) + 
-                             newLine.length
-        setTimeout(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = newCursorPos
-          }
-        }, 0)
-        return
-      }
     }
     
     // Ctrl+B: 굵게 **
@@ -1128,23 +591,7 @@ export default function ChecklistMemo({
     
     // textarea 텍스트 동기화
     setTimeout(() => {
-      // 체크박스는 줄바꿈만, 일반 블록은 빈 줄로 구분
-      const newText = newGroups.map((group, idx) => {
-        if (idx === 0) return group.rawText
-        
-        const prevGroup = newGroups[idx - 1]
-        const isCurrentCheckbox = group.rawText.trim().startsWith('[')
-        const isPrevCheckbox = prevGroup.rawText.trim().startsWith('[')
-        
-        // 둘 다 체크박스면 줄바꿈 하나만
-        if (isCurrentCheckbox && isPrevCheckbox) {
-          return '\n' + group.rawText
-        }
-        
-        // 그 외는 빈 줄 추가
-        return '\n\n' + group.rawText
-      }).join('')
-      
+      const newText = newGroups.map(group => group.rawText).join('\n\n')
       onChange(newText)
     }, 0)
   }
@@ -1183,6 +630,7 @@ export default function ChecklistMemo({
               handleDeleteBlock(group.id)
             }}
             className="text-gray-400 hover:text-red-500 transition-colors"
+            title="블록 삭제"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1202,10 +650,7 @@ export default function ChecklistMemo({
         </div>
         
         {/* 블록 내용 */}
-        <div 
-          className="space-y-1"
-          onClick={() => handleBlockClick(group.id)}
-        >
+        <div className="space-y-1">
           {group.blocks.map(renderBlock)}
         </div>
       </div>
@@ -1231,7 +676,7 @@ export default function ChecklistMemo({
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           placeholder={placeholder}
-          className="w-full h-full p-3 pb-32 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[400px] placeholder-gray-400 text-gray-900 font-mono flex-1"
+          className="w-full h-full p-3 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[400px] placeholder-gray-400 text-gray-900 font-mono flex-1"
         />
         {isUploading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
@@ -1260,13 +705,7 @@ export default function ChecklistMemo({
     >
       <div 
         className={`w-full p-3 pl-14 bg-gray-50 rounded-lg min-h-[400px] cursor-text hover:bg-gray-100 transition-colors overflow-auto ${className}`}
-        onClick={(e) => {
-          // 빈 영역 클릭 시 끝으로 이동
-          if (e.target === e.currentTarget) {
-            setTargetCursorPos(value.length)
-            setMode('edit')
-          }
-        }}
+        onClick={() => setMode('edit')}
       >
         {!value.trim() ? (
           <p className="text-sm text-gray-400">{placeholder}</p>
@@ -1275,22 +714,10 @@ export default function ChecklistMemo({
             items={blockGroups.map(g => g.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1">
-              {blockGroups.map((group, index) => {
-                // 이전 그룹과의 간격 계산
-                const prevGroup = index > 0 ? blockGroups[index - 1] : null
-                const isCurrentNumbering = /^(\d+\.|(\d+\))|[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s/.test(group.rawText.trim())
-                const isPrevNumbering = prevGroup && /^(\d+\.|(\d+\))|[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s/.test(prevGroup.rawText.trim())
-                
-                // 넘버링끼리는 좁은 간격, 다른 블록과는 넓은 간격
-                const needsExtraSpace = index > 0 && (!isCurrentNumbering || !isPrevNumbering)
-                
-                return (
-                  <div key={group.id} className={needsExtraSpace ? 'mt-4' : ''}>
-                    <SortableBlockGroup group={group} />
-                  </div>
-                )
-              })}
+            <div className="space-y-4">
+              {blockGroups.map((group) => (
+                <SortableBlockGroup key={group.id} group={group} />
+              ))}
             </div>
           </SortableContext>
         )}
