@@ -81,29 +81,20 @@ export default function MobileTaskDetailView({
     if (current >= 3) return
 
     const updates: Partial<Task> = {}
-    let targetTab: 'focus' | 'today' | 'inbox' | null = null
     
     if (current === 0) { // 인박스 → 투데이즈 테스크
       updates.due_date = todayStr
-      targetTab = 'today'
     } else if (current === 1) { // 투데이즈 테스크 → 투데이즈 포커스
       updates.is_top5 = true
-      targetTab = 'today'
     } else if (current === 2) { // 투데이즈 포커스 → 더 포커스
       updates.is_the_focus = true
       updates.is_top5 = false
-      targetTab = 'focus'
     }
 
     await updateTask(task.id, updates)
     
-    // 탭 전환
-    if (targetTab && onNavigateToTab) {
-      setTimeout(() => {
-        onNavigateToTab(targetTab!)
-        onBack()
-      }, 300)
-    }
+    // 현재 목록을 유지하기 위해 뒤로가기만 실행
+    onBack()
   }
 
   // 위계 하강
@@ -112,29 +103,20 @@ export default function MobileTaskDetailView({
     if (current <= 0) return
 
     const updates: Partial<Task> = {}
-    let targetTab: 'focus' | 'today' | 'inbox' | null = null
     
     if (current === 3) { // 더 포커스 → 투데이즈 포커스
       updates.is_the_focus = false
       updates.is_top5 = true
-      targetTab = 'today'
     } else if (current === 2) { // 투데이즈 포커스 → 투데이즈 테스크
       updates.is_top5 = false
-      targetTab = 'today'
     } else if (current === 1) { // 투데이즈 테스크 → 인박스
       updates.due_date = null
-      targetTab = 'inbox'
     }
 
     await updateTask(task.id, updates)
     
-    // 탭 전환
-    if (targetTab && onNavigateToTab) {
-      setTimeout(() => {
-        onNavigateToTab(targetTab!)
-        onBack()
-      }, 300)
-    }
+    // 현재 목록을 유지하기 위해 뒤로가기만 실행
+    onBack()
   }
 
   // 체크리스트 토글
