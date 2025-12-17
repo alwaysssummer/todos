@@ -5,8 +5,10 @@ import { Check, ChevronRight, Repeat } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { extractTags, splitTitleAndDescription } from '@/utils/textParser'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import { moveTaskUp, moveTaskDown } from '@/utils/taskHierarchy'
 import { useRoutines } from '@/hooks/useRoutines'
 import MobileTaskDetailView from './MobileTaskDetailView'
+import SwipeableTaskItem from './SwipeableTaskItem'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -96,6 +98,7 @@ export default function MobileFocusView({
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [swipingTaskId, setSwipingTaskId] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   // 루틴 훅 사용
@@ -184,6 +187,7 @@ export default function MobileFocusView({
     await updateTask(task.id, { description: lines.join('\n') })
   }
 
+
   // 태스크 상세 화면
   if (selectedTask) {
     return (
@@ -232,7 +236,14 @@ export default function MobileFocusView({
                 const completedCount = checklistItems.filter(item => item.isCompleted).length
 
                 return (
-                  <div key={task.id}>
+                  <SwipeableTaskItem
+                    key={task.id}
+                    task={task}
+                    onSwipeLeft={() => moveTaskUp(task, updateTask)}
+                    onSwipeRight={() => moveTaskDown(task, updateTask)}
+                    isSwiping={swipingTaskId === task.id}
+                    onSwipingChange={(swiping) => setSwipingTaskId(swiping ? task.id : null)}
+                  >
                     <div
                       className="flex items-center gap-3 px-4 py-3 active:bg-gray-50"
                       onClick={() => setSelectedTask(task)}
@@ -318,7 +329,7 @@ export default function MobileFocusView({
                         ))}
                       </div>
                     )}
-                  </div>
+                  </SwipeableTaskItem>
                 )
               })}
             </div>

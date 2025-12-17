@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import { moveTaskUp, moveTaskDown } from '@/utils/taskHierarchy'
 import MobileTaskDetailView from './MobileTaskDetailView'
+import SwipeableTaskItem from './SwipeableTaskItem'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -129,6 +131,7 @@ export default function MobileInboxView({
   const [editValue, setEditValue] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [swipingTaskId, setSwipingTaskId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -288,7 +291,14 @@ export default function MobileInboxView({
               const completedCount = checklistItems.filter(item => item.isCompleted).length
 
               return (
-                <div key={task.id}>
+                <SwipeableTaskItem
+                  key={task.id}
+                  task={task}
+                  onSwipeLeft={() => moveTaskUp(task, updateTask)}
+                  onSwipeRight={() => moveTaskDown(task, updateTask)}
+                  isSwiping={swipingTaskId === task.id}
+                  onSwipingChange={(swiping) => setSwipingTaskId(swiping ? task.id : null)}
+                >
                   <div className="flex items-center gap-2 px-3 py-1.5 active:bg-gray-50">
                     <AnimatedCheckbox
                       checked={task.status === 'completed'}
@@ -371,7 +381,7 @@ export default function MobileInboxView({
                   {hasChecklist && isExpanded && (
                     <div className="ml-8 mr-3 mb-1 py-1 space-y-0.5 bg-gray-50 rounded-lg">
                       {checklistItems.map((item, idx) => (
-                        <div 
+                        <div
                           key={idx}
                           className="flex items-center gap-2 px-2 py-1 text-xs"
                         >
@@ -395,7 +405,7 @@ export default function MobileInboxView({
                       ))}
                     </div>
                   )}
-                </div>
+                </SwipeableTaskItem>
               )
             })}
           </div>
