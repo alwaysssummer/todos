@@ -207,31 +207,29 @@ export default function MobileTaskDetailView({
         </div>
 
         {/* 빠른 액션 */}
-        <div className="space-y-2">
+        <div className="flex gap-2">
           {/* 위계 이동 버튼 */}
-          <div className="flex gap-2">
-            <button
-              onClick={moveUp}
-              disabled={getCurrentHierarchy() >= 3}
-              className="flex-1 p-3 rounded-lg flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              <ChevronUp size={20} />
-              <span>우선순위 올리기</span>
-            </button>
-            <button
-              onClick={moveDown}
-              disabled={getCurrentHierarchy() <= 0}
-              className="flex-1 p-3 rounded-lg flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              <ChevronDown size={20} />
-              <span>우선순위 내리기</span>
-            </button>
-          </div>
+          <button
+            onClick={moveUp}
+            disabled={getCurrentHierarchy() >= 3}
+            className="p-3 rounded-lg flex items-center justify-center bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="우선순위 올리기"
+          >
+            <ChevronUp size={22} />
+          </button>
+          <button
+            onClick={moveDown}
+            disabled={getCurrentHierarchy() <= 0}
+            className="p-3 rounded-lg flex items-center justify-center bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="우선순위 내리기"
+          >
+            <ChevronDown size={22} />
+          </button>
 
           {/* 완료 */}
           <button
             onClick={toggleComplete}
-            className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium
+            className={`flex-1 p-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium
               ${task.status === 'completed'
                 ? 'bg-green-100 text-green-700 border border-green-200'
                 : 'bg-white text-gray-600 border border-gray-200'}`}
