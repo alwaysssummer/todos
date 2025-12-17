@@ -1345,7 +1345,7 @@ export default function TextbookManagementModal({
                                                         </div>
                                                         {!isSubgroupCollapsed && (
                                                             <div className="ml-4 space-y-1 mt-1">
-                                                                {subgroupTextbooks.map(renderTextbookItem)}
+                                                                {subgroupTextbooks.map(tb => renderTextbookItem(tb))}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1362,7 +1362,7 @@ export default function TextbookManagementModal({
                                                             <span>─ 미지정 ({unassigned.length})</span>
                                                         </div>
                                                         <div className="ml-4 space-y-1">
-                                                            {unassigned.map(renderTextbookItem)}
+                                                            {unassigned.map(tb => renderTextbookItem(tb))}
                                                         </div>
                                                     </div>
                                                 )
@@ -1373,7 +1373,7 @@ export default function TextbookManagementModal({
                                         <div className="space-y-1">
                                             {groupTextbooks
                                                 .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-                                                .map(renderTextbookItem)}
+                                                .map(tb => renderTextbookItem(tb))}
                                         </div>
                                     )}
                                 </div>
@@ -1402,7 +1402,7 @@ export default function TextbookManagementModal({
                             <div className="p-2 space-y-1">
                                 {uncategorized
                                     .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-                                    .map(renderTextbookItem)}
+                                    .map(tb => renderTextbookItem(tb))}
                             </div>
                         )}
                     </div>
@@ -1817,7 +1817,7 @@ export default function TextbookManagementModal({
                                                     교재가 없습니다
                                                 </div>
                                             ) : (
-                                                subgroupTextbooks.map(renderTextbookItem)
+                                                subgroupTextbooks.map(tb => renderTextbookItem(tb))
                                             )}
                                         </div>
                                     )}
@@ -1849,7 +1849,7 @@ export default function TextbookManagementModal({
                                     </div>
                                     {!isCollapsed && (
                                         <div className="space-y-1 ml-4">
-                                            {unassigned.map(renderTextbookItem)}
+                                            {unassigned.map(tb => renderTextbookItem(tb))}
                                         </div>
                                     )}
                                 </div>
@@ -1865,7 +1865,7 @@ export default function TextbookManagementModal({
                                 <p>이 그룹에 교재가 없습니다</p>
                             </div>
                         ) : (
-                            groupTextbooks.map(renderTextbookItem)
+                            groupTextbooks.map(tb => renderTextbookItem(tb))
                         )}
                     </div>
                 )}
