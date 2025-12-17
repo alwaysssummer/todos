@@ -114,6 +114,7 @@ interface MobileInboxViewProps {
   deleteTask: (id: string) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
+  onNavigateToTab?: (tab: 'focus' | 'today' | 'inbox') => void
 }
 
 export default function MobileInboxView({
@@ -121,7 +122,8 @@ export default function MobileInboxView({
   updateTask,
   deleteTask,
   toggleTaskStatus,
-  projects
+  projects,
+  onNavigateToTab
 }: MobileInboxViewProps) {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -257,6 +259,7 @@ export default function MobileInboxView({
         updateTask={updateTask}
         deleteTask={deleteTask}
         projects={projects}
+        onNavigateToTab={onNavigateToTab}
       />
     )
   }

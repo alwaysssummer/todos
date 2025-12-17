@@ -81,6 +81,7 @@ interface MobileFocusViewProps {
   deleteTask: (id: string) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
+  onNavigateToTab?: (tab: 'focus' | 'today' | 'inbox') => void
 }
 
 export default function MobileFocusView({
@@ -89,7 +90,8 @@ export default function MobileFocusView({
   updateTask,
   deleteTask,
   toggleTaskStatus,
-  projects
+  projects,
+  onNavigateToTab
 }: MobileFocusViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
@@ -191,6 +193,7 @@ export default function MobileFocusView({
         updateTask={updateTask}
         deleteTask={deleteTask}
         projects={projects}
+        onNavigateToTab={onNavigateToTab}
       />
     )
   }

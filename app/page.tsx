@@ -308,6 +308,7 @@ export default function Home() {
                 deleteTask={deleteTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
+                onNavigateToTab={(tab) => setActivePanel(tab)}
               />
             )}
             {activePanel === 'today' && (
@@ -318,6 +319,7 @@ export default function Home() {
                 deleteTask={deleteTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
+                onNavigateToTab={(tab) => setActivePanel(tab)}
               />
             )}
             {activePanel === 'inbox' && (
@@ -327,6 +329,7 @@ export default function Home() {
                 deleteTask={deleteTask}
                 toggleTaskStatus={toggleTaskStatus}
                 projects={projects}
+                onNavigateToTab={(tab) => setActivePanel(tab)}
               />
             )}
             {activePanel === 'schedule' && (

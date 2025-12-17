@@ -109,6 +109,7 @@ interface MobileTodayViewProps {
   deleteTask: (id: string) => Promise<void>
   toggleTaskStatus: (id: string, currentStatus: string) => void
   projects: Project[]
+  onNavigateToTab?: (tab: 'focus' | 'today' | 'inbox') => void
 }
 
 export default function MobileTodayView({
@@ -117,7 +118,8 @@ export default function MobileTodayView({
   updateTask,
   deleteTask,
   toggleTaskStatus,
-  projects
+  projects,
+  onNavigateToTab
 }: MobileTodayViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
@@ -366,6 +368,7 @@ export default function MobileTodayView({
         updateTask={updateTask}
         deleteTask={deleteTask}
         projects={projects}
+        onNavigateToTab={onNavigateToTab}
       />
     )
   }

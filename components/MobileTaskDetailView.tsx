@@ -13,6 +13,7 @@ interface MobileTaskDetailViewProps {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   projects: Project[]
+  onNavigateToTab?: (tab: 'focus' | 'today' | 'inbox') => void
 }
 
 export default function MobileTaskDetailView({
@@ -20,7 +21,8 @@ export default function MobileTaskDetailView({
   onBack,
   updateTask,
   deleteTask,
-  projects
+  projects,
+  onNavigateToTab
 }: MobileTaskDetailViewProps) {
   const [title, setTitle] = useState(task.title)
   const [memo, setMemo] = useState(task.description || '')
@@ -79,17 +81,29 @@ export default function MobileTaskDetailView({
     if (current >= 3) return
 
     const updates: Partial<Task> = {}
+    let targetTab: 'focus' | 'today' | 'inbox' | null = null
     
     if (current === 0) { // 인박스 → 투데이즈 테스크
       updates.due_date = todayStr
+      targetTab = 'today'
     } else if (current === 1) { // 투데이즈 테스크 → 투데이즈 포커스
       updates.is_top5 = true
+      targetTab = 'today'
     } else if (current === 2) { // 투데이즈 포커스 → 더 포커스
       updates.is_the_focus = true
       updates.is_top5 = false
+      targetTab = 'focus'
     }
 
     await updateTask(task.id, updates)
+    
+    // 탭 전환
+    if (targetTab && onNavigateToTab) {
+      setTimeout(() => {
+        onNavigateToTab(targetTab!)
+        onBack()
+      }, 300)
+    }
   }
 
   // 위계 하강
@@ -98,17 +112,29 @@ export default function MobileTaskDetailView({
     if (current <= 0) return
 
     const updates: Partial<Task> = {}
+    let targetTab: 'focus' | 'today' | 'inbox' | null = null
     
     if (current === 3) { // 더 포커스 → 투데이즈 포커스
       updates.is_the_focus = false
       updates.is_top5 = true
+      targetTab = 'today'
     } else if (current === 2) { // 투데이즈 포커스 → 투데이즈 테스크
       updates.is_top5 = false
+      targetTab = 'today'
     } else if (current === 1) { // 투데이즈 테스크 → 인박스
       updates.due_date = null
+      targetTab = 'inbox'
     }
 
     await updateTask(task.id, updates)
+    
+    // 탭 전환
+    if (targetTab && onNavigateToTab) {
+      setTimeout(() => {
+        onNavigateToTab(targetTab!)
+        onBack()
+      }, 300)
+    }
   }
 
   // 체크리스트 토글
@@ -203,10 +229,11 @@ export default function MobileTaskDetailView({
           {/* 완료 */}
           <button
             onClick={toggleComplete}
-            className={`flex-1 p-2.5 rounded-lg flex items-center justify-center gap-2 text-sm font-medium
+            className={`p-2.5 rounded-lg flex items-center justify-center gap-2 text-sm font-medium
               ${task.status === 'completed'
                 ? 'bg-green-100 text-green-700 border border-green-200'
                 : 'bg-white text-gray-600 border border-gray-200'}`}
+            style={{ width: '33.33%' }}
           >
             <Check size={16} />
             {task.status === 'completed' ? '완료됨' : '완료'}
