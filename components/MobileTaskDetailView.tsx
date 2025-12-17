@@ -212,7 +212,7 @@ export default function MobileTaskDetailView({
           <button
             onClick={moveUp}
             disabled={getCurrentHierarchy() >= 3}
-            className="p-3 rounded-lg flex items-center justify-center bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex-1 p-3 rounded-lg flex items-center justify-center bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
             title="우선순위 올리기"
           >
             <ChevronUp size={22} />
@@ -220,7 +220,7 @@ export default function MobileTaskDetailView({
           <button
             onClick={moveDown}
             disabled={getCurrentHierarchy() <= 0}
-            className="p-3 rounded-lg flex items-center justify-center bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex-1 p-3 rounded-lg flex items-center justify-center bg-white text-gray-700 border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
             title="우선순위 내리기"
           >
             <ChevronDown size={22} />
@@ -229,13 +229,13 @@ export default function MobileTaskDetailView({
           {/* 완료 */}
           <button
             onClick={toggleComplete}
-            className={`flex-1 p-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium
+            className={`flex-1 p-3 rounded-lg flex items-center justify-center
               ${task.status === 'completed'
                 ? 'bg-green-100 text-green-700 border border-green-200'
                 : 'bg-white text-gray-600 border border-gray-200'}`}
+            title={task.status === 'completed' ? '완료됨' : '완료'}
           >
-            <Check size={18} />
-            {task.status === 'completed' ? '완료됨' : '완료'}
+            <Check size={22} />
           </button>
         </div>
 
