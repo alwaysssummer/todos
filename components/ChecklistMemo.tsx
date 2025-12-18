@@ -40,6 +40,7 @@ interface ParsedBlock {
   content: string
   children?: ParsedBlock[]
   id: string // 고유 ID (토글 상태 관리용)
+  level?: number // 토글 레벨 (1 or 2)
 }
 
 // 블록 그룹 (빈 줄로 구분된 단위)
@@ -80,7 +81,12 @@ export default function ChecklistMemo({
   const [isUploading, setIsUploading] = useState(false)
   const [expandedToggles, setExpandedToggles] = useState<Set<string>>(new Set())
   const [blockGroups, setBlockGroups] = useState<BlockGroup[]>([])
+  const [targetCursorPos, setTargetCursorPos] = useState<number | null>(null)
+  const [lastCursorPos, setLastCursorPos] = useState<number>(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const viewContainerRef = useRef<HTMLDivElement>(null)
+  const savedScrollPos = useRef<number>(0)
+  const isTogglingRef = useRef<boolean>(false)
 
   // 드래그 앤 드롭 센서 설정
   const sensors = useSensors(
@@ -105,17 +111,83 @@ export default function ChecklistMemo({
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      textareaRef.current.focus()
-      const len = textareaRef.current.value.length
-      textareaRef.current.setSelectionRange(len, len)
+      const textarea = textareaRef.current
+      textarea.focus()
+      
+      // targetCursorPos가 설정되어 있으면 해당 위치로, 아니면 마지막 위치로
+      const cursorPos = targetCursorPos !== null ? targetCursorPos : lastCursorPos
+      textarea.setSelectionRange(cursorPos, cursorPos)
+      
+      // 스크롤 조정: 커서가 보이도록
+      setTimeout(() => {
+        if (textarea) {
+          // 커서 위치의 Y 좌표 계산
+          const textBeforeCursor = textarea.value.substring(0, cursorPos)
+          const lines = textBeforeCursor.split('\n')
+          const lineHeight = 24 // 대략적인 line height
+          const cursorY = lines.length * lineHeight
+          
+          // 현재 보이는 영역
+          const scrollTop = textarea.scrollTop
+          const viewportHeight = textarea.clientHeight
+          
+          // 커서가 화면 밖에 있으면 스크롤 조정
+          if (cursorY < scrollTop) {
+            // 커서가 위쪽에 있으면
+            textarea.scrollTop = Math.max(0, cursorY - 50)
+          } else if (cursorY > scrollTop + viewportHeight - 100) {
+            // 커서가 아래쪽에 있으면 (여유 공간 100px)
+            textarea.scrollTop = cursorY - viewportHeight / 2
+          }
+        }
+      }, 0)
+      
+      // targetCursorPos 초기화
+      setTargetCursorPos(null)
     }
-  }, [isEditing])
+  }, [isEditing, targetCursorPos, lastCursorPos])
 
   // 블록 그룹 초기화
   useEffect(() => {
     const groups = parseBlockGroups(value)
     setBlockGroups(groups)
   }, [value])
+
+  // 보기 모드로 전환 시 스크롤 위치 유지
+  useEffect(() => {
+    // 토글 중이면 스크롤 조정 안 함
+    if (isTogglingRef.current) {
+      return
+    }
+    
+    if (!isEditing && viewContainerRef.current && lastCursorPos > 0) {
+      // 마지막 커서 위치에 해당하는 블록 그룹 찾기
+      let accumulatedLength = 0
+      let targetGroupIndex = 0
+      
+      for (let i = 0; i < blockGroups.length; i++) {
+        const groupLength = blockGroups[i].rawText.length + 2 // +2 for \n\n
+        if (accumulatedLength + groupLength > lastCursorPos) {
+          targetGroupIndex = i
+          break
+        }
+        accumulatedLength += groupLength
+      }
+      
+      // 해당 블록으로 스크롤
+      setTimeout(() => {
+        if (viewContainerRef.current && !isTogglingRef.current) {
+          const blockElements = viewContainerRef.current.querySelectorAll('.group')
+          if (blockElements[targetGroupIndex]) {
+            blockElements[targetGroupIndex].scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        }
+      }, 100)
+    }
+  }, [isEditing, lastCursorPos, blockGroups])
 
   // 드래그 종료 핸들러
   const handleDragEnd = (event: DragEndEvent) => {
@@ -141,16 +213,80 @@ export default function ChecklistMemo({
 
   // ========== 파싱 로직 ==========
   
-  // 빈 줄(\n\n) 기준으로 블록 그룹 생성
+  // 빈 줄(\n\n) 기준으로 블록 그룹 생성 (단, 토글은 통합 블록으로 처리)
   const parseBlockGroups = (text: string): BlockGroup[] => {
-    // 빈 줄(\n\n)로 분리
-    const sections = text.split(/\n\n+/)
-    
-    return sections.map((section, index) => ({
-      id: `group-${index}`,
-      blocks: parseBlocks(section),
-      rawText: section
-    }))
+    const lines = text.split('\n')
+    const groups: BlockGroup[] = []
+    let i = 0
+    let groupIndex = 0
+
+    while (i < lines.length) {
+      const trimmed = lines[i].trim()
+
+      // 빈 줄 건너뛰기
+      if (!trimmed) {
+        i++
+        continue
+      }
+
+      // 토글 시작 감지 (>> 또는 >> 제목)
+      if (trimmed === '>>' || trimmed.startsWith('>> ')) {
+        const startIdx = i
+        let depth = 1
+        i++
+
+        // << 를 찾을 때까지 진행 (중첩 토글 고려)
+        while (i < lines.length && depth > 0) {
+          const currentLine = lines[i].trim()
+          if (currentLine === '>>' || currentLine.startsWith('>> ')) {
+            depth++
+          } else if (currentLine === '<<') {
+            depth--
+          }
+          i++
+        }
+
+        // 토글 전체를 하나의 그룹으로
+        const toggleText = lines.slice(startIdx, i).join('\n')
+        groups.push({
+          id: `group-${groupIndex++}`,
+          blocks: parseBlocks(toggleText),
+          rawText: toggleText
+        })
+        continue
+      }
+
+      // 체크박스는 개별 블록으로
+      if (trimmed.startsWith('[] ') || trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
+        groups.push({
+          id: `group-${groupIndex++}`,
+          blocks: parseBlocks(lines[i]),
+          rawText: lines[i]
+        })
+        i++
+        continue
+      }
+
+      // 일반 텍스트: 빈 줄까지 모으기
+      const textStartIdx = i
+      while (i < lines.length && lines[i].trim() !== '' && 
+             !lines[i].trim().startsWith('[] ') && 
+             !lines[i].trim().startsWith('[x] ') && 
+             !lines[i].trim().startsWith('[X] ') &&
+             lines[i].trim() !== '>>' &&
+             !lines[i].trim().startsWith('>> ')) {
+        i++
+      }
+
+      const textBlock = lines.slice(textStartIdx, i).join('\n')
+      groups.push({
+        id: `group-${groupIndex++}`,
+        blocks: parseBlocks(textBlock),
+        rawText: textBlock
+      })
+    }
+
+    return groups
   }
 
   const parseBlocks = (text: string): ParsedBlock[] => {
@@ -167,14 +303,14 @@ export default function ChecklistMemo({
         const trimmed = line.trim()
 
         // 토글 끝
-        if (trimmed === '<<<') {
+        if (trimmed === '<<') {
           i++
           return blocks
         }
 
-        // 토글 시작 (제목 있음)
-        if (trimmed.startsWith('>>> ')) {
-          const title = trimmed.substring(4)
+        // 1차 토글 시작 (제목 있음)
+        if (trimmed.startsWith('>> ')) {
+          const title = trimmed.substring(3)
           const toggleId = `toggle-${toggleCounter++}`
           i++
           const children = parseUntilEnd(depth + 1)
@@ -182,13 +318,14 @@ export default function ChecklistMemo({
             type: 'toggle',
             content: title,
             children,
-            id: toggleId
+            id: toggleId,
+            level: 1
           })
           continue
         }
 
-        // 토글 시작 (제목 없음)
-        if (trimmed === '>>>') {
+        // 1차 토글 시작 (제목 없음)
+        if (trimmed === '>>') {
           const toggleId = `toggle-${toggleCounter++}`
           i++
           const children = parseUntilEnd(depth + 1)
@@ -196,7 +333,60 @@ export default function ChecklistMemo({
             type: 'toggle',
             content: '', // 제목 없음
             children,
-            id: toggleId
+            id: toggleId,
+            level: 1
+          })
+          continue
+        }
+
+        // 2차 토글 (>> ~ << 사이에서만 인식, depth > 0)
+        if (depth > 0 && trimmed.startsWith('> ')) {
+          const title = trimmed.substring(2)
+          const toggleId = `toggle-${toggleCounter++}`
+          i++
+          
+          // 2차 토글의 자식: 다음 토글(> 또는 >>)이나 << 가 나올 때까지
+          const children: ParsedBlock[] = []
+          while (i < lines.length) {
+            const nextLine = lines[i].trim()
+            // 다음 토글이나 종료 마커를 만나면 중단
+            if (nextLine === '<<' || nextLine.startsWith('> ') || nextLine.startsWith('>> ') || nextLine === '>>') {
+              break
+            }
+            
+            // 일반 텍스트나 체크박스 등을 자식으로 추가
+            if (nextLine) {
+              // 체크박스
+              if (nextLine.startsWith('[] ')) {
+                children.push({
+                  type: 'checkbox',
+                  content: nextLine.substring(3),
+                  id: `line-${i}`
+                })
+              } else if (nextLine.startsWith('[x] ') || nextLine.startsWith('[X] ')) {
+                children.push({
+                  type: 'checkbox-checked',
+                  content: nextLine.substring(4),
+                  id: `line-${i}`
+                })
+              } else {
+                // 일반 텍스트
+                children.push({
+                  type: 'text',
+                  content: nextLine,
+                  id: `line-${i}`
+                })
+              }
+            }
+            i++
+          }
+          
+          blocks.push({
+            type: 'toggle',
+            content: title,
+            children,
+            id: toggleId,
+            level: 2
           })
           continue
         }
@@ -264,6 +454,19 @@ export default function ChecklistMemo({
   // ========== 토글 상태 관리 ==========
 
   const toggleExpand = (id: string) => {
+    // 토글 중임을 표시
+    isTogglingRef.current = true
+    
+    if (!viewContainerRef.current) return
+    
+    // 토글 버튼의 현재 위치 찾기
+    const toggleButton = viewContainerRef.current.querySelector(`[data-toggle-id="${id}"]`)
+    const containerRect = viewContainerRef.current.getBoundingClientRect()
+    const toggleRect = toggleButton?.getBoundingClientRect()
+    
+    // 토글 버튼의 컨테이너 상단으로부터의 상대 위치
+    const toggleOffsetFromTop = toggleRect ? toggleRect.top - containerRect.top : 0
+    
     setExpandedToggles(prev => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -272,6 +475,54 @@ export default function ChecklistMemo({
         next.add(id)
       }
       return next
+    })
+    
+    // 토글 버튼의 위치를 유지하도록 스크롤 조정
+    requestAnimationFrame(() => {
+      if (viewContainerRef.current && toggleButton) {
+        const newToggleRect = toggleButton.getBoundingClientRect()
+        const newContainerRect = viewContainerRef.current.getBoundingClientRect()
+        const newToggleOffsetFromTop = newToggleRect.top - newContainerRect.top
+        
+        // 위치 차이만큼만 정확히 스크롤 조정 (여유 공간 없음)
+        const scrollDiff = newToggleOffsetFromTop - toggleOffsetFromTop
+        if (Math.abs(scrollDiff) > 1) { // 1px 이상 차이날 때만 조정
+          viewContainerRef.current.scrollTop += scrollDiff
+        }
+      }
+      
+      setTimeout(() => {
+        // 한 번 더 조정 (React 렌더링 완료 후)
+        if (viewContainerRef.current && toggleButton) {
+          const newToggleRect = toggleButton.getBoundingClientRect()
+          const newContainerRect = viewContainerRef.current.getBoundingClientRect()
+          const newToggleOffsetFromTop = newToggleRect.top - newContainerRect.top
+          
+          const scrollDiff = newToggleOffsetFromTop - toggleOffsetFromTop
+          if (Math.abs(scrollDiff) > 1) {
+            viewContainerRef.current.scrollTop += scrollDiff
+          }
+        }
+        
+        // 세 번째 조정 (완전한 렌더링 후)
+        setTimeout(() => {
+          if (viewContainerRef.current && toggleButton) {
+            const newToggleRect = toggleButton.getBoundingClientRect()
+            const newContainerRect = viewContainerRef.current.getBoundingClientRect()
+            const newToggleOffsetFromTop = newToggleRect.top - newContainerRect.top
+            
+            const scrollDiff = newToggleOffsetFromTop - toggleOffsetFromTop
+            if (Math.abs(scrollDiff) > 1) {
+              viewContainerRef.current.scrollTop += scrollDiff
+            }
+          }
+          
+          // 토글 완료
+          setTimeout(() => {
+            isTogglingRef.current = false
+          }, 100)
+        }, 50)
+      }, 0)
     })
   }
 
@@ -439,25 +690,36 @@ export default function ChecklistMemo({
     switch (block.type) {
       case 'toggle': {
         const isExpanded = expandedToggles.has(block.id)
+        const isLevel2 = block.level === 2
+        
         return (
-          <div key={block.id} className="my-1">
+          <div key={block.id} className={isLevel2 ? "my-0.5 ml-4" : "my-1"}>
             <button
               type="button"
+              data-toggle-id={block.id}
               onClick={(e) => {
                 e.stopPropagation()
                 toggleExpand(block.id)
               }}
-              className="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900 py-0.5 w-full text-left"
+              className={`flex items-center gap-1 text-sm hover:text-gray-900 py-0.5 w-full text-left ${
+                isLevel2 ? 'text-gray-600' : 'text-gray-700'
+              }`}
             >
               {isExpanded ? (
-                <ChevronDown size={16} className="text-gray-500 flex-shrink-0" />
+                <svg width={isLevel2 ? "12" : "16"} height={isLevel2 ? "12" : "16"} viewBox="0 0 16 16" className="text-gray-700 flex-shrink-0">
+                  <path d="M3 6 L8 11 L13 6" fill="currentColor" />
+                </svg>
               ) : (
-                <ChevronRight size={16} className="text-gray-500 flex-shrink-0" />
+                <svg width={isLevel2 ? "12" : "16"} height={isLevel2 ? "12" : "16"} viewBox="0 0 16 16" className="text-gray-700 flex-shrink-0">
+                  <path d="M6 3 L11 8 L6 13" fill="currentColor" />
+                </svg>
               )}
-              <span className="font-medium">{renderText(block.content)}</span>
+              <span className={isLevel2 ? "font-normal text-sm" : "font-medium"}>
+                {block.content ? renderText(block.content) : <span className="text-gray-400">토글</span>}
+              </span>
             </button>
             {isExpanded && block.children && block.children.length > 0 && (
-              <div className="ml-5 border-l-2 border-gray-200 pl-3 py-1 space-y-1">
+              <div className={`${isLevel2 ? 'ml-4' : 'ml-5'} border-l-2 border-gray-200 pl-3 py-1 space-y-1`}>
                 {block.children.map(renderBlock)}
               </div>
             )}
@@ -488,7 +750,6 @@ export default function ChecklistMemo({
             </button>
             <span 
               className={`text-sm flex-1 cursor-text ${isChecked ? 'text-gray-400 line-through' : 'text-gray-700'}`}
-              onClick={() => setMode('edit')}
             >
               {renderText(block.content)}
             </span>
@@ -521,7 +782,7 @@ export default function ChecklistMemo({
       case 'text':
       default:
         return (
-          <p key={block.id} className="text-sm text-gray-700 cursor-text" onClick={() => setMode('edit')}>
+          <p key={block.id} className="text-sm text-gray-700 cursor-text">
             {renderText(block.content)}
           </p>
         )
@@ -596,6 +857,47 @@ export default function ChecklistMemo({
     }, 0)
   }
 
+  // 블록 그룹의 텍스트 시작 위치 계산
+  const getBlockGroupTextPosition = (groupId: string): number => {
+    let position = 0
+    for (const group of blockGroups) {
+      if (group.id === groupId) {
+        return position
+      }
+      position += group.rawText.length + 2 // +2 for \n\n
+    }
+    return position
+  }
+
+  // 보기 모드에서 블록 클릭 시 편집 모드로 전환하며 커서 위치 설정
+  const handleBlockClick = (groupId: string, event: React.MouseEvent, blockIndex?: number) => {
+    event.stopPropagation()
+    
+    // 클릭한 블록 그룹의 시작 위치
+    const groupStartPos = getBlockGroupTextPosition(groupId)
+    
+    const group = blockGroups.find(g => g.id === groupId)
+    if (group) {
+      let cursorPos = groupStartPos
+      
+      // 특정 블록을 클릭한 경우, 해당 블록의 시작 위치로
+      if (blockIndex !== undefined && blockIndex >= 0) {
+        // 해당 블록까지의 텍스트 길이 계산
+        const blockTexts = group.rawText.split('\n')
+        for (let i = 0; i < Math.min(blockIndex, blockTexts.length); i++) {
+          cursorPos += blockTexts[i].length + 1 // +1 for \n
+        }
+      } else {
+        // 블록 그룹 전체 클릭 시 시작 위치로
+        cursorPos = groupStartPos
+      }
+      
+      setTargetCursorPos(cursorPos)
+    }
+    
+    setMode('edit')
+  }
+
   // ========== Sortable 블록 컴포넌트 ==========
   
   const SortableBlockGroup = ({ group }: { group: BlockGroup }) => {
@@ -650,7 +952,10 @@ export default function ChecklistMemo({
         </div>
         
         {/* 블록 내용 */}
-        <div className="space-y-1">
+        <div 
+          className="space-y-1"
+          onClick={(e) => handleBlockClick(group.id, e)}
+        >
           {group.blocks.map(renderBlock)}
         </div>
       </div>
@@ -673,10 +978,33 @@ export default function ChecklistMemo({
               onSave(value)
             }
           }}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => {
+            handleKeyDown(e)
+            // 키보드 입력 후 커서 위치 업데이트
+            setTimeout(() => {
+              if (textareaRef.current) {
+                setLastCursorPos(textareaRef.current.selectionStart)
+              }
+            }, 0)
+          }}
           onPaste={handlePaste}
+          onSelect={(e) => {
+            // 커서 위치 추적
+            const target = e.target as HTMLTextAreaElement
+            setLastCursorPos(target.selectionStart)
+          }}
+          onClick={(e) => {
+            // 클릭 시에도 커서 위치 추적
+            const target = e.target as HTMLTextAreaElement
+            setLastCursorPos(target.selectionStart)
+          }}
+          onInput={(e) => {
+            // 입력 시에도 커서 위치 추적
+            const target = e.target as HTMLTextAreaElement
+            setLastCursorPos(target.selectionStart)
+          }}
           placeholder={placeholder}
-          className="w-full h-full p-3 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[400px] placeholder-gray-400 text-gray-900 font-mono flex-1"
+          className="w-full h-full p-3 pb-32 bg-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[400px] placeholder-gray-400 text-gray-900 font-mono flex-1"
         />
         {isUploading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
@@ -703,9 +1031,16 @@ export default function ChecklistMemo({
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <div 
-        className={`w-full p-3 pl-14 bg-gray-50 rounded-lg min-h-[400px] cursor-text hover:bg-gray-100 transition-colors overflow-auto ${className}`}
-        onClick={() => setMode('edit')}
+      <div
+        ref={viewContainerRef}
+        className={`w-full p-3 pl-14 pb-32 bg-gray-50 rounded-lg min-h-[400px] cursor-text hover:bg-gray-100 transition-colors overflow-auto ${className}`}
+        onClick={(e) => {
+          // 빈 공간 클릭 시 맨 끝으로
+          if (e.target === e.currentTarget) {
+            setTargetCursorPos(value.length)
+            setMode('edit')
+          }
+        }}
       >
         {!value.trim() ? (
           <p className="text-sm text-gray-400">{placeholder}</p>
