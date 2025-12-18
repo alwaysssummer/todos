@@ -16,6 +16,7 @@ import type { Task, Project } from '@/types/database'
 import TaskDetailPopover from '../DetailPopover'
 import ProjectCreateModal from '../ProjectCreateModal'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
+import { useTaskFilters } from '@/hooks/useTaskFilters'
 import { createTaskFromInput } from '@/utils/taskActions'
 
 // 분리된 컴포넌트들
@@ -51,6 +52,21 @@ export default function LeftPanel({
 
   // Notion Links 상태
   const { links: notionLinks, createLink, updateLink, deleteLink, reorderLinks } = useNotionLinks()
+  
+  // Task Filters
+  const {
+    theFocusTasks,
+    focusTasks,
+    todayTasks,
+    waitingTasks,
+    inboxTasks,
+    completedTasks,
+    noteTasks,
+    activeNotes,
+    completedNotes,
+    archivedNotes,
+    recentTasks
+  } = useTaskFilters(tasks, uiState.selectedProjectId)
 
   // ===== Sensors =====
   const sensors = useSensors(
@@ -86,61 +102,7 @@ export default function LeftPanel({
     }
   })
 
-  // ===== Constants =====
-  const todayStr = new Date().toISOString().split('T')[0]
-
-  // ===== Task Filters =====
-  // THE FOCUS: 장기 집중 관리 태스크
-  const theFocusTasks = tasks.filter(t => 
-    t.is_the_focus && t.status !== 'completed' && t.status !== 'waiting' && 
-    !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
-  )
-
-  const focusTasks = tasks.filter(t => 
-    t.is_top5 && !t.is_the_focus && t.status !== 'completed' && t.status !== 'waiting' && 
-    !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
-  )
-
-  // Today's Task: due_date가 오늘 또는 과거인 태스크 (자정이 지나도 유지됨)
-  const todayTasks = tasks.filter(t => 
-    !t.is_top5 && !t.is_the_focus && t.due_date && t.due_date.split('T')[0] <= todayStr && 
-    t.status !== 'completed' && t.status !== 'waiting' && 
-    !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
-  )
-
-  const waitingTasks = tasks.filter(t => 
-    t.status === 'waiting' && !t.is_the_focus && !t.is_auto_generated && !t.is_makeup && !t.parent_id && t.type !== 'note'
-  )
-
-  // Inbox: due_date가 없는 태스크
-  const inboxTasks = useMemo(() => {
-    let filtered = tasks.filter(t => 
-      t.status !== 'completed' && t.status !== 'waiting' && 
-      !t.is_auto_generated && !t.is_makeup && !t.is_top5 && !t.is_the_focus &&
-      !t.due_date && !t.parent_id && t.type !== 'note'
-    )
-    if (uiState.selectedProjectId) {
-      filtered = filtered.filter(t => t.project_id === uiState.selectedProjectId)
-    }
-    return filtered.sort((a, b) => {
-      const isYellowA = a.status === 'scheduled'
-      const isYellowB = b.status === 'scheduled'
-      if (isYellowA && !isYellowB) return -1
-      if (!isYellowA && isYellowB) return 1
-      return (a.order_index || 0) - (b.order_index || 0)
-    })
-  }, [tasks, uiState.selectedProjectId, todayStr])
-
-  const completedTasks = tasks.filter(t => 
-    t.status === 'completed' && !t.is_auto_generated && t.type !== 'note'
-  )
-
-  const noteTasks = tasks.filter(t => t.type === 'note' && !t.is_auto_generated && !t.is_archived)
-  const activeNotes = noteTasks.filter(t => t.status !== 'completed')
-  const completedNotes = noteTasks.filter(t => t.status === 'completed')
-  const archivedNotes = tasks.filter(t => t.type === 'note' && !t.is_auto_generated && t.is_archived)
-
-  // 태그 개수 계산
+  // ===== Tag Count =====
   const tagCount = useMemo(() => {
     const uniqueTags = new Set<string>()
     tasks.forEach(task => {
@@ -149,22 +111,6 @@ export default function LeftPanel({
       }
     })
     return uniqueTags.size
-  }, [tasks])
-
-  // 최근 생성된 태스크/노트 5개 (완료되지 않은 것, Focus/Today's Task/THE FOCUS 제외)
-  const recentTasks = useMemo(() => {
-    return [...tasks]
-      .filter(t => 
-        t.status !== 'completed' && 
-        !t.is_auto_generated && 
-        !t.is_makeup && 
-        !t.parent_id &&
-        !t.is_top5 &&       // Today's Focus 제외
-        !t.is_the_focus &&  // THE FOCUS 제외
-        !t.due_date         // Today's Task 제외
-      )
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5)
   }, [tasks])
 
   // ===== Helper Functions =====
