@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo, useCallback } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -116,10 +116,10 @@ export default function LeftPanel({
   }, [tasks])
 
   // ===== Helper Functions =====
-  const getTaskSubtasks = (parentId: string) => getSubtasks(tasks, parentId)
+  const getTaskSubtasks = useCallback((parentId: string) => getSubtasks(tasks, parentId), [tasks])
 
   // ===== Handlers =====
-  const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const input = formState.newTaskTitle.trim()
     if (!input) return
 
@@ -147,15 +147,15 @@ export default function LeftPanel({
       )
       formDispatch({ type: 'RESET_TASK_FORM' })
     }
-  }
+  }, [formState.newTaskTitle, createTask, formDispatch, uiDispatch])
 
-  const handleTaskClick = (e: React.MouseEvent, task: Task) => {
+  const handleTaskClick = useCallback((e: React.MouseEvent, task: Task) => {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
     uiDispatch({ type: 'SET_POPOVER_POSITION', payload: { x: rect.right + 10, y: rect.top } })
     uiDispatch({ type: 'SET_SELECTED_TASK', payload: task })
-  }
+  }, [uiDispatch])
 
-  const handleCreateNotionLink = async () => {
+  const handleCreateNotionLink = useCallback(async () => {
     if (!formState.newLinkTitle.trim() || !formState.newLinkUrl.trim()) { alert('제목과 링크를 모두 입력해주세요.'); return }
     await tryCatch(
       async () => await createLink({ title: formState.newLinkTitle, url: formState.newLinkUrl, order_index: notionLinks.length }),
@@ -163,13 +163,13 @@ export default function LeftPanel({
     )
     formDispatch({ type: 'RESET_LINK_FORM' })
     uiDispatch({ type: 'TOGGLE_NOTION_LINK_MODAL', payload: false })
-  }
+  }, [formState.newLinkTitle, formState.newLinkUrl, createLink, notionLinks.length, formDispatch, uiDispatch])
 
-  const handleDeleteNotionLink = async (id: string) => {
+  const handleDeleteNotionLink = useCallback(async (id: string) => {
     if (confirm('이 프로젝트 링크를 삭제하시겠습니까?')) { await deleteLink(id) }
-  }
+  }, [deleteLink])
 
-  const handleToggleComplete = (task: Task) => {
+  const handleToggleComplete = useCallback((task: Task) => {
     savedScrollPositionRef.current = inboxScrollRef.current?.scrollTop || 0
     shouldRestoreScrollRef.current = true
     if (task.status !== 'completed') {
@@ -183,14 +183,15 @@ export default function LeftPanel({
     } else {
       toggleTaskStatus(task.id, task.status)
     }
-  }
+  }, [toggleTaskStatus, uiDispatch])
 
-  const handleCreateProject = async (project: Partial<Project>) => await createProject(project)
-  const handleConvertType = async (task: Task, newType: 'task' | 'note') => await updateTask(task.id, { type: newType })
-  const handleToggleExpand = (taskId: string) => {
+  const handleCreateProject = useCallback(async (project: Partial<Project>) => await createProject(project), [createProject])
+  const handleConvertType = useCallback(async (task: Task, newType: 'task' | 'note') => await updateTask(task.id, { type: newType }), [updateTask])
+  const handleToggleExpand = useCallback((taskId: string) => {
     uiDispatch({ type: 'TOGGLE_TASK_EXPAND', payload: taskId })
-  }
-  const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
+  }, [uiDispatch])
+  
+  const handleChecklistToggle = useCallback(async (task: Task, lineIndex: number, newCompleted: boolean) => {
     const updatedDescription = toggleChecklistItem(task, lineIndex, newCompleted)
     if (updatedDescription) {
       await tryCatch(
@@ -198,9 +199,9 @@ export default function LeftPanel({
         '체크리스트 토글'
       )
     }
-  }
+  }, [updateTask])
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     await tryCatch(
       async () => await handleTaskDragEnd(
         event,
@@ -213,7 +214,7 @@ export default function LeftPanel({
       ),
       '드래그앤드롭'
     )
-  }
+  }, [tasks, focusTasks, todayTasks, updateTask, reorderTasks, reorderLinks])
 
   // ===== Render =====
   return (
