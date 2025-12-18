@@ -1,5 +1,6 @@
 import { Task } from '@/types/database'
 import { isSameDay } from 'date-fns'
+import { getKoreanToday } from './dateUtils'
 
 /**
  * 블록 기반 Task 시스템 호환성 헬퍼
@@ -42,7 +43,7 @@ export function getTop5Tasks(tasks: Task[]): Task[] {
  * - 중첩 Task 제외 (루트만)
  */
 export function getTodayTasks(tasks: Task[]): Task[] {
-  const today = new Date()
+  const today = getKoreanToday()
   return tasks.filter(t =>
     t.due_date &&
     isSameDay(new Date(t.due_date), today) &&

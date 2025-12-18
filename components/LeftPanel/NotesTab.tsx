@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Check, FileText, Archive, ChevronDown, ChevronRight, X, Trash2 } from 'lucide-react'
 import type { Task } from '@/types/database'
 import SortableTaskItem from './SortableTaskItem'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface NotesTabProps {
   noteTasks: Task[]
@@ -42,7 +43,7 @@ export default function NotesTab({
   onDelete,
   onClearCompleted
 }: NotesTabProps) {
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
   const [showCompleted, setShowCompleted] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
 

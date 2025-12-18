@@ -10,6 +10,7 @@ import { DailyNoteModal } from './DailyNoteModal'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
 import { useRoutines } from '@/hooks/useRoutines'
 import RoutineDashboardModal from './RoutineDashboardModal'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface CenterPanelProps {
   tasks: Task[]
@@ -519,7 +520,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
     return d
   }
 
-  const today = new Date()
+  const today = getKoreanToday()
   const weekStart = getWeekStart(currentDate)
   const weekDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart)
@@ -685,7 +686,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
   // 초기 스크롤 위치 설정
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const day = new Date().getDay()
+      const day = getKoreanToday().getDay()
       const isWeekend = day === 0 || day === 6 // 0: 일요일, 6: 토요일
 
       // 평일은 12시(오후 12시), 주말은 9시부터 보이도록 설정
@@ -787,7 +788,7 @@ export default function CenterPanel({ tasks = [], createTask, updateTask, delete
             <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-0">
               <div className="w-12 border-r border-gray-100 bg-gray-50"></div>
               {days.map((day, i) => {
-                const isToday = now ? isSameDay(weekDates[i], now) : isSameDay(weekDates[i], new Date())
+                const isToday = now ? isSameDay(weekDates[i], now) : isSameDay(weekDates[i], today)
                 const dailyNote = getNoteByDate(weekDates[i])
                 const isWeekend = i >= 5 // 토(5), 일(6)
                 return (

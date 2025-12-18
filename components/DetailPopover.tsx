@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { extractTags, extractAllTags } from '@/utils/textParser'
 import ChapterGrid from './ChapterGrid'
 import ChecklistMemo from './ChecklistMemo'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface TaskDetailPopoverProps {
     task: Task
@@ -42,8 +43,8 @@ export default function TaskDetailPopover({ task, updateTask, deleteTask, onClos
     // Top 5 상태 (실시간 업데이트용)
     const [isTop5, setIsTop5] = useState(task.is_top5 || false)
     
-    // Today's Task 상태 (실시간 업데이트용)
-    const todayStr = new Date().toISOString().split('T')[0]
+    // Today's Task 상태 (실시간 업데이트용) - 한국 시간 기준
+    const todayStr = getKoreanToday().toISOString().split('T')[0]
     const [isTodayTask, setIsTodayTask] = useState(task.due_date?.split('T')[0] === todayStr)
 
     // 보관 상태 (실시간 업데이트용)

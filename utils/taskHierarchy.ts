@@ -1,11 +1,12 @@
 import type { Task } from '@/types/database'
+import { getKoreanToday } from './dateUtils'
 
 // 태스크 계층 올리기
 export async function moveTaskUp(
   task: Task,
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
 ) {
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
   const updates: Partial<Task> = {}
   
   // 더 포커스에서는 올릴 수 없음
@@ -34,7 +35,7 @@ export async function moveTaskDown(
   const updates: Partial<Task> = {}
   
   // 인박스에서는 내릴 수 없음
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
   const isInbox = !task.is_the_focus && !task.is_top5 && (!task.due_date || task.due_date.split('T')[0] > todayStr)
   if (isInbox) return
   

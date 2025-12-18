@@ -5,6 +5,7 @@ import { FileText, Check, Archive, ChevronDown, ChevronRight } from 'lucide-reac
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import MobileTaskDetailView from './MobileTaskDetailView'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface MobileNotesViewProps {
   tasks: Task[]
@@ -25,7 +26,7 @@ export default function MobileNotesView({
   const [showArchived, setShowArchived] = useState(false)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
 
   // 노트 타입 필터링
   const noteTasks = tasks.filter(t => t.type === 'note')

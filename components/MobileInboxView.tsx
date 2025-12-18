@@ -7,6 +7,7 @@ import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import { moveTaskUp, moveTaskDown } from '@/utils/taskHierarchy'
 import MobileTaskDetailView from './MobileTaskDetailView'
 import SwipeableTaskItem from './SwipeableTaskItem'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -133,7 +134,7 @@ export default function MobileInboxView({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [swipingTaskId, setSwipingTaskId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
 
   // INBOX 필터링 (LeftPanel과 동일)
   // 더포커스/투데이즈 포커스/투데이즈 테스크에 배정되지 않은 나머지 테스크만 (노트 제외)

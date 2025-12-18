@@ -247,7 +247,8 @@ export async function handleTaskDragEnd(
 
   const realActiveId = extractRealId(activeId)
   const realOverId = extractRealId(overId)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const { getKoreanToday } = require('./dateUtils')
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
 
   // 컨테이너로 드롭
   const containerIds = ['the-focus-container', 'focus-container', 'today-container', 'inbox-container', 'waiting-container']

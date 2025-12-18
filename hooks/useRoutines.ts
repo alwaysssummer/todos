@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Routine, RoutineLog, RoutineStats, RoutineCalendarLog, RoutineRecentNote } from '@/types/database'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 export function useRoutines() {
   const [routines, setRoutines] = useState<Routine[]>([])
@@ -10,15 +11,15 @@ export function useRoutines() {
   const [weekLogs, setWeekLogs] = useState<RoutineLog[]>([])  // 주간 로그
   const [loading, setLoading] = useState(true)
 
-  // 오늘 날짜 (YYYY-MM-DD)
+  // 오늘 날짜 (YYYY-MM-DD) - 한국 시간 기준
   const today = useMemo(() => {
-    const now = new Date()
+    const now = getKoreanToday()
     return now.toISOString().split('T')[0]
   }, [])
 
-  // 오늘 요일 (0=일, 1=월, ... 6=토)
+  // 오늘 요일 (0=일, 1=월, ... 6=토) - 한국 시간 기준
   const todayDayOfWeek = useMemo(() => {
-    return new Date().getDay()
+    return getKoreanToday().getDay()
   }, [])
 
   // ===== 루틴 조회 =====
@@ -324,7 +325,7 @@ export function useRoutines() {
       return null
     }
 
-    const now = new Date()
+    const now = getKoreanToday()
     const weekStart = new Date(now)
     weekStart.setDate(now.getDate() - now.getDay()) // 이번 주 일요일
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)

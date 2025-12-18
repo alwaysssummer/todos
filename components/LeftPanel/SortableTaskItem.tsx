@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Check, Pencil, FileText } from 'lucide-react'
 import type { Task } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface SortableTaskItemProps {
   id?: string
@@ -75,8 +76,8 @@ export default function SortableTaskItem({
   const isCompleted = task.status === 'completed'
   const isScheduled = task.status === 'scheduled'
 
-  // 오늘 날짜인지 확인
-  const todayStr = new Date().toISOString().split('T')[0]
+  // 오늘 날짜인지 확인 (한국 시간 기준)
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
   const isToday = task.due_date?.split('T')[0] === todayStr
   
   // 메모에서 체크리스트 파싱

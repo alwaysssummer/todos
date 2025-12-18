@@ -8,6 +8,7 @@ import { parseChecklistFromMemo } from '@/utils/checklistParser'
 import { moveTaskUp, moveTaskDown } from '@/utils/taskHierarchy'
 import MobileTaskDetailView from './MobileTaskDetailView'
 import SwipeableTaskItem from './SwipeableTaskItem'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 // 애니메이션 체크박스 컴포넌트
 interface AnimatedCheckboxProps {
@@ -128,7 +129,7 @@ export default function MobileTodayView({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [swipingTaskId, setSwipingTaskId] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
 
   // 모바일에서 오늘 화면 진입 시 자동으로 입력창 포커스
   useEffect(() => {

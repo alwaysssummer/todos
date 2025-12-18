@@ -56,7 +56,8 @@ export function toggleChecklistItem(
  */
 export function isOverdue(task: Task): boolean {
   if (!task.due_date) return false
-  const todayStr = new Date().toISOString().split('T')[0]
+  const { getKoreanToday } = require('./dateUtils')
+  const todayStr = getKoreanToday().toISOString().split('T')[0]
   return task.due_date.split('T')[0] <= todayStr
 }
 

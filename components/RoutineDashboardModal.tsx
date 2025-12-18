@@ -21,6 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Routine, RoutineStats, RoutineCalendarLog, RoutineRecentNote } from '@/types/database'
 import { useRoutines } from '@/hooks/useRoutines'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -240,7 +241,7 @@ function StatsView({
   const logMap = new Map<string, RoutineCalendarLog>()
   calendarLogs.forEach(log => logMap.set(log.date, log))
 
-  const today = new Date()
+  const today = getKoreanToday()
   const todayStr = today.toISOString().split('T')[0]
 
   const goToPrevMonth = () => {

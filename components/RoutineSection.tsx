@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Check, Plus, GripVertical, Pencil, X, FileText, BarChart3, ChevronLeft, ChevronRight, Flame, Trophy, Clock, Target, Calendar, TrendingUp } from 'lucide-react'
 import { Routine, RoutineLog, RoutineStats, RoutineCalendarLog, RoutineRecentNote } from '@/types/database'
 import { useRoutines } from '@/hooks/useRoutines'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 // 요일 표시용 상수
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
@@ -395,8 +396,8 @@ function StatsModal({
     }
   }
 
-  // 오늘 날짜
-  const today = new Date()
+  // 오늘 날짜 (한국 시간 기준)
+  const today = getKoreanToday()
   const todayStr = today.toISOString().split('T')[0]
   const isCurrentMonth = today.getFullYear() === currentYear && today.getMonth() + 1 === currentMonth
 
@@ -745,7 +746,7 @@ export default function RoutineSection() {
 
   // 통계 조회
   const handleShowStats = async (routine: Routine) => {
-    const now = new Date()
+    const now = getKoreanToday()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
     

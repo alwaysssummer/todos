@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Task } from '@/types/database'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 /**
  * 태스크 필터링 결과
@@ -44,7 +45,7 @@ export function useTaskFilters(
   tasks: Task[],
   selectedProjectId: string | null = null
 ): TaskFilters {
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const todayStr = useMemo(() => getKoreanToday().toISOString().split('T')[0], [])
 
   // THE FOCUS: 장기 집중 관리 태스크
   const theFocusTasks = useMemo(() => {

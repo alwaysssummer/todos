@@ -15,6 +15,7 @@ import { useTextbookGroups } from '@/hooks/useTextbookGroups'
 import { useTextbookSubgroups } from '@/hooks/useTextbookSubgroups'
 import { useDailyNotes } from '@/hooks/useDailyNotes'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface RightPanelProps {
   projects: Project[]
@@ -195,8 +196,7 @@ export default function RightPanel({ projects, createProject, updateProject, del
               const startDayOfWeek = firstDay.getDay()
               const emptyDays = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1
 
-              const today = new Date()
-              today.setHours(0, 0, 0, 0)
+              const today = getKoreanToday()
 
               // 이전 달의 날짜들로 채우기 (한 주만큼만)
               const prevMonth = month === 0 ? 11 : month - 1
@@ -384,8 +384,8 @@ export default function RightPanel({ projects, createProject, updateProject, del
               {/* 2줄: 금액 통계 */}
               <div className="flex items-center gap-2 text-xs">
                 {(() => {
-                  // 현재 월 계산 (YYYY-MM 형식)
-                  const now = new Date()
+                  // 현재 월 계산 (YYYY-MM 형식) - 한국 시간 기준
+                  const now = getKoreanToday()
                   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
                   
                   // 현재 월 납부 여부 확인 함수
@@ -453,8 +453,8 @@ export default function RightPanel({ projects, createProject, updateProject, del
                         {project.start_date && (
                           <span className={`text-xs flex-shrink-0 ${
                             (() => {
-                              // 현재 월 계산
-                              const now = new Date()
+                              // 현재 월 계산 - 한국 시간 기준
+                              const now = getKoreanToday()
                               const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
                               
                               // 현재 월 납부 완료 시 녹색

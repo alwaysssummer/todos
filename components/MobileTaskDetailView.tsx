@@ -6,6 +6,7 @@ import { ko } from 'date-fns/locale'
 import { ChevronLeft, Check, Trash2, Star, Calendar, ChevronUp, ChevronDown } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import { parseChecklistFromMemo } from '@/utils/checklistParser'
+import { getKoreanToday } from '@/utils/dateUtils'
 
 interface MobileTaskDetailViewProps {
   task: Task
@@ -67,7 +68,7 @@ export default function MobileTaskDetailView({
 
   // 현재 위계 파악 (0: 인박스, 1: 투데이즈 테스크, 2: 투데이즈 포커스, 3: 더 포커스)
   const getCurrentHierarchy = (): number => {
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = getKoreanToday().toISOString().split('T')[0]
     if (task.is_the_focus) return 3
     if (task.is_top5) return 2
     if (task.due_date && task.due_date.split('T')[0] <= todayStr) return 1
@@ -76,7 +77,7 @@ export default function MobileTaskDetailView({
 
   // 위계 상승
   const moveUp = async () => {
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = getKoreanToday().toISOString().split('T')[0]
     const current = getCurrentHierarchy()
     if (current >= 3) return
 
@@ -99,6 +100,7 @@ export default function MobileTaskDetailView({
 
   // 위계 하강
   const moveDown = async () => {
+    const todayStr = getKoreanToday().toISOString().split('T')[0]
     const current = getCurrentHierarchy()
     if (current <= 0) return
 
@@ -109,6 +111,7 @@ export default function MobileTaskDetailView({
       updates.is_top5 = true
     } else if (current === 2) { // 투데이즈 포커스 → 투데이즈 테스크
       updates.is_top5 = false
+      updates.due_date = todayStr // Today's Task가 되려면 due_date 필요
     } else if (current === 1) { // 투데이즈 테스크 → 인박스
       updates.due_date = null
     }
