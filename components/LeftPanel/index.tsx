@@ -15,8 +15,8 @@ import { Check, X, Trash2 } from 'lucide-react'
 import type { Task, Project } from '@/types/database'
 import TaskDetailPopover from '../DetailPopover'
 import ProjectCreateModal from '../ProjectCreateModal'
-import { extractTags, splitTitleAndDescription, extractAllTags } from '@/utils/textParser'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
+import { createTaskFromInput } from '@/utils/taskActions'
 
 // 분리된 컴포넌트들
 import MainTab from './MainTab'
@@ -174,41 +174,29 @@ export default function LeftPanel({
 
   // ===== Handlers =====
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const input = formState.newTaskTitle.trim()
+    if (!input) return
+
+    // Shift+Enter: 노트 생성 후 상세 팝오버 열기
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault()
-      if (!formState.newTaskTitle.trim()) return
-      let title = formState.newTaskTitle.trim()
-      let isTop5 = false
-      let dueDate: string | undefined = undefined
-      if (title.startsWith('*')) { isTop5 = true; title = title.substring(1).trim() }
-      else if (title.startsWith('/')) { dueDate = new Date().toISOString(); title = title.substring(1).trim() }
-      const { title: splitTitle, description } = splitTitleAndDescription(title)
-      const { cleanTitle } = extractTags(splitTitle)
-      // 제목 + 메모 모두에서 태그 추출
-      const allTags = extractAllTags(splitTitle, description)
       try {
-        const newTask = await createTask({ title: cleanTitle, description, status: 'inbox', is_top5: isTop5, due_date: dueDate, tags: allTags.length > 0 ? allTags : undefined, type: 'note' })
+        const newTask = await createTaskFromInput(input, createTask, 'note')
         formDispatch({ type: 'RESET_TASK_FORM' })
-        if (newTask) { 
+        if (newTask) {
           uiDispatch({ type: 'SET_SELECTED_TASK', payload: newTask })
           uiDispatch({ type: 'SET_POPOVER_POSITION', payload: { x: window.innerWidth / 2 - 450, y: 100 } })
         }
-      } catch (err) { console.error('노트 생성 에러:', err) }
+      } catch (err) {
+        console.error('노트 생성 에러:', err)
+      }
       return
     }
+
+    // Enter: 태스크 생성
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!formState.newTaskTitle.trim()) return
-      let title = formState.newTaskTitle.trim()
-      let isTop5 = false
-      let dueDate: string | undefined = undefined
-      if (title.startsWith('*')) { isTop5 = true; title = title.substring(1).trim() }
-      else if (title.startsWith('/')) { dueDate = new Date().toISOString(); title = title.substring(1).trim() }
-      const { title: splitTitle, description } = splitTitleAndDescription(title)
-      const { cleanTitle } = extractTags(splitTitle)
-      // 제목 + 메모 모두에서 태그 추출
-      const allTags = extractAllTags(splitTitle, description)
-      await createTask({ title: cleanTitle, description, status: 'inbox', is_top5: isTop5, due_date: dueDate, tags: allTags.length > 0 ? allTags : undefined })
+      await createTaskFromInput(input, createTask, 'task')
       formDispatch({ type: 'RESET_TASK_FORM' })
     }
   }
