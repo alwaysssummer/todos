@@ -18,6 +18,7 @@ import ProjectCreateModal from '../ProjectCreateModal'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
 import { useTaskFilters } from '@/hooks/useTaskFilters'
 import { createTaskFromInput, handleTaskDragEnd } from '@/utils/taskActions'
+import { getSubtasks, toggleChecklistItem } from '@/utils/taskHelpers'
 
 // 분리된 컴포넌트들
 import MainTab from './MainTab'
@@ -114,9 +115,7 @@ export default function LeftPanel({
   }, [tasks])
 
   // ===== Helper Functions =====
-  const getSubtasks = (parentId: string) => {
-    return tasks.filter(t => t.parent_id === parentId).sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-  }
+  const getTaskSubtasks = (parentId: string) => getSubtasks(tasks, parentId)
 
   // ===== Handlers =====
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -186,13 +185,10 @@ export default function LeftPanel({
     uiDispatch({ type: 'TOGGLE_TASK_EXPAND', payload: taskId })
   }
   const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
-    if (!task.description) return
-    const lines = task.description.split('\n')
-    const line = lines[lineIndex]
-    if (!line) return
-    if (newCompleted && line.trim().startsWith('[] ')) lines[lineIndex] = line.replace('[] ', '[x] ')
-    else if (!newCompleted && (line.trim().startsWith('[x] ') || line.trim().startsWith('[X] '))) lines[lineIndex] = line.replace(/\[[xX]\] /, '[] ')
-    await updateTask(task.id, { description: lines.join('\n') })
+    const updatedDescription = toggleChecklistItem(task, lineIndex, newCompleted)
+    if (updatedDescription) {
+      await updateTask(task.id, { description: updatedDescription })
+    }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -253,7 +249,7 @@ export default function LeftPanel({
               completingIds={uiState.completingIds} expandedTaskIds={uiState.expandedTaskIds}
               onTaskClick={handleTaskClick} onToggleComplete={handleToggleComplete}
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}
-              onConvertType={handleConvertType} getSubtasks={getSubtasks}
+              onConvertType={handleConvertType} getSubtasks={getTaskSubtasks}
               toggleTaskStatus={toggleTaskStatus}
             />
           </DndContext>
@@ -267,7 +263,7 @@ export default function LeftPanel({
               isCompletedExpanded={uiState.isCompletedExpanded} inboxScrollRef={inboxScrollRef}
               onTaskClick={handleTaskClick} onToggleComplete={handleToggleComplete}
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}
-              onConvertType={handleConvertType} getSubtasks={getSubtasks}
+              onConvertType={handleConvertType} getSubtasks={getTaskSubtasks}
               toggleTaskStatus={toggleTaskStatus} 
               setIsCompletedExpanded={(value) => uiDispatch({ type: 'TOGGLE_COMPLETED_EXPANDED', payload: value })}
               setShowAllCompletedModal={(value) => uiDispatch({ type: 'TOGGLE_ALL_COMPLETED_MODAL', payload: value })} 
@@ -283,7 +279,7 @@ export default function LeftPanel({
               completingIds={uiState.completingIds} expandedTaskIds={uiState.expandedTaskIds}
               onTaskClick={handleTaskClick} onToggleComplete={handleToggleComplete}
               onChecklistToggle={handleChecklistToggle} onToggleExpand={handleToggleExpand}
-              onConvertType={handleConvertType} getSubtasks={getSubtasks} toggleTaskStatus={toggleTaskStatus}
+              onConvertType={handleConvertType} getSubtasks={getTaskSubtasks} toggleTaskStatus={toggleTaskStatus}
               onUnarchive={(task) => updateTask(task.id, { is_archived: false })}
               onDelete={(task) => deleteTask(task.id)}
               onClearCompleted={() => {
