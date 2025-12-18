@@ -17,7 +17,7 @@ import TaskDetailPopover from '../DetailPopover'
 import ProjectCreateModal from '../ProjectCreateModal'
 import { useNotionLinks } from '@/hooks/useNotionLinks'
 import { useTaskFilters } from '@/hooks/useTaskFilters'
-import { createTaskFromInput } from '@/utils/taskActions'
+import { createTaskFromInput, handleTaskDragEnd } from '@/utils/taskActions'
 
 // 분리된 컴포넌트들
 import MainTab from './MainTab'
@@ -196,52 +196,15 @@ export default function LeftPanel({
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over) return
-    const activeId = active.id as string
-    const overId = over.id as string
-
-    if (activeId.startsWith('notion-link-') && overId.startsWith('notion-link-')) {
-      const realActiveId = activeId.replace('notion-link-', '')
-      const realOverId = overId.replace('notion-link-', '')
-      if (realActiveId !== realOverId) await reorderLinks(realActiveId, realOverId)
-      return
-    }
-
-    const realActiveId = activeId.replace(/-inbox$/, '').replace(/-waiting$/, '').replace(/-note$/, '')
-    const realOverId = overId.replace(/-inbox$/, '').replace(/-waiting$/, '').replace(/-note$/, '')
-
-    if (['the-focus-container', 'focus-container', 'today-container', 'inbox-container', 'waiting-container'].includes(overId)) {
-      const task = tasks.find(t => t.id === realActiveId)
-      if (!task) return
-      const updates: Partial<Task> = {}
-      if (overId === 'the-focus-container') { updates.is_the_focus = true; updates.is_top5 = false; updates.due_date = undefined; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
-      else if (overId === 'focus-container') { updates.is_top5 = true; updates.is_the_focus = false; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
-      else if (overId === 'today-container') { updates.is_top5 = false; updates.is_the_focus = false; updates.due_date = todayStr; updates.status = task.status === 'waiting' ? 'inbox' : task.status }
-      else if (overId === 'inbox-container') { updates.is_top5 = false; updates.is_the_focus = false; updates.due_date = undefined; updates.status = 'inbox' }
-      else if (overId === 'waiting-container') { updates.status = 'waiting'; updates.is_top5 = false; updates.is_the_focus = false; updates.due_date = null; updates.start_time = null; updates.duration = null }
-      if (Object.keys(updates).length > 0) await updateTask(realActiveId, updates)
-      return
-    }
-
-    if (activeId !== overId) {
-      const activeTask = tasks.find(t => t.id === realActiveId)
-      const overTask = tasks.find(t => t.id === realOverId)
-      if (activeTask && overTask) {
-        const isOverInboxList = overId.endsWith('-inbox')
-        const isOverWaitingList = overId.endsWith('-waiting')
-        const isOverFocusList = focusTasks.some(t => t.id === realOverId) && !isOverInboxList && !isOverWaitingList
-        const isOverTodayList = todayTasks.some(t => t.id === realOverId) && !isOverInboxList && !isOverWaitingList
-        const updates: Partial<Task> = {}
-        let shouldUpdate = false
-        if (isOverFocusList && (!activeTask.is_top5 || activeTask.status === 'waiting')) { updates.is_top5 = true; if (activeTask.status === 'waiting') updates.status = 'inbox'; shouldUpdate = true }
-        else if (isOverTodayList && (activeTask.is_top5 || !activeTask.due_date || activeTask.status === 'waiting')) { updates.is_top5 = false; updates.due_date = todayStr; if (activeTask.status === 'waiting') updates.status = 'inbox'; shouldUpdate = true }
-        else if (isOverWaitingList && activeTask.status !== 'waiting') { updates.status = 'waiting'; updates.is_top5 = false; updates.due_date = null; updates.start_time = null; updates.duration = null; shouldUpdate = true }
-        else if (isOverInboxList) { if (activeTask.status === 'waiting') { updates.status = 'inbox'; updates.is_top5 = false; updates.due_date = undefined; shouldUpdate = true } else if (!activeId.endsWith('-inbox')) { updates.is_top5 = false; updates.due_date = undefined; shouldUpdate = true } }
-        if (shouldUpdate) await updateTask(realActiveId, updates)
-        else reorderTasks(realActiveId, realOverId)
-      }
-    }
+    await handleTaskDragEnd(
+      event,
+      tasks,
+      focusTasks,
+      todayTasks,
+      updateTask,
+      reorderTasks,
+      reorderLinks
+    )
   }
 
   // ===== Render =====
