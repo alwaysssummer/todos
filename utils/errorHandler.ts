@@ -166,13 +166,15 @@ export async function executeParallel<T>(
     operations.map(({ fn }) => fn())
   )
 
-  return results
-    .map((result, index) => {
-      if (result.status === 'rejected') {
-        handleError(result.reason, operations[index].context)
-        return null
-      }
-      return result.value
-    })
-    .filter((value): value is T => value !== null)
+  const successfulResults: T[] = []
+  
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      handleError(result.reason, operations[index].context)
+    } else {
+      successfulResults.push(result.value)
+    }
+  })
+
+  return successfulResults
 }
