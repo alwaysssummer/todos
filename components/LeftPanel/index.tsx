@@ -19,6 +19,7 @@ import { useNotionLinks } from '@/hooks/useNotionLinks'
 import { useTaskFilters } from '@/hooks/useTaskFilters'
 import { createTaskFromInput, handleTaskDragEnd } from '@/utils/taskActions'
 import { getSubtasks, toggleChecklistItem } from '@/utils/taskHelpers'
+import { tryCatch } from '@/utils/errorHandler'
 
 // 분리된 컴포넌트들
 import MainTab from './MainTab'
@@ -125,15 +126,14 @@ export default function LeftPanel({
     // Shift+Enter: 노트 생성 후 상세 팝오버 열기
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault()
-      try {
-        const newTask = await createTaskFromInput(input, createTask, 'note')
-        formDispatch({ type: 'RESET_TASK_FORM' })
-        if (newTask) {
-          uiDispatch({ type: 'SET_SELECTED_TASK', payload: newTask })
-          uiDispatch({ type: 'SET_POPOVER_POSITION', payload: { x: window.innerWidth / 2 - 450, y: 100 } })
-        }
-      } catch (err) {
-        console.error('노트 생성 에러:', err)
+      const newTask = await tryCatch(
+        async () => await createTaskFromInput(input, createTask, 'note'),
+        '노트 생성'
+      )
+      formDispatch({ type: 'RESET_TASK_FORM' })
+      if (newTask) {
+        uiDispatch({ type: 'SET_SELECTED_TASK', payload: newTask })
+        uiDispatch({ type: 'SET_POPOVER_POSITION', payload: { x: window.innerWidth / 2 - 450, y: 100 } })
       }
       return
     }
@@ -141,7 +141,10 @@ export default function LeftPanel({
     // Enter: 태스크 생성
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      await createTaskFromInput(input, createTask, 'task')
+      await tryCatch(
+        async () => await createTaskFromInput(input, createTask, 'task'),
+        '태스크 생성'
+      )
       formDispatch({ type: 'RESET_TASK_FORM' })
     }
   }
@@ -154,7 +157,10 @@ export default function LeftPanel({
 
   const handleCreateNotionLink = async () => {
     if (!formState.newLinkTitle.trim() || !formState.newLinkUrl.trim()) { alert('제목과 링크를 모두 입력해주세요.'); return }
-    await createLink({ title: formState.newLinkTitle, url: formState.newLinkUrl, order_index: notionLinks.length })
+    await tryCatch(
+      async () => await createLink({ title: formState.newLinkTitle, url: formState.newLinkUrl, order_index: notionLinks.length }),
+      '링크 생성'
+    )
     formDispatch({ type: 'RESET_LINK_FORM' })
     uiDispatch({ type: 'TOGGLE_NOTION_LINK_MODAL', payload: false })
   }
@@ -187,19 +193,25 @@ export default function LeftPanel({
   const handleChecklistToggle = async (task: Task, lineIndex: number, newCompleted: boolean) => {
     const updatedDescription = toggleChecklistItem(task, lineIndex, newCompleted)
     if (updatedDescription) {
-      await updateTask(task.id, { description: updatedDescription })
+      await tryCatch(
+        async () => await updateTask(task.id, { description: updatedDescription }),
+        '체크리스트 토글'
+      )
     }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    await handleTaskDragEnd(
-      event,
-      tasks,
-      focusTasks,
-      todayTasks,
-      updateTask,
-      reorderTasks,
-      reorderLinks
+    await tryCatch(
+      async () => await handleTaskDragEnd(
+        event,
+        tasks,
+        focusTasks,
+        todayTasks,
+        updateTask,
+        reorderTasks,
+        reorderLinks
+      ),
+      '드래그앤드롭'
     )
   }
 
