@@ -48,6 +48,13 @@ export interface Task {
     properties?: TaskProperties // 타입별 동적 속성
 }
 
+// 스케줄 템플릿 인터페이스
+export interface ScheduleTemplate {
+    day: number      // 0=일, 1=월, ... 6=토
+    time: string     // "HH:mm" 형식 (예: "07:00")
+    duration: number // 분 단위
+}
+
 export interface Project {
     id: string
     name: string
@@ -59,11 +66,7 @@ export interface Project {
     // 학생 시간표 전용
     start_date?: string  // ISO string
     end_date?: string    // ISO string, 없으면 진행 중
-    schedule_template?: {
-        day: number      // 0=일, 1=월, ... 6=토
-        time: string     // "07:00"
-        duration: number // 분 단위
-    }[]
+    schedule_template?: ScheduleTemplate[]
     textbooks?: string[]  // 배정된 교재 ID (최대 4개)
     is_private?: boolean      // 비공개 수업 여부
     tuition?: number          // 수업료 (만원 단위, 12 = 12만원)
@@ -72,7 +75,7 @@ export interface Project {
 
     // 루틴/습관 전용
     repeat_days?: number[]    // [1, 2, 3, 4, 5] = 월~금
-    target_time?: string      // "07:00"
+    target_time?: string      // "HH:mm" 형식
     target_duration?: number  // 목표 시간 (분)
 }
 
@@ -288,9 +291,14 @@ export type TaskType =
   | 'habit'          // 습관
   | 'project'        // 프로젝트
 
+// 기본 속성 타입 (확장 가능)
+export interface BaseProperties {
+  [key: string]: string | number | boolean | string[] | undefined | null
+}
+
 // 동적 속성 타입 (타입별로 다른 구조)
 export type TaskProperties = 
-  | Record<string, any>        // 기본 (모든 타입 허용)
+  | BaseProperties             // 기본 (확장 가능한 속성)
   | ExamProperties             // 시험
   | ExamQuestionProperties     // 시험 문제
   | QuizProperties             // 퀴즈
